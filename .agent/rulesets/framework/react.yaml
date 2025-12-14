@@ -1,0 +1,19 @@
+id: "framework-react"
+labels:
+  framework: "react"
+  framework_version: ">=18"
+  language: "javascript"
+owner: "SES CoE"
+status: "active"
+extends: []
+rules:
+  coding:
+    prefer:
+      - "functional_components"         # 関数コンポーネントを推奨
+      - "hooks_only"                    # クラスコンポーネントではなくフックを使用
+    forbid:
+      - "direct_dom_manipulation"       # 直接DOM操作の禁止
+  review:
+    focus:
+      - "state_management"              # 状態管理の適切な構造
+      - "side_effects_cleanup"          # useEffectのクリーンアップ確認

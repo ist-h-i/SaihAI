@@ -1,0 +1,19 @@
+id: "language-java-v17"
+labels:
+  language: "java"
+  language_version: "17"
+owner: "SES CoE"
+status: "active"
+extends: []
+rules:
+  coding:
+    prefer:
+      - "use_records"                 # データキャリアにはRecordを使用
+      - "use_stream_api"              # Stream APIを活用
+    forbid:
+      - "raw_types"                   # 生の型を使用しない
+      - "synchronized_methods"        # メソッドレベルのsynchronizedを避ける
+  review:
+    focus:
+      - "null_safety"                 # Null安全（Optionalの利用）
+      - "exception_handling"          # チェック例外/非チェック例外の適切な使い分け

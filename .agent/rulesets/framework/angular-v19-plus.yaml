@@ -1,0 +1,20 @@
+id: "framework-angular-v19-plus"
+labels:
+  framework: "angular"
+  framework_version: ">=19"
+  language: "typescript"
+owner: "SES CoE"
+status: "active"
+extends:
+  - "framework/angular-v16-plus"
+rules:
+  coding:
+    prefer:
+      - "use_hydration"                # サーバサイドレンダリングとハイドレーションの利用
+      - "signals_everywhere"            # signals を徹底的に活用
+    forbid:
+      - "zonejs_usage"                 # zone.js の使用禁止（標準で不要になる予定）
+  review:
+    focus:
+      - "component_hydration"          # ハイドレーション実装の適切さ
+      - "lazy_loading_best_practices"   # 遅延読み込みのベストプラクティス

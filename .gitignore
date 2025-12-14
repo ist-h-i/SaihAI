@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# Backend venv (uv)
+backend/.venv/
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/out-tsc/
+
+# Env
+.env
+

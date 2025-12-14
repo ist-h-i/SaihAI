@@ -1,0 +1,25 @@
+id: "framework-angular"
+labels:
+  framework: "angular"
+  framework_version: ">=15"
+  language: "typescript"
+owner: "SES CoE"
+status: "active"
+# Angular のルールは TypeScript のルールを継承する
+extends:
+  - "language/typescript"
+rules:
+  coding:
+    prefer:
+      - "standalone_components"   # 独立したコンポーネントを利用する
+    forbid:
+      - "uses_viewchild_incorrectly"  # ViewChild の誤用を禁止
+  review:
+    focus:
+      - "change_detection_strategy"
+      - "subscription_lifecycle"
+  testing:
+    required_when:
+      - "component_added"
+    acceptable_substitute:
+      - "documented_manual_test"

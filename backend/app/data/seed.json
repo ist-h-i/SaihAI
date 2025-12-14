@@ -1,0 +1,59 @@
+{
+  "projects": [
+    {
+      "id": "ec",
+      "name": "ECリニューアル(炎上)",
+      "budget": 220,
+      "requiredSkills": ["angular", "tailwind", "fastapi", "api"]
+    },
+    {
+      "id": "ops",
+      "name": "運用自動化(省力化)",
+      "budget": 140,
+      "requiredSkills": ["python", "fastapi", "api", "testing"]
+    }
+  ],
+  "members": [
+    {
+      "id": "tanaka",
+      "name": "田中 未来",
+      "cost": 95,
+      "availability": 70,
+      "skills": ["angular", "tailwind", "frontend"],
+      "notes": "週報: 疲労/飽きが増加。炎上案件が続いている。"
+    },
+    {
+      "id": "suzuki",
+      "name": "鈴木 誠",
+      "cost": 60,
+      "availability": 60,
+      "skills": ["python", "fastapi", "api", "testing"],
+      "notes": "面談: 安定志向。品質改善に前向き。"
+    },
+    {
+      "id": "yamada",
+      "name": "山田 翼",
+      "cost": 35,
+      "availability": 100,
+      "skills": ["python", "testing"],
+      "notes": "週報: 伸びしろ大。難易度が高い領域に挑戦したい。"
+    },
+    {
+      "id": "kobayashi",
+      "name": "小林 玲",
+      "cost": 70,
+      "availability": 80,
+      "skills": ["angular", "testing", "frontend"],
+      "notes": "週報: 表面上は順調だが、過去に対人トラブルがあったという噂。"
+    },
+    {
+      "id": "sato",
+      "name": "佐藤 匠(顧問)",
+      "cost": 120,
+      "availability": 20,
+      "skills": ["architecture", "security", "api"],
+      "notes": "面談: 週1レビューなら可能。高単価だがリスク低減に強い。"
+    }
+  ]
+}
+

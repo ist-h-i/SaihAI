@@ -1,0 +1,20 @@
+id: "framework-laravel"
+labels:
+  framework: "laravel"
+  framework_version: ">=9"
+  language: "php"
+owner: "SES CoE"
+status: "active"
+extends: []
+rules:
+  coding:
+    prefer:
+      - "use_dependency_injection"     # 依存性注入を利用する
+      - "use_eloquent_models"          # ORMとしてEloquentを使用
+    forbid:
+      - "use_facades_internally"       # アプリ内部でのFacade濫用禁止
+      - "mix_controller_model_logic"   # コントローラにビジネスロジックを含めない
+  review:
+    focus:
+      - "validation_rules"             # バリデーションルールが網羅されているか
+      - "database_efficiency"          # N+1クエリや不要なSQLを避けているか

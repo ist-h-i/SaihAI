@@ -1,0 +1,28 @@
+id: golden-profile-web-v1
+name: "Golden Profile: Web Development (SES Standard)"
+owner: "SES CoE"
+version: "1.0.0"
+
+# 技術横断のプロファイル。本体では適用範囲とポリシーのみを定義し、
+# 詳細な技術ルールは rulesets/ 以下に分離する。
+applies_to:
+  - stack: "angular"
+  - stack: "react"
+  - stack: "spring"
+  - stack: "node"
+
+policy:
+  # 通信OFFがデフォルト（厳格な環境での運用を想定）
+  default_mode: "offline"
+  # オンライン送信を opt‑in で許可する
+  allow_online_opt_in: true
+  # 送信範囲は差分のみ
+  send_scope: "diff_only"
+  # 送信前に必ずプレビューを実施する
+  require_send_preview: true
+
+maturity_target:
+  level: 3
+  definition: >
+    再発防止が回る、説明責任が自動化され、
+    小さな変更で安全に前進できる状態。

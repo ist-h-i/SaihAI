@@ -1,0 +1,85 @@
+version: "1.0.0"
+
+# --- 共通の大原則（全スタック） ---
+principles:
+  # 変更は小さく刻み、リスクを局所化する
+  - "Small Patch First: 変更は小さく刻む"
+  # 意図・根拠・トレードオフを説明可能にする
+  - "Explainability: 意図・根拠・トレードオフを必ず残す"
+  # 再現可能な手順と判定基準を残す
+  - "Reproducibility: 再現可能な手順と判定基準を残す"
+  # リスクを隠さず、未確定は保留する
+  - "No Silent Risk: リスクは必ず明示し、未確定は保留する"
+  # 触った場所は少しだけ良くする（目的外の大改修は禁止）
+  - "Boy Scout Rule: 触るなら少しだけ良くする（ただし目的外の大改修は禁止）"
+
+coding:
+  # 変更を提案する前に Plan テンプレが必須
+  require_plan_before_patch: true
+  # diff 出力を必須とする（何が変わるかを可視化）
+  require_diff_output: true
+  # 変更対象ファイル数の上限
+  max_files_touched: 8
+  # 変更行数の上限
+  max_lines_changed: 250
+  # 禁止されている操作一覧（暴走防止）
+  disallow_operations:
+    - "mass_rename"
+    - "wide_refactor"
+    - "dependency_major_bump"
+    - "delete_large_module"
+  # 推奨される方針（自動生成やレビュー時のガイダンス）
+  prefer:
+    - "no_api_break"
+    - "backward_compatible"
+    - "use_existing_patterns"
+    - "add_tests_when_behavior_changes"
+
+review:
+  # レビューコメントが必ず含むべき項目
+  must_include:
+    - "what_changed"        # 何が変わったか
+    - "why_changed"         # なぜ変えたか
+    - "risk_assessment"     # リスク評価
+    - "test_plan"           # どうテストするか/したか
+    - "rollback_plan"       # 戻し方（簡易で良い）
+  # 禁止されるフィードバック（品質の低いレビューを防止）
+  forbid:
+    - "vague_feedback"      # 「なんとなく良くない」禁止
+    - "personal_style_only" # 個人の好みだけの指摘禁止
+  # 集中すべき観点
+  focus:
+    - "responsibility_separation"
+    - "error_handling"
+    - "edge_cases"
+    - "performance_regression"
+    - "security_basics"
+
+testing:
+  # 振る舞い変更、バグ修正、新機能追加時はテスト必須
+  required_when:
+    - "behavior_changed"
+    - "bug_fixed"
+    - "new_feature_added"
+  # 手動テストを受け入れる場合の代替条件（MVPでは許可）
+  acceptable_substitute:
+    - "documented_manual_test"  # 手順と観測点を記録した手動テスト
+  # 良いテストのプラクティス
+  test_quality_rules:
+    - "assert_on_behavior_not_implementation"
+    - "cover_happy_and_unhappy_paths"
+    - "name_tests_by_scenario"
+
+security:
+  # 必ずチェックすべき項目
+  must_check:
+    - "secrets_not_committed"
+    - "no_sensitive_logging"
+    - "input_validation"
+    - "authz_authn_implications"
+  # 危険なパターン（発見したら即修正）
+  red_flags:
+    - "disable_tls"
+    - "eval_or_dynamic_code_exec"
+    - "sql_string_concat"
+    - "expose_pii"

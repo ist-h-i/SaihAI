@@ -1,0 +1,77 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+set "ROOT=%~dp0"
+rem Normalize ROOT to not end with "\" to avoid cmd quote parsing issues (e.g., "C:\path\")
+if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
+
+echo === SaihAI dev start ===
+echo Repo: "%ROOT%"
+echo.
+
+where npm >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] "npm" not found in PATH.
+  echo Run dev-setup.bat first (after installing Node.js^).
+  exit /b 1
+)
+
+set "BACKEND_CMD="
+where uv >nul 2>nul
+if not errorlevel 1 (
+  set "BACKEND_CMD=uv run uvicorn app.main:app --reload"
+) else (
+  where uvicorn >nul 2>nul
+  if not errorlevel 1 (
+    set "BACKEND_CMD=uvicorn app.main:app --reload"
+  ) else (
+    echo [ERROR] Neither "uv" nor "uvicorn" found in PATH.
+    echo Run dev-setup.bat first (and ensure uv is installed^).
+    exit /b 1
+  )
+)
+
+set "BACKEND_PORT=%BACKEND_PORT%"
+if "%BACKEND_PORT%"=="" set "BACKEND_PORT=8000"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:":%BACKEND_PORT% .*LISTENING"') do set "BACKEND_PORT_IN_USE=1"
+if "%BACKEND_PORT_IN_USE%"=="1" if "%BACKEND_PORT%"=="8000" if "%BACKEND_PORT%"=="%BACKEND_PORT%" (
+  echo [WARN] Port %BACKEND_PORT% is already in use. Switching backend port to 8001.
+  set "BACKEND_PORT=8001"
+)
+set "BACKEND_PORT_IN_USE="
+
+set "FRONTEND_PORT=%FRONTEND_PORT%"
+if "%FRONTEND_PORT%"=="" set "FRONTEND_PORT=4200"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:":%FRONTEND_PORT% .*LISTENING"') do set "FRONTEND_PORT_IN_USE=1"
+if "%FRONTEND_PORT_IN_USE%"=="1" if "%FRONTEND_PORT%"=="4200" if "%FRONTEND_PORT%"=="%FRONTEND_PORT%" (
+  echo [WARN] Port %FRONTEND_PORT% is already in use. Switching frontend port to 4201.
+  set "FRONTEND_PORT=4201"
+)
+set "FRONTEND_PORT_IN_USE="
+
+if not exist "%ROOT%\frontend\node_modules" (
+  echo [WARN] frontend\\node_modules not found. Run dev-setup.bat first.
+)
+
+if not exist "%ROOT%\backend\.venv" (
+  echo [WARN] backend\\.venv not found. Run dev-setup.bat first.
+)
+
+echo Starting backend...
+if /i "%NO_NEW_WINDOW%"=="1" (
+  powershell -NoProfile -Command "Start-Process -WorkingDirectory '%ROOT%\\backend' -FilePath 'uv' -ArgumentList @('run','uvicorn','app.main:app','--reload','--port','%BACKEND_PORT%')"
+) else (
+  start "SaihAI Backend" cmd /k "cd /d \"%ROOT%\\backend\" && %BACKEND_CMD% --port %BACKEND_PORT%"
+)
+
+echo Starting frontend...
+if /i "%NO_NEW_WINDOW%"=="1" (
+  powershell -NoProfile -Command "Start-Process -WorkingDirectory '%ROOT%\\frontend' -FilePath 'cmd.exe' -ArgumentList @('/c','npm','run','start','--','--port','%FRONTEND_PORT%')"
+) else (
+  start "SaihAI Frontend" cmd /k "cd /d \"%ROOT%\\frontend\" && npm run start -- --port %FRONTEND_PORT%"
+)
+
+echo.
+echo Backend:  http://localhost:%BACKEND_PORT%/api/health
+echo Frontend: http://localhost:%FRONTEND_PORT%
+exit /b 0

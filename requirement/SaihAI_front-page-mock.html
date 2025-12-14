@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SaihAI v13.0 - Final Gold</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- Design System --- */
+      :root {
+        --bg-dark: #0f172a;
+        --bg-panel: #1e293b;
+        --bg-sidebar: #020617;
+        --primary: #6366f1;
+        --accent: #d946ef;
+        --cyan: #06b6d4;
+        --danger: #f43f5e;
+        --gold: #f59e0b;
+        --success: #10b981;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --text-dim: #475569;
+        --border: #334155;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", "Yu Gothic", sans-serif;
+        background: var(--bg-dark);
+        color: var(--text-main);
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* --- Layout --- */
+      .app-container {
+        display: flex;
+        height: 100%;
+      }
+      .sidebar {
+        width: 260px;
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        z-index: 20;
+        flex-shrink: 0;
+      }
+      .logo {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 40px;
+      }
+      .nav-cat {
+        font-size: 11px;
+        color: var(--text-dim);
+        font-weight: bold;
+        text-transform: uppercase;
+        margin: 24px 0 10px 12px;
+      }
+      .nav-item {
+        padding: 12px 16px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+        color: var(--text-sub);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .nav-item:hover,
+      .nav-item.active {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--primary);
+        border-left: 3px solid var(--primary);
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: radial-gradient(
+          circle at top right,
+          #1e293b 0%,
+          #0f172a 40%
+        );
+        position: relative;
+        overflow: hidden;
+      }
+      .header {
+        height: 64px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        backdrop-filter: blur(10px);
+        background: rgba(15, 23, 42, 0.85);
+        z-index: 10;
+        flex-shrink: 0;
+      }
+      .page-title {
+        font-size: 18px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* --- Views --- */
+      .view {
+        display: none;
+        height: 100%;
+        width: 100%;
+        padding: 30px;
+        overflow-y: auto;
+        flex-direction: column;
+        gap: 24px;
+        animation: fadeIn 0.3s;
+      }
+      .view.active {
+        display: flex;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* --- Dashboard Elements --- */
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+      .card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        transition: transform 0.2s;
+      }
+      .kpi-label {
+        font-size: 11px;
+        color: var(--text-sub);
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .kpi-val {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--text-main);
+      }
+      .alert-card {
+        border-left: 4px solid var(--danger);
+        background: rgba(244, 63, 94, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .alert-card:hover {
+        background: rgba(244, 63, 94, 0.1);
+        transform: translateX(4px);
+      }
+
+      /* --- 4-Quadrant Matrix (Talent Map) --- */
+      .matrix-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: #0f172a;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      .matrix-bg {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        width: 100%;
+        height: 100%;
+      }
+      .quadrant {
+        position: relative;
+        padding: 10px;
+        transition: 0.2s;
+      }
+
+      .q-risk {
+        background: rgba(244, 63, 94, 0.08);
+        border-right: 1px dashed var(--danger);
+        border-bottom: 1px dashed var(--danger);
+      }
+      .q-star {
+        background: rgba(16, 185, 129, 0.08);
+        border-bottom: 1px dashed var(--success);
+      }
+      .q-stag {
+        background: rgba(15, 23, 42, 0.4);
+        border-right: 1px dashed var(--border);
+      }
+      .q-growth {
+        background: rgba(99, 102, 241, 0.08);
+      }
+
+      .q-label {
+        position: absolute;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 4px;
+        pointer-events: none;
+      }
+      .ql-risk {
+        top: 10px;
+        left: 10px;
+        color: var(--danger);
+        background: rgba(244, 63, 94, 0.1);
+      }
+      .ql-star {
+        top: 10px;
+        right: 10px;
+        color: var(--success);
+        background: rgba(16, 185, 129, 0.1);
+      }
+      .ql-stag {
+        bottom: 10px;
+        left: 10px;
+        color: var(--text-dim);
+      }
+      .ql-growth {
+        bottom: 10px;
+        right: 10px;
+        color: var(--primary);
+        background: rgba(99, 102, 241, 0.1);
+      }
+
+      .matrix-dot {
+        position: absolute;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        transition: transform 0.2s;
+        z-index: 10;
+      }
+      .matrix-dot:hover {
+        transform: scale(1.2);
+        z-index: 20;
+        border-color: white;
+      }
+      .matrix-dot.risk-dot {
+        box-shadow: 0 0 15px var(--danger);
+        animation: pulse-dot 2s infinite;
+      }
+
+      .axis-label {
+        position: absolute;
+        font-size: 9px;
+        color: var(--text-sub);
+        letter-spacing: 1px;
+      }
+      .axis-y {
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%) rotate(-90deg) translateY(-10px);
+      }
+      .axis-x {
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+      }
+
+      /* --- Simulator --- */
+      .sim-layout {
+        display: flex;
+        gap: 20px;
+        height: 100%;
+        min-height: 0;
+      }
+      .sim-col-left {
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .sim-col-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .selectable-item {
+        padding: 12px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: 0.2s;
+        margin-bottom: 8px;
+      }
+      .selectable-item:hover {
+        border-color: var(--primary);
+      }
+      .selectable-item.active {
+        border-color: var(--cyan);
+        background: rgba(6, 182, 212, 0.1);
+      }
+      .selectable-item.selected-mem {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.15);
+      }
+
+      .puzzle-box {
+        min-height: 120px;
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.2);
+        margin-bottom: 20px;
+        transition: 0.3s;
+      }
+      .puzzle-box.has-items {
+        border-style: solid;
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.05);
+      }
+      .puzzle-slot {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        animation: popIn 0.3s;
+        cursor: pointer;
+        position: relative;
+      }
+      .puzzle-slot:hover::after {
+        content: "×";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .timeline-box {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: auto;
+      }
+      .timeline-row {
+        display: flex;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--text-sub);
+        margin-bottom: 10px;
+        align-items: center;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        flex-shrink: 0;
+      }
+      .dot.good {
+        background: var(--success);
+        box-shadow: 0 0 8px var(--success);
+      }
+      .dot.bad {
+        background: var(--danger);
+        box-shadow: 0 0 8px var(--danger);
+      }
+      .budget-bar-bg {
+        height: 6px;
+        background: #334155;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 6px;
+      }
+      .budget-bar-fill {
+        height: 100%;
+        background: var(--cyan);
+        transition: width 0.5s ease-out, background 0.3s;
+      }
+
+      /* --- Modal (Overlay) --- */
+      .shadow-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.9);
+        backdrop-filter: blur(8px);
+        z-index: 100;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .shadow-overlay.open {
+        display: flex;
+        opacity: 1;
+      }
+      .agent-window {
+        width: 95%;
+        max-width: 1100px;
+        height: 85vh;
+        background: #0f172a;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: scale(0.95);
+        transition: transform 0.3s;
+      }
+      .shadow-overlay.open .agent-window {
+        transform: scale(1);
+      }
+
+      .aw-header {
+        height: 60px;
+        background: #020617;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        flex-shrink: 0;
+      }
+      .aw-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+      .aw-left {
+        width: 340px;
+        background: #0b1120;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .aw-right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-panel);
+        padding: 24px;
+        overflow-y: auto;
+      }
+
+      /* Chat & Log */
+      .console-box {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        font-family: "Courier New", monospace;
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .log-line {
+        display: flex;
+        gap: 8px;
+        line-height: 1.4;
+        opacity: 0;
+        animation: slideIn 0.2s forwards;
+      }
+      .log-tag {
+        padding: 1px 6px;
+        border-radius: 4px;
+        color: #000;
+        font-weight: bold;
+        min-width: 60px;
+        text-align: center;
+        font-size: 10px;
+      }
+      .tag-hr {
+        background: var(--accent);
+      }
+      .tag-pm {
+        background: var(--cyan);
+      }
+      .tag-risk {
+        background: var(--danger);
+      }
+      .tag-gunshi {
+        background: var(--gold);
+      }
+      .chat-area {
+        flex: 1;
+        background: #0f172a;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        margin-top: auto;
+        max-height: 300px;
+      }
+      .chat-log {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .msg {
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        max-width: 80%;
+        line-height: 1.5;
+      }
+      .msg-ai {
+        background: #334155;
+        align-self: flex-start;
+        color: white;
+      }
+      .msg-user {
+        background: var(--primary);
+        align-self: flex-end;
+        color: white;
+      }
+      .input-bar {
+        padding: 12px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        background: #1e293b;
+        border-radius: 0 0 12px 12px;
+      }
+      .magic-input {
+        flex: 1;
+        background: #0f172a;
+        border: 1px solid var(--border);
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        outline: none;
+      }
+
+      .plan-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .plan-card {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: 0.2s;
+        position: relative;
+      }
+      .plan-card:hover,
+      .plan-card.selected {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.1);
+      }
+      .plan-card.rec {
+        border-color: var(--gold);
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+      }
+      .rec-badge {
+        position: absolute;
+        top: -10px;
+        right: 10px;
+        background: var(--gold);
+        color: black;
+        font-weight: bold;
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+
+      /* Genome */
+      .genome-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .tag {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        display: inline-block;
+        margin-right: 4px;
+        color: var(--text-dim);
+      }
+
+      /* Buttons */
+      .btn-action {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+      }
+      .btn-action:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+      }
+      .btn-exec {
+        background: var(--success);
+        color: white;
+        border: none;
+        padding: 0 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn-exec:hover {
+        filter: brightness(1.1);
+      }
+
+      @keyframes popIn {
+        from {
+          transform: scale(0);
+        }
+        to {
+          transform: scale(1);
+        }
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(-10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes pulse-red {
+        0% {
+          box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 20px 10px rgba(244, 63, 94, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+        }
+      }
+      @keyframes pulse-dot {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+        }
+        70% {
+          transform: scale(1.1);
+          box-shadow: 0 0 10px 5px rgba(244, 63, 94, 0);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <aside class="sidebar">
+        <div class="logo">
+          <div class="logo-icon">
+            <i class="fas fa-brain" style="color: var(--primary)"></i>
+          </div>
+          <div>
+            saih<span style="color: var(--accent)">AI</span>
+            <span style="font-size: 12px; color: var(--text-dim)">v13.0</span>
+          </div>
+        </div>
+
+        <div class="nav-cat">Cockpit</div>
+        <div class="nav-item active" onclick="app.nav('dash', this)">
+          <i class="fas fa-chart-line" style="width: 20px"></i>
+          経営ダッシュボード
+        </div>
+        <div class="nav-item" onclick="app.nav('sim', this)">
+          <i class="fas fa-chess-board" style="width: 20px"></i>
+          戦術シミュレーター
+        </div>
+        <div class="nav-item" onclick="app.nav('genome', this)">
+          <i class="fas fa-dna" style="width: 20px"></i> Genome DB
+        </div>
+
+        <div class="nav-cat">Debug & Demo</div>
+        <div class="nav-item" onclick="app.triggerAlert()">
+          <i class="fas fa-bolt" style="width: 20px; color: var(--danger)"></i>
+          <b>緊急介入 (Alert)</b>
+        </div>
+
+        <div
+          style="
+            margin-top: auto;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+          "
+        >
+          <div style="font-size: 10px; color: var(--text-sub)">AI Watchdog</div>
+          <div
+            style="
+              color: var(--success);
+              font-weight: bold;
+              font-size: 12px;
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            "
+          >
+            <div
+              style="
+                width: 8px;
+                height: 8px;
+                background: var(--success);
+                border-radius: 50%;
+              "
+            ></div>
+            Active
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="main-content">
+        <header class="header">
+          <div class="page-title" id="page-title">
+            <i class="fas fa-chart-line" style="color: var(--primary)"></i>
+            経営ダッシュボード
+          </div>
+          <div style="display: flex; gap: 12px">
+            <button
+              class="btn-action"
+              style="
+                background: #1e293b;
+                border: 1px solid var(--border);
+                box-shadow: none;
+              "
+            >
+              <i class="fas fa-file-download"></i> レポート
+            </button>
+            <button class="btn-action" onclick="app.triggerManual()">
+              <i class="fas fa-magic"></i> AI自動編成 (手動)
+            </button>
+          </div>
+        </header>
+
+        <div id="view-dash" class="view active">
+          <div class="grid-4">
+            <div class="card">
+              <div class="kpi-label">エンゲージメント</div>
+              <div class="kpi-val">
+                78<span style="font-size: 16px">%</span>
+              </div>
+              <div
+                style="font-size: 12px; color: var(--success); margin-top: 4px"
+              >
+                ▲ 2.4pt
+              </div>
+            </div>
+            <div class="card" style="border-color: var(--accent)">
+              <div class="kpi-label" style="color: var(--accent)">
+                キャリア適合率
+              </div>
+              <div class="kpi-val" style="color: var(--accent)">
+                52<span style="font-size: 16px">%</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">離職リスク (High)</div>
+              <div class="kpi-val" style="color: var(--danger)">
+                1<span style="font-size: 16px">名</span>
+              </div>
+              <div
+                style="font-size: 12px; color: var(--danger); font-weight: bold"
+              >
+                ※要対応
+              </div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">予測粗利益率</div>
+              <div class="kpi-val">
+                104<span style="font-size: 16px">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px">
+            <h3
+              style="
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 10px;
+                margin-bottom: 16px;
+                font-size: 14px;
+                color: var(--text-sub);
+              "
+            >
+              🚨 アクティブなアラート
+            </h3>
+            <div class="card alert-card" onclick="app.triggerAlert()">
+              <div style="font-size: 24px; color: var(--danger)">
+                <i class="fas fa-fire"></i>
+              </div>
+              <div>
+                <div style="font-weight: bold; font-size: 16px">
+                  プロジェクト・フェニックス：田中 Tech Lead
+                </div>
+                <div style="color: var(--text-sub); font-size: 13px">
+                  「燃え尽き」シグナル検知。離職確率85%。(クリックして解決)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 20px; height: 360px">
+            <div class="card" style="flex: 2">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 10px;
+                "
+              >
+                <div class="kpi-label">組織人材マップ (Talent Matrix)</div>
+              </div>
+
+              <div class="matrix-wrapper">
+                <div class="matrix-bg">
+                  <div class="quadrant q-risk">
+                    <span class="q-label ql-risk">⚠️ Risk (離職予備軍)</span>
+                    <div
+                      class="matrix-dot risk-dot"
+                      onclick="app.triggerAlert()"
+                      style="
+                        top: 25%;
+                        left: 20%;
+                        background: #10b981;
+                        border-color: #f43f5e;
+                      "
+                      title="田中 (Risk: High)"
+                    >
+                      田
+                    </div>
+                  </div>
+                  <div class="quadrant q-star">
+                    <span class="q-label ql-star">👑 Star (エース)</span>
+                    <div
+                      class="matrix-dot"
+                      style="top: 30%; left: 20%; background: #6366f1"
+                    >
+                      佐
+                    </div>
+                    <div
+                      class="matrix-dot"
+                      style="top: 50%; left: 60%; background: #f59e0b"
+                    >
+                      山
+                    </div>
+                  </div>
+                  <div class="quadrant q-stag">
+                    <span class="q-label ql-stag">💤 Stagnant (停滞)</span>
+                    <div
+                      class="matrix-dot"
+                      style="top: 40%; left: 40%; background: #8b5cf6"
+                    >
+                      鈴
+                    </div>
+                  </div>
+                  <div class="quadrant q-growth">
+                    <span class="q-label ql-growth">🌱 Growth (成長株)</span>
+                    <div
+                      class="matrix-dot"
+                      style="top: 20%; right: 30%; background: #f43f5e"
+                    >
+                      加
+                    </div>
+                  </div>
+                </div>
+
+                <div class="axis-label axis-y">PERFORMANCE (スキル) ➔</div>
+                <div class="axis-label axis-x">MOTIVATION (意欲) ➔</div>
+              </div>
+            </div>
+
+            <div class="card" style="flex: 1">
+              <div class="kpi-label">AI Watchdog Log</div>
+              <div
+                style="
+                  font-size: 12px;
+                  color: var(--text-dim);
+                  display: flex;
+                  flex-direction: column;
+                  gap: 12px;
+                  margin-top: 10px;
+                "
+              >
+                <div>
+                  <i class="fas fa-robot" style="color: var(--primary)"></i>
+                  09:00 全社解析完了
+                </div>
+                <div>
+                  <i class="fas fa-check" style="color: var(--success)"></i>
+                  10:15 佐藤氏 1on1調整済
+                </div>
+                <div
+                  style="
+                    padding: 8px;
+                    background: rgba(244, 63, 94, 0.1);
+                    border-radius: 6px;
+                    color: var(--text-main);
+                  "
+                >
+                  <i
+                    class="fas fa-exclamation-triangle"
+                    style="color: var(--danger)"
+                  ></i>
+                  <b>10:30 田中氏リスク検知</b><br />
+                  週報よりモチベーション低下を確認。
+                </div>
+                <div>
+                  <i class="fas fa-search" style="color: var(--cyan)"></i> 11:00
+                  新規案件マッチング中...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-sim" class="view">
+          <div class="sim-layout">
+            <div class="sim-col-left">
+              <div class="list-header">対象案件 (Projects)</div>
+              <div id="sim-project-list"></div>
+              <div class="list-header" style="margin-top: 20px">
+                候補メンバー (Candidates)
+              </div>
+              <div id="sim-member-list"></div>
+            </div>
+            <div class="sim-col-main">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 20px;
+                "
+              >
+                <div>
+                  <h2 id="sim-pj-name" style="margin: 0; font-size: 20px">
+                    案件を選択してください
+                  </h2>
+                  <div
+                    id="sim-pj-desc"
+                    style="font-size: 12px; color: var(--text-sub)"
+                  ></div>
+                </div>
+                <div style="text-align: right">
+                  <div style="font-size: 11px; color: var(--text-sub)">
+                    予算消化率
+                  </div>
+                  <div
+                    id="sim-budget-text"
+                    style="font-size: 18px; font-weight: bold"
+                  >
+                    0 / 0
+                  </div>
+                </div>
+              </div>
+              <div class="budget-bar-bg">
+                <div
+                  id="sim-budget-bar"
+                  class="budget-bar-fill"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <h3
+                style="
+                  margin: 20px 0 10px 0;
+                  font-size: 14px;
+                  color: var(--text-sub);
+                "
+              >
+                チーム編成
+              </h3>
+              <div class="puzzle-box" id="sim-puzzle-area">
+                <span style="color: var(--text-dim); font-size: 12px"
+                  >メンバーリストから選択してください</span
+                >
+              </div>
+              <div class="timeline-box">
+                <div
+                  class="list-header"
+                  style="color: var(--text-main); margin-bottom: 12px"
+                >
+                  🤖 AI未来予測
+                </div>
+                <div id="sim-timeline">
+                  <div class="timeline-row">
+                    <div class="dot"></div>
+                    データ不足です。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-genome" class="view">
+          <h2 style="margin: 0">人材データベース (Genome)</h2>
+          <div class="genome-grid" id="genome-grid"></div>
+        </div>
+      </main>
+
+      <div class="shadow-overlay" id="shadow-overlay">
+        <div class="agent-window">
+          <div class="aw-header">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <div
+                id="modal-badge"
+                style="
+                  background: var(--danger);
+                  color: white;
+                  padding: 4px 12px;
+                  border-radius: 20px;
+                  font-size: 12px;
+                  font-weight: bold;
+                "
+              >
+                <i class="fas fa-exclamation-triangle"></i> ALERT
+              </div>
+              <span id="modal-title" style="font-weight: bold; font-size: 16px"
+                >緊急介入</span
+              >
+            </div>
+            <button
+              onclick="app.closeModal()"
+              style="
+                background: transparent;
+                border: none;
+                color: var(--text-sub);
+                font-size: 20px;
+                cursor: pointer;
+              "
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="aw-body">
+            <div class="aw-left">
+              <div
+                style="
+                  padding: 20px;
+                  background: rgba(255, 255, 255, 0.02);
+                  border-bottom: 1px solid var(--border);
+                "
+              >
+                <div
+                  id="modal-kpi-label"
+                  style="
+                    font-size: 11px;
+                    font-weight: bold;
+                    color: var(--text-sub);
+                  "
+                >
+                  METRIC
+                </div>
+                <div
+                  id="modal-kpi-val"
+                  style="
+                    font-size: 32px;
+                    font-weight: 800;
+                    color: var(--danger);
+                  "
+                >
+                  --%
+                </div>
+                <div
+                  id="modal-kpi-desc"
+                  style="font-size: 13px; color: var(--text-sub)"
+                >
+                  --
+                </div>
+              </div>
+              <div
+                style="
+                  padding: 12px;
+                  background: #020617;
+                  border-bottom: 1px solid var(--border);
+                  font-size: 11px;
+                  color: var(--text-sub);
+                "
+              >
+                🤖 AGENT LOG
+              </div>
+              <div class="console-box" id="modal-console"></div>
+            </div>
+
+            <div class="aw-right">
+              <h3 style="margin: 0 0 16px 0">戦略プランの選択</h3>
+              <div class="plan-grid">
+                <div class="plan-card" onclick="app.selectPlan(1, this)">
+                  <div style="font-weight: bold; margin-bottom: 8px">
+                    Plan A: 堅実維持
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-sub)">
+                    現状維持。短期安定。
+                  </div>
+                </div>
+                <div class="plan-card rec" onclick="app.selectPlan(2, this)">
+                  <div class="rec-badge">AI推奨</div>
+                  <div
+                    style="
+                      font-weight: bold;
+                      color: var(--gold);
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Plan B: 未来投資
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-sub)">
+                    若手抜擢＋顧問化。リスク分散と育成を両立。
+                  </div>
+                </div>
+                <div class="plan-card" onclick="app.selectPlan(3, this)">
+                  <div
+                    style="
+                      font-weight: bold;
+                      color: var(--cyan);
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Plan C: コスト重視
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-sub)">
+                    若手中心。利益率最大だが炎上リスク有。
+                  </div>
+                </div>
+              </div>
+
+              <div class="chat-area">
+                <div class="chat-log" id="chat-log">
+                  <div class="msg msg-ai">
+                    状況を分析しました。<b>Plan B</b>
+                    が推奨されます。承認または指示を入力してください。
+                  </div>
+                </div>
+                <div class="input-bar">
+                  <input
+                    type="text"
+                    id="user-input"
+                    class="magic-input"
+                    placeholder="指示を入力 (空欄で承認)"
+                    autocomplete="off"
+                  />
+                  <button class="btn-exec" onclick="app.sendMessage()">
+                    <i class="fas fa-paper-plane"></i> 実行
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* --- Data --- */
+      const members = [
+        {
+          id: "tanaka",
+          name: "田中 未来",
+          role: "Tech Lead",
+          cost: 95,
+          color: "#10b981",
+          skills: ["Java", "Legacy"],
+          desc: "Java歴15年。燃え尽き兆候あり。",
+        },
+        {
+          id: "sato",
+          name: "佐藤 健太",
+          role: "Ace",
+          cost: 70,
+          color: "#6366f1",
+          skills: ["Go", "React"],
+          desc: "やる気Sの若手エース。リーダー志望。",
+        },
+        {
+          id: "suzuki",
+          name: "鈴木 一郎",
+          role: "PM",
+          cost: 110,
+          color: "#8b5cf6",
+          skills: ["Mgmt", "Risk"],
+          desc: "安定PM。育児優先で残業不可。",
+        },
+        {
+          id: "kato",
+          name: "加藤 愛",
+          role: "Dev",
+          cost: 50,
+          color: "#f43f5e",
+          skills: ["UI/UX"],
+          desc: "新人デザイナー。センスあり。",
+        },
+        {
+          id: "yamada",
+          name: "山田 太郎",
+          role: "Advisor",
+          cost: 80,
+          color: "#f59e0b",
+          skills: ["Cloud", "Edu"],
+          desc: "技術顧問クラス。教育が得意。",
+        },
+      ];
+
+      const projects = [
+        {
+          id: "ec",
+          name: "ECリニューアル (炎上)",
+          budget: 220,
+          desc: "納期遅延中。Java必須。高ストレス環境。",
+        },
+        {
+          id: "ai",
+          name: "AI新規開発PoC",
+          budget: 180,
+          desc: "技術的挑戦(Go/Python)。成長機会大。",
+        },
+      ];
+
+      const app = {
+        selectedPid: "ec",
+        team: [],
+
+        init: () => {
+          app.renderSimUI();
+          app.renderGenome();
+          app.selectProject("ec");
+
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "s" && e.ctrlKey) {
+              e.preventDefault();
+              app.triggerAlert();
+            }
+            if (e.key === "Enter" && document.activeElement.id === "user-input")
+              app.sendMessage();
+          });
+
+          setTimeout(() => {
+            console.log("Auto-demo starting...");
+            app.triggerAlert();
+          }, 3500);
+        },
+
+        nav: (id, el) => {
+          document
+            .querySelectorAll(".view")
+            .forEach((v) => v.classList.remove("active"));
+          document
+            .querySelectorAll(".nav-item")
+            .forEach((n) => n.classList.remove("active"));
+          document.getElementById("view-" + id).classList.add("active");
+          el.classList.add("active");
+
+          const titles = {
+            dash: "経営ダッシュボード",
+            sim: "戦術シミュレーター",
+            genome: "Genome DB",
+          };
+          const icons = {
+            dash: "chart-line",
+            sim: "chess-board",
+            genome: "dna",
+          };
+          document.getElementById(
+            "page-title"
+          ).innerHTML = `<i class="fas fa-${icons[id]}" style="color:var(--primary);"></i> ${titles[id]}`;
+        },
+
+        /* Simulator Logic */
+        renderSimUI: () => {
+          document.getElementById("sim-project-list").innerHTML = projects
+            .map(
+              (p) => `
+      <div class="selectable-item" id="pj-${p.id}" onclick="app.selectProject('${p.id}')">
+        <div style="font-size:13px; font-weight:bold;">${p.name}</div>
+      </div>
+    `
+            )
+            .join("");
+          document.getElementById("sim-member-list").innerHTML = members
+            .map(
+              (m) => `
+      <div class="selectable-item" id="mem-${m.id}" onclick="app.toggleMember('${m.id}')">
+        <div style="width:24px; height:24px; background:${m.color}; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:10px;">${m.name[0]}</div>
+        <div><div style="font-size:13px; font-weight:bold;">${m.name}</div><div style="font-size:10px; color:var(--text-sub);">¥${m.cost}万</div></div>
+      </div>
+    `
+            )
+            .join("");
+        },
+
+        selectProject: (pid) => {
+          app.selectedPid = pid;
+          app.team = [];
+          const p = projects.find((x) => x.id === pid);
+          document
+            .querySelectorAll('[id^="pj-"]')
+            .forEach((e) => e.classList.remove("active"));
+          document.getElementById(`pj-${pid}`).classList.add("active");
+          document.getElementById("sim-pj-name").innerText = p.name;
+          document.getElementById("sim-pj-desc").innerText = p.desc;
+          app.updateSimStats();
+        },
+
+        toggleMember: (mid) => {
+          if (app.team.includes(mid))
+            app.team = app.team.filter((id) => id !== mid);
+          else app.team.push(mid);
+          app.updateSimStats();
+        },
+
+        updateSimStats: () => {
+          const puzzle = document.getElementById("sim-puzzle-area");
+          document
+            .querySelectorAll('[id^="mem-"]')
+            .forEach((e) => e.classList.remove("selected-mem"));
+
+          if (app.team.length === 0) {
+            puzzle.innerHTML = `<span style="color:var(--text-dim); font-size:12px;">メンバーリストから選択してください</span>`;
+            puzzle.classList.remove("has-items");
+          } else {
+            puzzle.classList.add("has-items");
+            puzzle.innerHTML = app.team
+              .map((mid) => {
+                const m = members.find((x) => x.id === mid);
+                document
+                  .getElementById(`mem-${mid}`)
+                  .classList.add("selected-mem");
+                return `<div class="puzzle-slot" style="background:${m.color}" onclick="app.toggleMember('${m.id}')">${m.name[0]}</div>`;
+              })
+              .join("");
+          }
+
+          const p = projects.find((x) => x.id === app.selectedPid);
+          const totalCost = app.team.reduce(
+            (sum, mid) => sum + members.find((x) => x.id === mid).cost,
+            0
+          );
+          const budgetPct = Math.min((totalCost / p.budget) * 100, 100);
+
+          document.getElementById(
+            "sim-budget-text"
+          ).innerText = `¥${totalCost}万 / ¥${p.budget}万`;
+          const bar = document.getElementById("sim-budget-bar");
+          bar.style.width = `${budgetPct}%`;
+          bar.style.background =
+            totalCost > p.budget ? "var(--danger)" : "var(--cyan)";
+
+          let html = "";
+          if (app.team.includes("tanaka") && app.selectedPid === "ec")
+            html += `<div class="timeline-row"><div class="dot bad"></div> <span style="color:var(--danger)">1ヶ月後: 田中氏の離職リスク増大</span></div>`;
+          if (app.team.includes("sato") && app.selectedPid === "ai")
+            html += `<div class="timeline-row"><div class="dot good"></div> <span style="color:var(--success)">3ヶ月後: 佐藤氏がGo言語習得</span></div>`;
+          if (totalCost > p.budget)
+            html += `<div class="timeline-row"><div class="dot bad"></div> <span>予算超過リスク</span></div>`;
+          document.getElementById("sim-timeline").innerHTML =
+            html ||
+            `<div class="timeline-row"><div class="dot"></div> データ不足です。</div>`;
+        },
+
+        renderGenome: () => {
+          document.getElementById("genome-grid").innerHTML = members
+            .map(
+              (m) => `
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <div style="width:36px; height:36px; background:${
+            m.color
+          }; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">${
+                m.name[0]
+              }</div>
+          <div><div style="font-weight:bold;">${
+            m.name
+          }</div><div style="font-size:11px; color:var(--text-sub);">${
+                m.role
+              } / ¥${m.cost}万</div></div>
+        </div>
+        <div style="margin-bottom:8px;">${m.skills
+          .map((s) => `<span class="tag">${s}</span>`)
+          .join("")}</div>
+        <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">${
+          m.desc
+        }</div>
+      </div>
+    `
+            )
+            .join("");
+        },
+
+        /* Modal & Alert Logic */
+        triggerAlert: () => {
+          app.openModal("alert");
+          app.runLog([
+            {
+              ag: "System",
+              t: "tag-risk",
+              m: "🚨 異常検知: プロジェクト・フェニックス",
+            },
+            {
+              ag: "HR",
+              t: "tag-hr",
+              m: "田中氏の週報「飽きた」頻出。モチベーション低下。",
+            },
+            {
+              ag: "Risk",
+              t: "tag-risk",
+              m: "離職確率85%。損失予測 ¥2,400万。",
+            },
+            {
+              ag: "Gunshi",
+              t: "tag-gunshi",
+              m: "緊急事態だ。3つの回避策を提示する。",
+            },
+          ]);
+        },
+        triggerManual: () => {
+          app.openModal("manual");
+          app.runLog([
+            {
+              ag: "System",
+              t: "tag-gunshi",
+              m: "✨ 手動トリガー: 戦略的再編成",
+            },
+            {
+              ag: "HR",
+              t: "tag-hr",
+              m: "若手(佐藤氏)の成長機会が不足しています。",
+            },
+            { ag: "PM", t: "tag-pm", m: "新規AI案件にリソースを割けます。" },
+            {
+              ag: "Gunshi",
+              t: "tag-gunshi",
+              m: "攻めの編成プランを提示する。",
+            },
+          ]);
+        },
+
+        openModal: (mode) => {
+          const o = document.getElementById("shadow-overlay");
+          const badge = document.getElementById("modal-badge");
+          const kl = document.getElementById("modal-kpi-label");
+          const kv = document.getElementById("modal-kpi-val");
+
+          if (mode === "alert") {
+            badge.style.background = "var(--danger)";
+            badge.innerHTML =
+              '<i class="fas fa-exclamation-triangle"></i> ALERT ACTIVE';
+            document.getElementById("modal-title").innerText =
+              "緊急介入: Project Phoenix";
+            kl.innerText = "RISK";
+            kv.innerText = "85%";
+            kv.style.color = "var(--danger)";
+          } else {
+            badge.style.background = "var(--primary)";
+            badge.innerHTML = '<i class="fas fa-magic"></i> MANUAL MODE';
+            document.getElementById("modal-title").innerText = "AI戦略的再編成";
+            kl.innerText = "GROWTH";
+            kv.innerText = "+120%";
+            kv.style.color = "var(--success)";
+          }
+          o.classList.add("open");
+          document.getElementById("main-content").style.filter = "blur(5px)";
+          document.getElementById("modal-console").innerHTML = "";
+        },
+        closeModal: () => {
+          document.getElementById("shadow-overlay").classList.remove("open");
+          document.getElementById("main-content").style.filter = "none";
+        },
+        runLog: (script) => {
+          const log = document.getElementById("modal-console");
+          script.forEach((l, i) => {
+            setTimeout(() => {
+              const d = document.createElement("div");
+              d.className = "log-line";
+              d.innerHTML = `<span class="log-tag ${l.t}">${l.ag}</span> <span>${l.m}</span>`;
+              log.appendChild(d);
+              log.scrollTop = log.scrollHeight;
+            }, i * 600);
+          });
+        },
+
+        selectPlan: (id, el) => {
+          document
+            .querySelectorAll(".plan-card")
+            .forEach((c) => c.classList.remove("selected"));
+          el.classList.add("selected");
+          app.addMsg(
+            "ai",
+            `プラン${
+              id === 1 ? "A" : id === 2 ? "B" : "C"
+            } が選択されました。詳細設定を行いますか？`
+          );
+        },
+
+        sendMessage: () => {
+          const input = document.getElementById("user-input");
+          const text = input.value.trim();
+
+          // Empty input = Approve
+          if (!text) {
+            if (confirm("現在のプランで承認しますか？")) {
+              app.addMsg("ai", "✅ 承認されました。実行します。");
+              setTimeout(() => app.closeModal(), 1500);
+            }
+            return;
+          }
+
+          // Text input = Instruction
+          app.addMsg("user", text);
+          input.value = "";
+          setTimeout(() => {
+            app.addMsg("ai", `承知しました。「${text}」の方針で実行します。`);
+          }, 800);
+        },
+
+        addMsg: (type, text) => {
+          const log = document.getElementById("chat-log");
+          const d = document.createElement("div");
+          d.className = `msg msg-${type}`;
+          d.innerHTML = text;
+          log.appendChild(d);
+          log.scrollTop = log.scrollHeight;
+        },
+      };
+
+      window.onload = app.init;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+id: "language-typescript"
+labels:
+  language: "typescript"
+  language_version: ">=5.0"
+owner: "SES CoE"
+status: "active"
+extends: []
+rules:
+  coding:
+    # TypeScript コードで推奨される方針
+    prefer:
+      - "use_strict_null_checks"    # 厳格なnullチェックを有効にする
+      - "use_satisfies_operator"    # satisfies演算子で型を表現
+    forbid:
+      - "use_any_type"              # any型の濫用禁止
+  review:
+    focus:
+      - "type_inference_correctness"
+      - "avoid_implicit_any"

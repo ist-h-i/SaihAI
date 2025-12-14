@@ -1,0 +1,35 @@
+id: exp-react18-hooks-a
+kind: experiment
+version: "1.0.0"
+status: experimental
+
+labels:
+  language: javascript
+  language_version: ">=es2019"
+  framework: react
+  framework_version: ">=18"
+  constraint: [offline_only, hitl_strict]
+
+tags: ["react", "ab"]
+
+hypothesis: "Explainability を上げるため、PR/Planの必須観測点を強化する（React特有の副作用説明を促す）"
+scope:
+  goal_dimensions: [Explainability]
+  timebox_days: 14
+  min_samples: 20
+
+extends:
+  - rulesets/framework/react.yaml
+
+patch:
+  operations:
+    - op: merge
+      target: templates.plan
+      component_id: tpl.plan.risks-unknowns
+      value:
+        add_required_bullets:
+          - "useEffect の依存配列の意図"
+          - "副作用のクリーンアップの有無"
+      expected_effect:
+        Explainability: 0.15
+      notes: "Reactの典型的リスクをPlanで明示させる"

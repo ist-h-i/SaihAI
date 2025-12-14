@@ -1,0 +1,35 @@
+id: "framework-spring"
+labels:
+  framework: "spring"
+  framework_version: ">=6"
+  language: "java"
+owner: "SES CoE"
+status: "active"
+# Spring のルールは Java のルールを継承する
+extends:
+  - "language/java-v17"
+rules:
+  coding:
+    prefer:
+      - "constructor_injection"          # コンストラクタインジェクションを標準にする
+      - "use_configuration_properties"   # 設定は @ConfigurationProperties に集約
+      - "use_controller_advice"          # 例外処理は @ControllerAdvice に集約
+      - "use_jakarta_validation"         # 入力検証は Bean Validation を使用
+    forbid:
+      - "field_injection"                # フィールドインジェクション（@Autowired フィールド）禁止
+      - "business_logic_in_controller"   # Controller にビジネスロジックを入れない
+      - "expose_jpa_entity_directly"     # JPA Entity を API へ直接返さない
+      - "transactional_on_controller"    # Controller で @Transactional を付けない
+  review:
+    focus:
+      - "transaction_boundaries"         # @Transactional の境界と伝播
+      - "n_plus_one_queries"             # N+1 / 不要なクエリの有無
+      - "exception_http_mapping"         # 例外⇔HTTPステータスの対応
+      - "validation_coverage"            # バリデーションの網羅性
+      - "security_defaults"              # 認証/認可のデフォルトが安全か
+  testing:
+    required_when:
+      - "controller_added"               # API 追加/変更時はテスト必須
+      - "service_changed"                # ドメインロジック変更時はテスト必須
+    acceptable_substitute:
+      - "documented_manual_test"

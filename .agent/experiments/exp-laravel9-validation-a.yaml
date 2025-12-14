@@ -1,0 +1,41 @@
+id: exp-laravel9-validation-a
+kind: experiment
+version: "1.0.0"
+status: experimental
+
+labels:
+  language: php
+  language_version: ">=8.1"
+  framework: laravel
+  framework_version: ">=9"
+  constraint: [offline_only, hitl_strict]
+
+tags: ["laravel", "ab"]
+
+hypothesis: "Safety を上げるため、入力検証と認可の観点をチェックリストに追加する"
+scope:
+  goal_dimensions: [Safety]
+  timebox_days: 14
+  min_samples: 20
+
+extends:
+  - rulesets/framework/laravel.yaml
+
+patch:
+  operations:
+    - op: add
+      target: checklists.security.items
+      component_id: chk.security.authz-authn-implications
+      value:
+        text: "認証認可に影響がないか（Policy/Gate/Guardの変更有無、権限境界）"
+      expected_effect:
+        Safety: 0.15
+      notes: "Laravelの認可周りの見落とし防止"
+    - op: add
+      target: checklists.review.items
+      component_id: chk.review.validation-covered
+      value:
+        text: "バリデーションが網羅されているか（FormRequest/Rules/境界値）"
+      expected_effect:
+        Safety: 0.1
+        Maintainability: 0.05

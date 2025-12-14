@@ -1,0 +1,33 @@
+id: exp-laravel9-validation-b
+kind: experiment
+version: "1.0.0"
+status: experimental
+
+labels:
+  language: php
+  language_version: ">=8.1"
+  framework: laravel
+  framework_version: ">=9"
+  constraint: [offline_only, hitl_strict]
+
+tags: ["laravel", "ab"]
+
+hypothesis: "ChangeRisk を下げるため、コントローラ肥大化を抑止するルールを強化する"
+scope:
+  goal_dimensions: [ChangeRisk, Maintainability]
+  timebox_days: 14
+  min_samples: 20
+
+extends:
+  - rulesets/framework/laravel.yaml
+
+patch:
+  operations:
+    - op: add
+      target: rulesets.framework.laravel.rules.coding.forbid
+      component_id: rule.fw.laravel.no-fat-controller
+      value: "fat_controller"
+      expected_effect:
+        ChangeRisk: 0.1
+        Maintainability: 0.1
+      notes: "コントローラの責務過多を抑止（Service/Actionへの分離を促進）"

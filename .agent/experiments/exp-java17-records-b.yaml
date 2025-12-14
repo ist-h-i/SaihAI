@@ -1,0 +1,31 @@
+id: exp-java17-records-b
+kind: experiment
+version: "1.0.0"
+status: experimental
+
+labels:
+  language: java
+  language_version: "17"
+  runtime: jvm
+  constraint: [offline_only, hitl_strict]
+
+tags: ["java17", "ab"]
+
+hypothesis: "Verification を上げるため、test を必須ゲートにして回帰を抑える"
+scope:
+  goal_dimensions: [Verification]
+  timebox_days: 14
+  min_samples: 20
+
+extends:
+  - rulesets/language/java-v17.yaml
+
+patch:
+  operations:
+    - op: set_param
+      target: commands.gates.test.required
+      component_id: cmd.gate.test
+      value: true
+      expected_effect:
+        Verification: 0.2
+      notes: "java17: testゲート必須化（厳格現場は合意の上で利用）"

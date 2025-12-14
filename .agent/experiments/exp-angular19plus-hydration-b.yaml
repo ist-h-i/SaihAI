@@ -1,0 +1,33 @@
+id: exp-angular19plus-hydration-b
+kind: experiment
+version: "1.0.0"
+status: experimental
+
+labels:
+  language: typescript
+  language_version: ">=5.2"
+  framework: angular
+  framework_version: ">=19"
+  runtime: node
+  constraint: [offline_only, hitl_strict]
+
+tags: ["angular19plus", "ab"]
+
+hypothesis: "Verification を上げるため、build を必須ゲートにしてSSR/Hydrationの破壊を早期に検知する"
+scope:
+  goal_dimensions: [Verification]
+  timebox_days: 14
+  min_samples: 20
+
+extends:
+  - rulesets/framework/angular-v19-plus.yaml
+
+patch:
+  operations:
+    - op: set_param
+      target: commands.gates.build.required
+      component_id: cmd.gate.build
+      value: true
+      expected_effect:
+        Verification: 0.2
+      notes: "SSR/Hydration関連の破壊を検知しやすくする"
