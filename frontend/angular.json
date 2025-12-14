@@ -14,7 +14,14 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "assets": [],
+          "assets": [
+            {
+              "glob": "favicon.ico",
+              "input": "public",
+              "output": "."
+            },
+            "src/assets/*"
+          ],
             "styles": ["src/styles.css"]
           },
           "configurations": {
@@ -48,4 +55,3 @@
     }
   }
 }
-

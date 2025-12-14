@@ -4,6 +4,53 @@ import { Subscription } from 'rxjs';
 
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { SimulatorStore } from '../core/simulator-store';
+import { SimulationResult } from '../core/types';
+
+type HaisaEmotion =
+  | 'standard'
+  | 'panic'
+  | 'joy'
+  | 'anxious'
+  | 'relieved'
+  | 'explosion'
+  | 'energetic'
+  | 'determined'
+  | 'hopeful'
+  | 'curious';
+
+const HAISA_ASSET_DIR = '../../assets/haisaikun';
+const HAISA_IMAGE_BY_EMOTION: Record<HaisaEmotion, string> = {
+  standard: 'standard.png',
+  panic: 'anxiety.png',
+  joy: 'joy.png',
+  anxious: 'anxiety.png',
+  relieved: 'relief.png',
+  explosion: 'explosion.png',
+  energetic: 'energy.png',
+  determined: 'effort.png',
+  hopeful: 'hope.png',
+  curious: 'haste.png',
+};
+const HAISA_DEFAULT_IMAGE = HAISA_IMAGE_BY_EMOTION.standard;
+
+const HAISA_LABELS: Record<HaisaEmotion, string> = {
+  standard: 'スタンダード',
+  panic: '焦り',
+  joy: '喜び',
+  anxious: '不安',
+  relieved: '安心',
+  explosion: '爆発',
+  energetic: '元気',
+  determined: '頑張る',
+  hopeful: '希望',
+  curious: '好奇心',
+};
+
+interface ChatEntry {
+  from: 'ai' | 'user';
+  text: string;
+  emotion?: HaisaEmotion;
+}
 
 @Component({
   imports: [NeuralOrbComponent],
@@ -334,15 +381,24 @@ import { SimulatorStore } from '../core/simulator-store';
               <div class="flex-1 overflow-hidden flex flex-col">
                 <div class="flex-1 overflow-auto p-5 space-y-3">
                   @for (m of overlayChat(); track $index) {
-                    <div class="flex" [class.justify-end]="m.from === 'user'" [class.justify-start]="m.from !== 'user'">
+                    <div class="haisa-chat-line" [class.justify-end]="m.from === 'user'" [class.justify-start]="m.from !== 'user'">
+                      @if (m.from !== 'user') {
+                        <div
+                          class="haisa-avatar"
+                          [style.background-image]="haisaAvatarImage(m.emotion ?? 'standard')"
+                          [attr.data-emotion]="haisaEmotionLabel(m.emotion)"
+                          aria-hidden="true"
+                        ></div>
+                      }
                       <div
-                        class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border"
+                        class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble"
                         [class.bg-indigo-600]="m.from === 'user'"
                         [class.text-white]="m.from === 'user'"
                         [class.border-indigo-500/40]="m.from === 'user'"
                         [class.bg-slate-900/40]="m.from !== 'user'"
                         [class.text-slate-100]="m.from !== 'user'"
                         [class.border-slate-800]="m.from !== 'user'"
+                        [class.haisa-bubble-ai]="m.from !== 'user'"
                       >
                         {{ m.text }}
                       </div>
@@ -387,7 +443,7 @@ export class SimulatorPage implements OnDestroy {
   protected readonly overlayKpiDesc = signal('');
 
   protected readonly overlayLog = signal<{ agent: string; tone: 'pm' | 'hr' | 'risk' | 'gunshi'; text: string }[]>([]);
-  protected readonly overlayChat = signal<{ from: 'ai' | 'user'; text: string }[]>([]);
+  protected readonly overlayChat = signal<ChatEntry[]>([]);
 
   protected readonly budgetUsed = computed(() => this.store.selectedMembers().reduce((sum, m) => sum + m.cost, 0));
   protected readonly budgetPct = computed(() => {
@@ -455,10 +511,12 @@ export class SimulatorPage implements OnDestroy {
     this.timers.splice(0).forEach((t) => window.clearTimeout(t));
     this.overlayMode.set(mode);
     this.overlayOpen.set(true);
+    const initialEmotion = this.emotionForOverlay(mode, r);
     this.overlayLog.set([]);
     this.overlayChat.set([
       {
         from: 'ai',
+        emotion: initialEmotion,
         text: r
           ? `状況を分析しました。推奨プランは「${r.agents.gunshi.recommend}」です。承認（空欄）または指示を入力してください。`
           : 'まずはシミュレーションを実行してください。',
@@ -515,23 +573,70 @@ export class SimulatorPage implements OnDestroy {
   }
 
   protected selectPlan(id: 'A' | 'B' | 'C'): void {
-    this.overlayChat.update((curr) => [...curr, { from: 'ai', text: `Plan ${id} が選択されました。条件を追加しますか？（空欄で承認）` }]);
+    this.overlayChat.update((curr) => [
+      ...curr,
+      { from: 'ai', emotion: 'determined', text: `Plan ${id} が選択されました。条件を追加しますか？（空欄で承認）` },
+    ]);
   }
 
   protected sendChat(text: string): void {
     const trimmed = text.trim();
     if (!trimmed) {
-      this.overlayChat.update((curr) => [...curr, { from: 'ai', text: '承認されました。実行します。' }]);
+      this.overlayChat.update((curr) => [
+        ...curr,
+        { from: 'ai', emotion: 'relieved', text: '承認されました。実行します。' },
+      ]);
       const t = window.setTimeout(() => this.closeOverlay(), 900);
       this.timers.push(t);
       return;
     }
 
     this.overlayChat.update((curr) => [...curr, { from: 'user', text: trimmed }]);
+    const tone = this.emotionFromChatRequest(trimmed);
     const t = window.setTimeout(() => {
-      this.overlayChat.update((curr) => [...curr, { from: 'ai', text: `承知しました。「${trimmed}」の方針で再計算します。` }]);
+      this.overlayChat.update((curr) => [
+        ...curr,
+        {
+          from: 'ai',
+          emotion: tone,
+          text: `承知しました。「${trimmed}」の方針で再計算します。`,
+        },
+      ]);
     }, 450);
     this.timers.push(t);
+  }
+
+  protected haisaEmotionLabel(emotion?: HaisaEmotion): string {
+    return HAISA_LABELS[emotion ?? 'standard'];
+  }
+
+  protected haisaAvatarImage(emotion: HaisaEmotion = 'standard'): string {
+    const file = HAISA_IMAGE_BY_EMOTION[emotion] ?? HAISA_DEFAULT_IMAGE;
+    return `url('${HAISA_ASSET_DIR}/${file}')`;
+  }
+
+  private emotionForOverlay(mode: 'alert' | 'manual', result: SimulationResult | null): HaisaEmotion {
+    if (!result) return mode === 'alert' ? 'panic' : 'determined';
+    if (mode === 'alert') {
+      const risk = result.metrics.riskPct ?? 0;
+      if (risk >= 85) return 'explosion';
+      if (risk >= 70) return 'panic';
+      if (risk >= 55) return 'anxious';
+      return 'relieved';
+    }
+    const fit = result.metrics.careerFitPct ?? 0;
+    if (fit >= 80) return 'hopeful';
+    if (fit >= 65) return 'joy';
+    if (fit >= 45) return 'energetic';
+    return 'determined';
+  }
+
+  private emotionFromChatRequest(text: string): HaisaEmotion {
+    if (text.includes('承認')) return 'relieved';
+    if (text.includes('再計算')) return 'hopeful';
+    if (text.includes('Plan')) return 'determined';
+    if (text.includes('危険') || text.includes('爆発')) return 'panic';
+    return 'energetic';
   }
 
   private playLog(lines: { agent: string; tone: 'pm' | 'hr' | 'risk' | 'gunshi'; text: string }[]): void {
