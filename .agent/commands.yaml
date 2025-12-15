@@ -1,6 +1,6 @@
 commands:
   detect:
-    # 実行環境のバージョン検出。存在しない場合は無視して良い。
+    # 実行環境のバージョン検知。存在しない場合は無視してよい。
     - name: "git"
       cmd: "git --version"
     - name: "node"
@@ -8,7 +8,7 @@ commands:
     - name: "java"
       cmd: "java -version"
     - name: "Angular"
-      cmd: ng --version
+      cmd: "ng --version"
     - name: "pnpm"
       cmd: "pnpm -v"
     - name: "npm"
@@ -19,7 +19,8 @@ commands:
       cmd: "gradle -v"
     - name: "react-native"
       cmd: "react-native --version"
-  # Apply 前に推奨される標準ゲート。required が false の場合は推定できなくても適用を拒否しない。
+
+  # Apply 前に推奨される標準ゲート。required: false の場合、推定できなくても適用を拒否しない。
   gates:
     - name: "lint"
       cmd: "{{AUTO_DETECT_LINT_CMD}}" # 例: npm run lint / pnpm lint
@@ -29,7 +30,7 @@ commands:
       required: false
     - name: "build"
       cmd: "{{AUTO_DETECT_BUILD_CMD}}" # 例: npm run build / mvn package
-      required: false
+      required: true
 
 slash_commands:
   - id: gp-init

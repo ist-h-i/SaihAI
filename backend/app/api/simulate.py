@@ -15,7 +15,7 @@ def _vote_pm(metrics: dict[str, int]) -> Vote:
 
 
 def _vote_hr(team_notes: str, metrics: dict[str, int]) -> Vote:
-    if any(w in team_notes for w in ("疲労", "飽き", "燃え尽き")):
+    if any(w in team_notes for w in ("疲労", "飽きた", "燃え尽き")):
         return "ng"
     return "ok" if metrics["careerFitPct"] >= 45 else "ng"
 
@@ -29,21 +29,26 @@ def _decision_pm(metrics: dict[str, int]) -> tuple[str, int, str, str]:
         return (
             "CONDITIONAL_APPROVE",
             min(100, metrics["budgetPct"]),
-            "予算超過（上限とスコープ調整が必要）",
-            f"予算消化率が {metrics['budgetPct']}% です。コスト効率の観点で条件付き賛成です。",
+            "予算上限超過の可能性（スコープ/単価調整が必要）",
+            f"予算消化率 {metrics['budgetPct']}% です。コスト効率の観点で条件付き賛成です。",
         )
     if metrics["skillFitPct"] < 70:
         return (
             "CONDITIONAL_APPROVE",
             65,
-            "必須スキルの不足（レビュー/補強が必要）",
-            f"スキル適合率が {metrics['skillFitPct']}% です。補強前提で条件付き賛成です。",
+            "必要スキル不足（レビュー/補強が必要）",
+            f"スキル適合率 {metrics['skillFitPct']}% です。補強前提で条件付き賛成です。",
         )
-    return ("APPROVE", 10, "予算/スキルが許容範囲", "予算とスキル適合性の観点で問題ありません。")
+    return (
+        "APPROVE",
+        10,
+        "予算/スキルが許容範囲",
+        "予算とスキル適合性の観点で問題ありません。",
+    )
 
 
 def _decision_hr(team_notes: str, metrics: dict[str, int]) -> tuple[str, int, str, str]:
-    if any(w in team_notes for w in ("疲労", "飽き", "燃え尽き", "限界")):
+    if any(w in team_notes for w in ("疲労", "飽きた", "燃え尽き", "限界")):
         return (
             "REJECT",
             85,
@@ -57,7 +62,12 @@ def _decision_hr(team_notes: str, metrics: dict[str, int]) -> tuple[str, int, st
             "成長機会の設計が弱い（介入で改善可能）",
             "成長機会が不足しやすい配置です。学習/レビュー機会の設計が必要です。",
         )
-    return ("APPROVE", 15, "成長/エンゲージメントが許容", "成長機会とエンゲージメントの観点で問題ありません。")
+    return (
+        "APPROVE",
+        15,
+        "成長/エンゲージメントが許容",
+        "成長機会とエンゲージメントの観点で問題ありません。",
+    )
 
 
 def _decision_risk(metrics: dict[str, int], pattern: str) -> tuple[str, int, str, str]:
@@ -68,7 +78,12 @@ def _decision_risk(metrics: dict[str, int], pattern: str) -> tuple[str, int, str
             "炎上/離職リスクが高い（要介入）",
             f"RISK={metrics['riskPct']}%。パターンは {pattern}。放置すると損害が拡大します。",
         )
-    return ("APPROVE", metrics["riskPct"], "統計上の大きな警告なし", f"RISK={metrics['riskPct']}%。現時点で致命的な警告はありません。")
+    return (
+        "APPROVE",
+        metrics["riskPct"],
+        "統計上の重大警告なし",
+        f"RISK={metrics['riskPct']}%。現時点で致命的な警告はありません。",
+    )
 
 
 @router.post("/simulate")
@@ -134,7 +149,7 @@ def simulate(req: SimulationRequest) -> dict:
 
     risk_level = "bad" if metrics["riskPct"] >= 75 else ("ok" if metrics["riskPct"] >= 50 else "good")
     timeline = [
-        {"t": "1ヶ月後", "level": risk_level, "text": f"パターン: {pattern}（兆候が顕在化）"},
+        {"t": "1ヶ月後", "level": risk_level, "text": f"パターン: {pattern} の兆候が顕在化"},
         {"t": "3ヶ月後", "level": risk_level, "text": "手当がない場合、遅延/疲労が増加"},
         {"t": "6ヶ月後", "level": "ok" if recommend == "B" else risk_level, "text": "体制次第で安定化"},
     ]
