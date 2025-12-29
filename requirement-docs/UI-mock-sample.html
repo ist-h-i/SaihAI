@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>SaihAI v24.0 (Responsive) - AI Collaborative Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- Core Design System --- */
+      :root {
+        --bg-dark: #0f172a;
+        --bg-panel: #1e293b;
+        --bg-console: #020617;
+
+        --primary: #6366f1; /* Indigo */
+        --accent: #d946ef; /* Pink (HR) */
+        --cyan: #06b6d4; /* Cyan (PM) */
+        --danger: #f43f5e; /* Red (Risk) */
+        --gold: #f59e0b; /* Gold (Gunshi) */
+
+        --success: #10b981;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --border: #334155;
+
+        --slack-bg: #1a1d21;
+        --slack-sidebar: #19171d;
+
+        --header-h: 60px;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        margin: 0;
+        font-family: "Noto Sans JP", "Inter", sans-serif;
+        background: var(--bg-dark);
+        color: var(--text-main);
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .app-container {
+        display: flex;
+        height: 100%;
+        position: relative;
+      }
+
+      /* --- Sidebar (Responsive) --- */
+      .sidebar {
+        width: 240px;
+        background: var(--bg-console);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 24px 20px;
+        z-index: 50;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+      }
+
+      .logo {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 40px;
+      }
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: white;
+      }
+
+      .nav-category {
+        font-size: 10px;
+        color: var(--text-sub);
+        margin: 16px 0 8px 10px;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+      .nav-item {
+        padding: 12px 16px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        color: var(--text-sub);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        border-left: 3px solid transparent;
+      }
+      .nav-item:hover,
+      .nav-item.active {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--text-main);
+      }
+      .nav-item.active {
+        border-left-color: var(--primary);
+        color: var(--primary);
+        font-weight: bold;
+      }
+
+      .badge {
+        background: var(--danger);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 10px;
+        margin-left: auto;
+        display: none;
+        animation: pulse 1s infinite;
+      }
+      .badge.show {
+        display: inline-block;
+      }
+
+      /* Overlay for mobile sidebar */
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 40;
+      }
+
+      /* --- Main Content --- */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .header {
+        height: var(--header-h);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background: rgba(15, 23, 42, 0.95);
+        flex-shrink: 0;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .header-title {
+        font-size: 16px;
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Views */
+      .view {
+        display: none;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+      }
+      .view.active {
+        display: flex;
+        animation: fadeIn 0.3s;
+      }
+      .view-scroll {
+        display: none;
+        overflow-y: auto;
+        flex-direction: column;
+        width: 100%;
+        padding: 20px;
+      }
+      .view-scroll.active {
+        display: flex;
+        animation: fadeIn 0.3s;
+      }
+
+      /* Dashboard */
+      .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 30px;
+      }
+      .kpi-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        padding: 20px;
+        border-radius: 16px;
+        transition: 0.2s;
+        cursor: pointer;
+      }
+      .kpi-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary);
+      }
+      .kpi-label {
+        font-size: 11px;
+        color: var(--text-sub);
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .kpi-val {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+      }
+      .kpi-sub {
+        font-size: 12px;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .alert-item {
+        background: rgba(244, 63, 94, 0.1);
+        border-left: 4px solid var(--danger);
+        padding: 16px;
+        border-radius: 0 8px 8px 0;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid rgba(244, 63, 94, 0.2);
+      }
+      .alert-item:hover {
+        transform: translateX(6px);
+        background: rgba(244, 63, 94, 0.15);
+      }
+      .alert-icon {
+        font-size: 24px;
+      }
+
+      /* Simulator Layout */
+      .workspace {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Columns */
+      .col-left {
+        width: 260px;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-console);
+        flex-shrink: 0;
+      }
+      .col-center {
+        flex: 1;
+        background: #0f172a;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        gap: 12px;
+      }
+      .col-right {
+        width: 300px;
+        background: #0b1120;
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .list-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-bottom: 1px solid var(--border);
+      }
+      .list-header {
+        padding: 10px 16px;
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--text-sub);
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      .list-content {
+        overflow-y: auto;
+        padding: 12px;
+        flex: 1;
+      }
+
+      /* Formation Board */
+      .pj-header {
+        flex-shrink: 0;
+        margin-bottom: 4px;
+      }
+      .formation-header {
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--text-sub);
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .formation-box {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        transition: 0.3s;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 10px;
+        align-items: stretch;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .formation-box.current {
+        background: rgba(30, 41, 59, 0.3);
+        border-style: solid;
+        opacity: 0.9;
+      }
+      .formation-box.current .member-card {
+        cursor: default;
+        opacity: 0.9;
+      }
+      .formation-box.sim {
+        background: rgba(99, 102, 241, 0.05);
+        border: 2px dashed var(--primary);
+      }
+      .formation-box.sim.active {
+        border-style: solid;
+      }
+
+      .split-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-sub);
+        font-size: 11px;
+        gap: 8px;
+        opacity: 0.7;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      .split-arrow {
+        font-size: 14px;
+        color: var(--primary);
+        animation: bounce 2s infinite;
+      }
+
+      /* Metrics & Charts */
+      .metrics-area {
+        background: rgba(15, 23, 42, 0.5);
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin-top: 0;
+        flex-shrink: 0;
+      }
+      .chart-box {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        height: 180px;
+        flex-shrink: 0;
+      }
+      .console-area {
+        flex: 1;
+        background: var(--bg-console);
+        padding: 16px;
+        overflow-y: auto;
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* Member Card */
+      .member-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        cursor: pointer;
+        transition: 0.2s;
+        position: relative;
+        overflow: visible;
+        height: auto;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .member-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .member-card.in-team {
+        border-left: 4px solid var(--success);
+        background: #1e293b;
+      }
+      .member-card.risk-high {
+        border-color: var(--danger);
+        background: rgba(244, 63, 94, 0.05);
+      }
+
+      /* List Override */
+      .list-content .member-card {
+        height: auto;
+        margin-bottom: 8px;
+        min-height: auto;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .card-user {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .role-badge {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ccc;
+        margin-left: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+      }
+      .role-badge.leader {
+        background: rgba(99, 102, 241, 0.2);
+        color: var(--primary);
+        border-color: var(--primary);
+      }
+      .role-badge.advisor {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--gold);
+        border-color: var(--gold);
+      }
+
+      .card-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 10px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        margin-top: auto;
+      }
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.8;
+      }
+      .stat-item.highlight {
+        opacity: 1;
+        font-weight: bold;
+      }
+      .stat-match {
+        color: var(--accent);
+      }
+      .stat-value {
+        color: var(--success);
+      }
+      .stat-risk {
+        color: var(--danger);
+      }
+
+      .skills-row {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+      }
+      .skill-tag {
+        font-size: 9px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--text-sub);
+      }
+
+      /* Metrics Bars */
+      .metric-row {
+        margin-bottom: 8px;
+      }
+      .metric-row:last-child {
+        margin-bottom: 0;
+      }
+      .metric-label {
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--text-sub);
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .progress-bg {
+        height: 6px;
+        background: #334155;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Chat Bubbles */
+      .chat-bubble {
+        display: flex;
+        gap: 10px;
+        animation: slideInLeft 0.3s forwards;
+        opacity: 0;
+      }
+      .chat-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 10px;
+        color: #000;
+        flex-shrink: 0;
+      }
+      .chat-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-width: 85%;
+      }
+      .chat-agent {
+        font-weight: bold;
+        font-size: 11px;
+        opacity: 0.8;
+      }
+      .chat-msg {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px 12px;
+        border-radius: 0 8px 8px 8px;
+        line-height: 1.4;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .agent-pm .chat-icon {
+        background: var(--cyan);
+      }
+      .agent-pm .chat-agent {
+        color: var(--cyan);
+      }
+      .agent-hr .chat-icon {
+        background: var(--accent);
+      }
+      .agent-hr .chat-agent {
+        color: var(--accent);
+      }
+      .agent-risk .chat-icon {
+        background: var(--danger);
+        color: white;
+      }
+      .agent-risk .chat-agent {
+        color: var(--danger);
+      }
+      .agent-gunshi .chat-icon {
+        background: var(--gold);
+      }
+      .agent-gunshi .chat-agent {
+        color: var(--gold);
+      }
+      .agent-sys .chat-icon {
+        background: #555;
+        color: white;
+      }
+      .agent-sys .chat-msg {
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: #666;
+        font-style: italic;
+      }
+
+      /* --- Slack Interface --- */
+      .slack-layout {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        background: var(--slack-bg);
+      }
+      .slack-side {
+        width: 240px;
+        background: var(--slack-sidebar);
+        padding: 20px;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .slack-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sl-ch {
+        padding: 6px 12px;
+        color: #9a9a9a;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sl-ch:hover,
+      .sl-ch.active {
+        background: #1164a3;
+        color: white;
+      }
+
+      .sl-msg-area {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .sl-msg {
+        display: flex;
+        gap: 12px;
+        animation: slideUp 0.3s;
+      }
+      .sl-avatar {
+        width: 40px;
+        height: 40px;
+        background: #333;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      .sl-content {
+        font-size: 15px;
+        line-height: 1.5;
+        color: #d1d5db;
+        width: 100%;
+      }
+
+      /* Slack Block Kit style */
+      .sl-att {
+        border-left: 4px solid #555;
+        padding-left: 16px;
+        margin-top: 12px;
+        color: #ccc;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 16px;
+        border-radius: 0 8px 8px 0;
+      }
+      .sl-att.gold {
+        border-color: var(--gold);
+      }
+      .sl-plan-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        margin-bottom: 8px;
+        border: 1px solid transparent;
+        transition: 0.2s;
+      }
+      .sl-plan-row:hover {
+        border-color: #555;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      /* NEMAWASHI */
+      .nema-container {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .nema-label {
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--gold);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .nema-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #ddd;
+      }
+      .nema-icon {
+        font-size: 14px;
+      }
+      .nema-tag {
+        font-size: 9px;
+        padding: 2px 4px;
+        border-radius: 3px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        margin-left: auto;
+      }
+
+      .btn-slack-sm {
+        padding: 6px 14px;
+        border-radius: 4px;
+        border: 1px solid #555;
+        background: transparent;
+        color: #ccc;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 11px;
+        transition: 0.2s;
+      }
+      .btn-slack-sm:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+      .btn-slack-sm.rec {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .btn-slack-sm.rec:hover {
+        background: rgba(245, 158, 11, 0.1);
+      }
+      .sl-action-bar {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn-slack {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: 1px solid #555;
+        background: transparent;
+        color: #e8e8e8;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .btn-slack.primary {
+        background: #007a5a;
+        border-color: #007a5a;
+        color: white;
+      }
+      .btn-slack.warn {
+        border-color: #e01e5a;
+        color: #e01e5a;
+      }
+
+      .sl-input-area {
+        padding: 24px;
+        border-top: 1px solid #333;
+      }
+      .sl-box {
+        background: #222529;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .sl-textarea {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: white;
+        resize: none;
+        outline: none;
+        font-size: 14px;
+      }
+
+      /* Common Buttons */
+      .btn-action {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        white-space: nowrap;
+      }
+      .btn-demo {
+        background: var(--danger);
+        box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4);
+        animation: pulse-border 2s infinite;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(5px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.3s;
+        padding: 10px;
+      }
+      .modal-overlay.open {
+        display: flex;
+        opacity: 1;
+      }
+      .modal-win {
+        background: #0f172a;
+        width: 900px;
+        max-width: 95%;
+        max-height: 90vh;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        transform: scale(0.95);
+        transition: transform 0.3s;
+        overflow-y: auto;
+      }
+      .modal-overlay.open .modal-win {
+        transform: scale(1);
+      }
+      .plan-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+        margin-top: 24px;
+      }
+      .plan-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: 0.2s;
+        display: flex;
+        flex-direction: column;
+      }
+      .plan-box:hover {
+        border-color: var(--primary);
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .plan-box.rec {
+        border-color: var(--gold);
+        background: rgba(245, 158, 11, 0.05);
+      }
+
+      /* Detail Modal Specifics */
+      #detail-modal .modal-win {
+        max-width: 600px;
+      }
+      .detail-header {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+      .detail-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        background: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        font-weight: bold;
+      }
+      .detail-section {
+        margin-bottom: 20px;
+      }
+      .detail-section h4 {
+        color: var(--text-sub);
+        font-size: 12px;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 4px;
+        margin-bottom: 8px;
+      }
+      .detail-tag-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .stat-bar {
+        height: 6px;
+        background: #333;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .stat-fill {
+        height: 100%;
+        border-radius: 3px;
+      }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideInLeft {
+        from {
+          transform: translateX(-10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @keyframes pulse-border {
+        0% {
+          box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(244, 63, 94, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+        }
+      }
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          transform: translateY(0);
+        }
+        40% {
+          transform: translateY(-4px);
+        }
+      }
+      .typing {
+        display: flex;
+        gap: 4px;
+        padding: 0 24px;
+        margin-bottom: 10px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        align-items: center;
+      }
+      .typing.active {
+        opacity: 1;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        background: #888;
+        border-radius: 50%;
+        animation: bounce-dot 1.4s infinite ease-in-out both;
+      }
+      @keyframes bounce-dot {
+        0%,
+        80%,
+        100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
+      .dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+
+      /* --- RESPONSIVE MEDIA QUERIES --- */
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
+          transform: translateX(-100%);
+          width: 260px;
+          box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .sidebar-overlay.open {
+          display: block;
+        }
+
+        .menu-btn {
+          display: block;
+        }
+        .header {
+          padding: 0 16px;
+        }
+
+        .workspace {
+          flex-direction: column;
+          overflow-y: auto;
+          height: auto;
+        }
+
+        /* Sim View: Stack Order */
+        .col-left {
+          width: 100%;
+          order: 2;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+        .col-center {
+          width: 100%;
+          order: 1;
+          height: auto;
+          overflow: visible;
+        }
+        .col-right {
+          width: 100%;
+          order: 3;
+          height: auto;
+          border-left: none;
+          border-top: 1px solid var(--border);
+        }
+
+        .list-section {
+          height: 300px;
+          max-height: 40vh;
+        }
+
+        /* Slack */
+        .slack-layout {
+          position: relative;
+        }
+        .slack-side {
+          position: absolute;
+          left: -100%;
+          width: 240px;
+          height: 100%;
+          z-index: 10;
+          transition: 0.3s;
+          box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
+        }
+        .slack-side.open {
+          left: 0;
+        }
+
+        /* Mobile Buttons */
+        .btn-action span {
+          display: none;
+        } /* Hide icon text if crowded, or just shorten text */
+        .btn-action {
+          padding: 8px 12px;
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="sidebar-overlay"
+      id="sidebar-overlay"
+      onclick="app.toggleMenu()"
+    ></div>
+
+    <div class="app-container">
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <div class="logo-icon">S</div>
+          <div>
+            SaihAI
+            <span style="font-size: 12px; color: var(--text-sub)">v24.0</span>
+          </div>
+        </div>
+
+        <div class="nav-category">OVERVIEW</div>
+        <div class="nav-item active" onclick="router.nav('dash', this)">
+          <span>📊</span> 経営ダッシュボード
+        </div>
+
+        <div class="nav-category">COMMAND</div>
+        <div class="nav-item" onclick="router.nav('sim', this)">
+          <span>⚡</span> 戦術シミュレーター
+        </div>
+        <div class="nav-item" onclick="router.nav('db', this)">
+          <span>🧬</span> 人材/案件DB
+        </div>
+
+        <div class="nav-category">COMMUNICATION</div>
+        <div
+          class="nav-item"
+          onclick="router.nav('slack', this)"
+          id="nav-slack"
+        >
+          <span>💬</span> AI Connect
+          <span class="badge" id="slack-badge">1</span>
+        </div>
+
+        <div
+          style="
+            margin-top: auto;
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.6;
+          "
+        >
+          System: <span style="color: var(--success)">● Online</span><br />
+          Mobile: Ready
+        </div>
+      </aside>
+
+      <div class="main-content">
+        <header class="header">
+          <div class="header-left">
+            <button class="menu-btn" onclick="app.toggleMenu()">☰</button>
+            <div class="header-title" id="page-title">経営ダッシュボード</div>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button class="btn-action btn-demo" onclick="app.startDemo()">
+              <span>▶</span> デモ
+            </button>
+            <button class="btn-action" onclick="app.showAiPlans()">
+              <span>✨</span> AI編成
+            </button>
+          </div>
+        </header>
+
+        <div id="view-dash" class="view-scroll active">
+          <div class="dash-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">組織エンゲージメント</div>
+              <div class="kpi-val">
+                78<span style="font-size: 16px">%</span>
+              </div>
+              <div class="kpi-sub" style="color: var(--success)">
+                ▲ 2.4% 前月比
+              </div>
+            </div>
+            <div class="kpi-card" style="border-color: var(--accent)">
+              <div class="kpi-label" style="color: var(--accent)">
+                キャリア適合率
+              </div>
+              <div class="kpi-val" style="color: var(--accent)">
+                52<span style="font-size: 16px">%</span>
+              </div>
+              <div class="kpi-sub" style="color: var(--text-sub)">
+                志向と業務の一致率
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">リスク検知数</div>
+              <div class="kpi-val" style="color: var(--danger)">4</div>
+              <div class="kpi-sub" style="color: var(--danger)">
+                要対応アラート
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">予測粗利益</div>
+              <div class="kpi-val">
+                4,250<span style="font-size: 16px">万</span>
+              </div>
+              <div class="kpi-sub" style="color: var(--success)">
+                目標達成ペース
+              </div>
+            </div>
+          </div>
+
+          <h3
+            style="
+              border-bottom: 1px solid var(--border);
+              padding-bottom: 10px;
+              color: var(--danger);
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            "
+          >
+            ⚠️ 緊急アラート (Action Required)
+          </h3>
+
+          <div class="alert-item" onclick="app.jumpToSim('ec')">
+            <div class="alert-icon">🔥</div>
+            <div>
+              <div
+                style="font-weight: bold; font-size: 15px; margin-bottom: 4px"
+              >
+                田中 未来 (ECリニューアルPJ) - 炎上・離職リスク
+              </div>
+              <div style="color: var(--text-sub); font-size: 13px">
+                週報より「腰痛」「飽きた」を検知。離職確率85%。<br /><span
+                  style="text-decoration: underline; color: var(--primary)"
+                  >クリックしてシミュレーションを開始</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="alert-item"
+            style="
+              border-left-color: var(--accent);
+              border-color: var(--accent);
+              background: rgba(217, 70, 239, 0.1);
+            "
+            onclick="app.jumpToSim('hr')"
+          >
+            <div class="alert-icon">📉</div>
+            <div>
+              <div
+                style="font-weight: bold; font-size: 15px; margin-bottom: 4px"
+              >
+                佐藤 健太 (HR保守) - キャリアミスマッチ警告
+              </div>
+              <div style="color: var(--text-sub); font-size: 13px">
+                本人の「テックリード志向」に対し、現在の業務は「保守運用」のみです。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-sim" class="view">
+          <div class="workspace">
+            <div class="col-center">
+              <div class="pj-header">
+                <h2 id="pj-title" style="margin: 0; font-size: 18px">
+                  Project Phoenix (EC)
+                </h2>
+                <p
+                  id="pj-desc"
+                  style="
+                    color: var(--text-sub);
+                    font-size: 11px;
+                    margin: 2px 0 0 0;
+                  "
+                >
+                  現在: 炎上フェーズ / 納期遅延
+                </p>
+              </div>
+
+              <div class="formation-header">
+                <span>🏟️ CURRENT STATE (現状)</span>
+                <span style="font-size: 10px">Fixed</span>
+              </div>
+              <div class="formation-box current" id="current-area"></div>
+
+              <div class="split-divider">
+                <div>Comparing</div>
+                <div class="split-arrow">⬇️</div>
+                <div>Simulation</div>
+              </div>
+
+              <div class="formation-header">
+                <span>⚡ NEW SIMULATION (編成案)</span>
+                <span style="font-size: 10px; color: var(--primary)"
+                  >Interactive</span
+                >
+              </div>
+              <div class="formation-box sim" id="sim-area"></div>
+
+              <div class="metrics-area">
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>💰 予測予算消化率 (Budget)</span>
+                    <span id="budget-text">0%</span>
+                  </div>
+                  <div class="progress-bg">
+                    <div
+                      id="budget-fill"
+                      class="progress-fill"
+                      style="width: 0%; background: var(--cyan)"
+                    ></div>
+                  </div>
+                </div>
+                <div class="metric-row">
+                  <div class="metric-label">
+                    <span>🧩 予測要件充足率 (Requirements)</span>
+                    <span id="req-text">0%</span>
+                  </div>
+                  <div class="progress-bg">
+                    <div
+                      id="req-fill"
+                      class="progress-fill"
+                      style="width: 0%; background: var(--primary)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-left">
+              <div class="list-section" style="height: 40%">
+                <div class="list-header">📂 PROJECTS</div>
+                <div class="list-content" id="sim-pj-list"></div>
+              </div>
+              <div class="list-section" style="flex: 1">
+                <div class="list-header">
+                  <span>👥 CANDIDATE POOL</span>
+                  <span
+                    style="
+                      font-size: 9px;
+                      background: #333;
+                      padding: 2px 4px;
+                      rounded: 4px;
+                    "
+                    >Tap to Add</span
+                  >
+                </div>
+                <div class="list-content" id="sim-pool-list"></div>
+              </div>
+            </div>
+
+            <div class="col-right">
+              <div class="list-header" style="background: #0b1120">
+                📈 3-MONTH FORECAST
+              </div>
+              <div class="chart-box">
+                <canvas id="forecastChart"></canvas>
+              </div>
+
+              <div
+                class="list-header"
+                style="background: #0b1120; border-top: 1px solid var(--border)"
+              >
+                🧠 AI TACTICAL COUNCIL
+              </div>
+              <div class="console-area" id="console-log">
+                <div
+                  style="
+                    color: #666;
+                    font-style: italic;
+                    text-align: center;
+                    margin-top: 20px;
+                  "
+                >
+                  Awaiting Data...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-db" class="view-scroll">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            "
+          >
+            <h2>📂 案件ポートフォリオ</h2>
+            <span style="font-size: 12px; color: var(--text-sub)"
+              >Active Projects</span
+            >
+          </div>
+          <div
+            class="dash-grid"
+            id="db-pj-grid"
+            style="margin-bottom: 40px"
+          ></div>
+
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            "
+          >
+            <h2>🧬 人材ゲノムデータベース</h2>
+            <span style="font-size: 12px; color: var(--text-sub)"
+              >Talent Pool</span
+            >
+          </div>
+          <div class="dash-grid" id="db-mem-grid"></div>
+        </div>
+
+        <div id="view-slack" class="view">
+          <div class="slack-layout">
+            <div class="slack-side">
+              <div
+                style="
+                  font-weight: bold;
+                  color: white;
+                  font-size: 16px;
+                  margin-bottom: 20px;
+                "
+              >
+                Acme Corp
+              </div>
+              <div class="sl-ch"># general</div>
+              <div class="sl-ch"># random</div>
+              <div class="sl-ch active">
+                <span style="color: var(--danger)">●</span> saihAI-alerts
+              </div>
+              <div class="sl-ch"># project-phoenix</div>
+            </div>
+            <div class="slack-main">
+              <div
+                style="
+                  height: 60px;
+                  border-bottom: 1px solid #333;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 24px;
+                  font-weight: bold;
+                "
+              >
+                # saihAI-alerts
+                <span
+                  style="
+                    font-size: 10px;
+                    border: 1px solid #666;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    margin-left: 12px;
+                    color: #aaa;
+                  "
+                  >Auto-Pilot</span
+                >
+              </div>
+
+              <div class="sl-msg-area" id="sl-msgs"></div>
+
+              <div class="typing" id="typing">
+                <span style="color: #888; font-size: 12px"
+                  >SaihAI is typing</span
+                >
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+
+              <div class="sl-input-area">
+                <div class="sl-box">
+                  <textarea
+                    id="sl-input"
+                    class="sl-textarea"
+                    rows="2"
+                    placeholder="AIへの介入指示を入力..."
+                  ></textarea>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                      margin-top: 10px;
+                    "
+                  >
+                    <span
+                      style="
+                        font-size: 11px;
+                        color: #666;
+                        display: flex;
+                        align-items: center;
+                      "
+                      >Human-in-the-loop</span
+                    >
+                    <button
+                      class="btn-action"
+                      style="padding: 4px 16px; font-size: 12px"
+                      onclick="app.sendSlack()"
+                    >
+                      送信
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-win">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">🔮 AI軍師による戦略提案</h2>
+          <button
+            style="
+              background: none;
+              border: none;
+              color: #888;
+              font-size: 24px;
+              cursor: pointer;
+            "
+            onclick="document.getElementById('modal-overlay').classList.remove('open')"
+          >
+            ×
+          </button>
+        </div>
+        <p style="color: var(--text-sub); margin-bottom: 20px">
+          現在のアサイン状況とリスクに基づき、3つの異なる未来シナリオを生成しました。
+        </p>
+        <div class="plan-grid">
+          <div class="plan-box" onclick="app.applyPlan('A')">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px">
+              🛡️ プランA: 堅実防衛
+            </div>
+            <div
+              style="
+                font-size: 12px;
+                color: var(--text-sub);
+                margin-bottom: 12px;
+              "
+            >
+              ベテラン中心 / 高コスト / 低リスク
+            </div>
+            <div style="flex: 1; font-size: 13px; line-height: 1.5">
+              技術的リスクは最小ですが、田中氏の離職リスクが上昇します。
+            </div>
+            <div style="margin-top: 16px; font-weight: bold; font-size: 24px">
+              Score: 78
+            </div>
+          </div>
+          <div class="plan-box rec" onclick="app.applyPlan('B')">
+            <div
+              style="
+                position: absolute;
+                top: -10px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--gold);
+                color: black;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 4px 12px;
+                border-radius: 12px;
+              "
+            >
+              AI Recommended
+            </div>
+            <div
+              style="
+                font-weight: bold;
+                font-size: 16px;
+                margin-bottom: 8px;
+                color: var(--gold);
+              "
+            >
+              🚀 プランB: 未来投資
+            </div>
+            <div
+              style="
+                font-size: 12px;
+                color: var(--text-sub);
+                margin-bottom: 12px;
+              "
+            >
+              若手抜擢 / 成長重視 / コスト最適
+            </div>
+            <div style="flex: 1; font-size: 13px; line-height: 1.5">
+              佐藤氏をリーダーにし、田中氏を技術顧問へ。3ヶ月後のチーム力が最大化します。
+            </div>
+            <div
+              style="
+                margin-top: 16px;
+                font-weight: bold;
+                font-size: 24px;
+                color: var(--gold);
+              "
+            >
+              Score: 92
+            </div>
+          </div>
+          <div class="plan-box" onclick="app.applyPlan('C')">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px">
+              💰 プランC: コスト重視
+            </div>
+            <div
+              style="
+                font-size: 12px;
+                color: var(--text-sub);
+                margin-bottom: 12px;
+              "
+            >
+              若手のみ / 低コスト / 高リスク
+            </div>
+            <div style="flex: 1; font-size: 13px; line-height: 1.5">
+              利益率は最大ですが、技術不足による炎上継続リスクがあります。
+            </div>
+            <div style="margin-top: 16px; font-weight: bold; font-size: 24px">
+              Score: 60
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="detail-modal">
+      <div class="modal-win">
+        <div id="detail-content"></div>
+        <button
+          class="btn-action"
+          style="margin-top: 20px; width: 100%; justify-content: center"
+          onclick="document.getElementById('detail-modal').classList.remove('open')"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <script>
+      /* --- 1. Data Definition --- */
+      const members = [
+        {
+          id: "tanaka",
+          name: "田中 未来",
+          role: "Vet",
+          cost: 95,
+          color: "#10b981",
+          stats: [95, 30, 20, 50],
+          dream: "スペシャリスト",
+          skills: ["Java", "SQL", "Legacy"],
+          desc: "Java歴15年。腰痛持ち。現場に飽き気味。",
+          risk: true,
+        },
+        {
+          id: "sato",
+          name: "佐藤 健太",
+          role: "Ace",
+          cost: 70,
+          color: "#0ea5e9",
+          stats: [60, 95, 90, 70],
+          dream: "テックリード",
+          skills: ["Java", "Go", "Design"],
+          desc: "やる気Sの若手エース。リーダー経験を熱望。",
+          risk: false,
+        },
+        {
+          id: "suzuki",
+          name: "鈴木 一郎",
+          role: "PM",
+          cost: 100,
+          color: "#8b5cf6",
+          stats: [85, 60, 40, 90],
+          dream: "CTO",
+          skills: ["PM", "Risk", "Java"],
+          desc: "安定のPM。育児優先のため残業不可。",
+          risk: false,
+        },
+        {
+          id: "kato",
+          name: "加藤 愛",
+          role: "Dev",
+          cost: 50,
+          color: "#f43f5e",
+          stats: [40, 80, 85, 60],
+          dream: "UIデザイナー",
+          skills: ["HTML", "Test"],
+          desc: "元気な新人。デザインセンスあり。",
+          risk: false,
+        },
+        {
+          id: "yamada",
+          name: "山田 太郎",
+          role: "Adv",
+          cost: 80,
+          color: "#f59e0b",
+          stats: [80, 50, 40, 70],
+          dream: "教育者",
+          skills: ["Python", "Cloud"],
+          desc: "技術顧問クラス。教育が得意。",
+          risk: false,
+        },
+      ];
+
+      const projects = [
+        {
+          id: "ec",
+          name: "ECリニューアル (炎上)",
+          budget: 200,
+          type: "High",
+          reqs: [
+            { l: "Java", c: (s) => s.includes("Java") },
+            { l: "Leader", c: (s) => s.includes("PM") || s.includes("Design") },
+          ],
+          gain: ["危機管理", "Leader"],
+          diff: 1.05,
+          desc: "【緊急】納期遅延中。Java必須。高ストレス環境。",
+        },
+        {
+          id: "hr",
+          name: "HRシステム保守",
+          budget: 120,
+          type: "Stable",
+          reqs: [{ l: "Java", c: (s) => s.includes("Java") }],
+          gain: ["保守運用"],
+          diff: 1.01,
+          desc: "レガシーシステムの維持運用。安定稼働重視。",
+        },
+        {
+          id: "ai",
+          name: "新規AI開発PoC",
+          budget: 180,
+          type: "Growth",
+          reqs: [
+            { l: "Python", c: (s) => s.includes("Python") },
+            { l: "Cloud", c: (s) => s.includes("Cloud") },
+          ],
+          gain: ["AI", "Go", "Cloud"],
+          diff: 1.15,
+          desc: "技術的挑戦が多い。Python/Cloud必須。",
+        },
+      ];
+
+      /* --- 2. Application Logic --- */
+      const app = {
+        curPj: "ec",
+        currentTeam: [],
+        simTeam: [],
+        charts: {},
+
+        init: () => {
+          app.initChart();
+          app.selectProject("ec");
+          app.addSlackMsg(
+            "bot",
+            "SaihAI",
+            "Watchdog: Monitoring active...<br>No critical alerts at 09:00."
+          );
+          app.renderLists();
+        },
+
+        toggleMenu: () => {
+          document.getElementById("sidebar").classList.toggle("open");
+          document.getElementById("sidebar-overlay").classList.toggle("open");
+        },
+
+        // --- Demo Feature ---
+        startDemo: () => {
+          alert(
+            "【デモシナリオ開始】\nAIがリスクを検知し、Slackへ3つの戦略案を提示します。"
+          );
+          app.addLog("SYS", "Watchdog scan initiated...");
+          setTimeout(
+            () => app.addLog("SYS", "Analyzing Project: ECリニューアル..."),
+            800
+          );
+          setTimeout(
+            () =>
+              app.addLog("RISK", "異常値検知: 田中 未来 (Burnout Risk: 85%)"),
+            1600
+          );
+
+          setTimeout(() => {
+            document.getElementById("slack-badge").classList.add("show");
+            app.addSlackMsg(
+              "bot",
+              "SaihAI",
+              `
+          🚨 <b>異常検知: プロジェクト・フェニックス</b><br>
+          田中氏の週報より「腰痛」「飽きた」等のネガティブワードが増加。<br>
+          離職確率が危険水域(85%)に達しました。<br><br>
+          <div class="sl-att gold">
+            <div style="font-size:11px; margin-bottom:8px; color:#aaa;">戦略を選択してください:</div>
+            
+            <div class="sl-plan-row">
+              <div class="sl-plan-info">
+                <span class="sl-plan-title">🛡️ プランA: 堅実維持</span>
+                <span class="sl-plan-desc">ベテラン維持 / 高リスク</span>
+              </div>
+              <button class="btn-slack-sm" onclick="app.slackAction('A')">選択</button>
+            </div>
+            
+            <div class="sl-plan-row" style="border-color:var(--gold); background:rgba(245, 158, 11, 0.1);">
+              <div class="sl-plan-info">
+                <span class="sl-plan-title" style="color:var(--gold);">🚀 プランB: 若手抜擢 (推奨)</span>
+                <span class="sl-plan-desc">田中氏顧問化 / 佐藤氏リーダー</span>
+              </div>
+              <button class="btn-slack-sm rec" onclick="app.slackAction('B')">選択</button>
+            </div>
+            
+            <div class="sl-plan-row">
+              <div class="sl-plan-info">
+                <span class="sl-plan-title">💰 プランC: コスト削減</span>
+                <span class="sl-plan-desc">若手のみ / 低コスト</span>
+              </div>
+              <button class="btn-slack-sm" onclick="app.slackAction('C')">選択</button>
+            </div>
+
+            <div class="sl-action-bar">
+               <button class="btn-slack warn" onclick="app.slackAction('wait')">✋ 待った (介入)</button>
+            </div>
+          </div>
+        `
+            );
+          }, 2500);
+        },
+
+        slackAction: (type) => {
+          const btns = document.querySelectorAll(".sl-att button");
+          btns.forEach((b) => {
+            b.style.opacity = "0.5";
+            b.disabled = true;
+          });
+
+          if (type === "wait") {
+            app.addSlackMsg(
+              "user",
+              "Me",
+              "ちょっと待って。チャットで調整したい。"
+            );
+            setTimeout(() => {
+              app.addSlackMsg(
+                "bot",
+                "SaihAI",
+                "承知しました。介入モードに移行します。<br>具体的な指示を入力してください。"
+              );
+              document.getElementById("sl-input").focus();
+            }, 800);
+          } else {
+            const plans = { A: "堅実維持", B: "若手抜擢", C: "コスト削減" };
+            app.addSlackMsg(
+              "user",
+              "Me",
+              `プラン${type} (${plans[type]}) を選択します。`
+            );
+
+            setTimeout(() => {
+              app.addSlackMsg(
+                "bot",
+                "SaihAI",
+                `
+            承知しました。<b>プラン${type}</b>を実行するための準備（根回し）が完了しています。<br>
+            以下のドラフトを送信しますか？
+            <div class="sl-att">
+              <div class="nema-label">✅ 根回し済みドラフト (Auto-Nemawashi)</div>
+              <div class="nema-item"><span class="nema-icon">✉️</span> <b>メール下書き:</b> クライアント宛 (体制変更のご挨拶)<span class="nema-tag">Ready</span></div>
+              <div class="nema-item"><span class="nema-icon">📅</span> <b>カレンダー仮押さえ:</b> 田中氏 1on1 (明日14:00)<span class="nema-tag">Hold</span></div>
+              <div class="nema-item"><span class="nema-icon">📄</span> <b>社内申請:</b> 人事異動届<span class="nema-tag">Draft</span></div>
+              <div class="sl-action-bar">
+                <button class="btn-slack primary" onclick="app.executeAll('${type}')">承認して実行</button>
+              </div>
+            </div>
+          `
+              );
+            }, 1200);
+          }
+        },
+
+        executeAll: (type) => {
+          const btns = document.querySelectorAll(".sl-action-bar button");
+          btns.forEach((b) => (b.style.display = "none"));
+
+          app.addSlackMsg("user", "Me", "承認します。すべて実行してください。");
+          setTimeout(() => {
+            app.addSlackMsg(
+              "bot",
+              "SaihAI",
+              `
+          了解しました。全アクションを実行しました。<br>✅ <b>Execution ID: #9928-X</b><br>
+          <button class="btn-slack primary" style="margin-top:12px;" onclick="app.applyPlan('${type}')">View New Formation (新体制を確認)</button>
+        `
+            );
+          }, 1000);
+        },
+
+        // --- Simulator Core ---
+        renderLists: () => {
+          // 1. Project List
+          document.getElementById("sim-pj-list").innerHTML = projects
+            .map(
+              (p) => `
+        <div class="member-card ${
+          p.id === app.curPj ? "active" : ""
+        }" onclick="app.selectProject('${
+                p.id
+              }')" style="border-radius:4px; height:auto;">
+          <div style="font-weight:bold; font-size:12px;">${p.name}</div>
+          <div style="font-size:10px; color:var(--text-sub);">予算: ${
+            p.budget
+          }万</div>
+        </div>
+      `
+            )
+            .join("");
+
+          // 2. Candidate Pool
+          const pool = members.filter((m) => !app.simTeam.includes(m.id));
+          document.getElementById("sim-pool-list").innerHTML = pool
+            .map((m) => app.createMemberCard(m, "pool"))
+            .join("");
+
+          // 3. Current State
+          const current = members.filter((m) => app.currentTeam.includes(m.id));
+          const currentZone = document.getElementById("current-area");
+          currentZone.innerHTML = current.length
+            ? current.map((m) => app.createMemberCard(m, "current")).join("")
+            : '<div style="color:#666;font-size:11px;">No current members.</div>';
+
+          // 4. Simulation State
+          const sim = members.filter((m) => app.simTeam.includes(m.id));
+          const simZone = document.getElementById("sim-area");
+
+          if (sim.length === 0) {
+            simZone.innerHTML =
+              '<div style="text-align:center; color:#666; padding-top:40px; grid-column: 1 / -1;">No members in draft.<br>Drag or click to add.</div>';
+            simZone.classList.remove("active");
+          } else {
+            simZone.innerHTML = sim
+              .map((m) => app.createMemberCard(m, "sim"))
+              .join("");
+            simZone.classList.add("active");
+          }
+
+          // 5. DB View
+          document.getElementById("db-pj-grid").innerHTML = projects
+            .map(
+              (p) => `
+        <div class="kpi-card" onclick="app.showDetail('project', '${
+          p.id
+        }')" style="padding:20px; border-left:4px solid ${
+                p.type === "High" ? "var(--danger)" : "var(--primary)"
+              };">
+          <div style="font-weight:bold; font-size:16px; margin-bottom:8px;">${
+            p.name
+          }</div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-sub); margin-bottom:12px;">
+            <span>Type: ${p.type}</span><span>Budget: ¥${p.budget}万</span>
+          </div>
+          <div style="font-size:13px; line-height:1.5;">${p.desc}</div>
+          <div style="margin-top:12px; display:flex; gap:4px;">${p.reqs
+            .map((r) => `<span class="skill-tag">${r.l}</span>`)
+            .join("")}</div>
+        </div>
+      `
+            )
+            .join("");
+
+          document.getElementById("db-mem-grid").innerHTML = members
+            .map(
+              (m) => `
+        <div class="kpi-card" onclick="app.showDetail('member', '${m.id}')" style="padding:16px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div style="width:36px; height:36px; background:${m.color}; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">${m.name[0]}</div>
+            <div><div style="font-weight:bold;">${m.name}</div><div style="font-size:11px; color:var(--text-sub);">Role: ${m.role} / Cost: ${m.cost}万</div></div>
+          </div>
+          <div style="font-size:12px; line-height:1.5; color:var(--text-sub);">${m.desc}</div>
+        </div>
+      `
+            )
+            .join("");
+        },
+
+        // --- Detail Modal ---
+        showDetail: (type, id) => {
+          const container = document.getElementById("detail-content");
+          if (type === "member") {
+            const m = members.find((x) => x.id === id);
+            const statsHtml = ["Tech", "Morale", "Growth", "Synergy"]
+              .map(
+                (label, i) => `
+          <div style="font-size:11px; margin-bottom:4px; display:flex; justify-content:space-between;">
+            <span>${label}</span><span>${m.stats[i]}</span>
+          </div>
+          <div class="stat-bar"><div class="stat-fill" style="width:${m.stats[i]}%; background:${m.color};"></div></div>
+        `
+              )
+              .join("");
+            container.innerHTML = `
+          <div class="detail-header">
+            <div class="detail-avatar" style="background:${m.color}">${m.name[0]}</div>
+            <div><h2 style="margin:0;">${m.name}</h2><div style="color:var(--text-sub); font-size:14px; margin-top:4px;">${m.role} | ¥${m.cost}万/月</div></div>
+          </div>
+          <div class="detail-section"><h4>🧬 Career Genome (夢・志向)</h4><div style="font-size:16px; font-weight:bold; color:var(--gold);">" ${m.dream} "</div></div>
+          <div class="detail-section"><h4>📊 Parameters</h4><div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">${statsHtml}</div></div>
+          <div class="detail-section"><h4>📝 Supervisor Notes</h4><div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:8px; font-size:13px; line-height:1.5;">${m.desc}</div></div>
+        `;
+          } else {
+            const p = projects.find((x) => x.id === id);
+            container.innerHTML = `
+          <div class="detail-header">
+            <div class="detail-avatar" style="background:#333; font-size:20px;">📂</div>
+            <div><h2 style="margin:0;">${
+              p.name
+            }</h2><div style="color:var(--text-sub); font-size:14px; margin-top:4px;">${
+              p.type
+            } Project | Budget: ¥${p.budget}万</div></div>
+          </div>
+          <div class="detail-section"><h4>🔥 Context</h4><div style="font-size:14px; line-height:1.5;">${
+            p.desc
+          }</div></div>
+          <div class="detail-section"><h4>🧩 Requirements</h4><div class="detail-tag-row">${p.reqs
+            .map(
+              (r) =>
+                `<span class="skill-tag" style="font-size:12px; padding:4px 8px;">${r.l}</span>`
+            )
+            .join("")}</div></div>
+          <div class="detail-section"><h4>💡 Gain Skills</h4><div class="detail-tag-row">${p.gain
+            .map(
+              (g) =>
+                `<span class="skill-tag" style="background:rgba(16, 185, 129, 0.2); color:#10b981; font-size:12px; padding:4px 8px;">${g}</span>`
+            )
+            .join("")}</div></div>
+        `;
+          }
+          document.getElementById("detail-modal").classList.add("open");
+        },
+
+        // --- Card Logic ---
+        createMemberCard: (m, type) => {
+          const isSim = type === "sim";
+          const isCurrent = type === "current";
+          let riskClass = "";
+          let roleLabel = "";
+          let roleClass = "";
+          let matchHtml = "";
+          let valueHtml = "";
+          let riskHtml = "";
+          let displayCost = m.cost;
+          let costSuffix = "";
+
+          if (app.curPj === "ec") {
+            if (m.id === "sato") {
+              roleLabel = "Leader (Candidate)";
+              roleClass = "leader";
+              if (isSim) {
+                matchHtml = `<div class="stat-item highlight"><span class="stat-match">🚀 Match: Perfect</span></div>`;
+                valueHtml = `<div class="stat-item highlight"><span class="stat-value">📈 Value: +120%</span></div>`;
+              }
+            }
+            if (m.id === "tanaka") {
+              if (isCurrent) {
+                roleLabel = "Tech Lead";
+                riskClass = "risk-high";
+                riskHtml = `<div class="stat-item highlight"><span class="stat-risk">🔥 Risk: High</span></div>`;
+              } else if (isSim) {
+                const hasSato = app.simTeam.includes("sato");
+                if (hasSato) {
+                  roleLabel = "Tech Advisor";
+                  roleClass = "advisor";
+                  riskHtml = `<div class="stat-item"><span class="stat-value">✅ Risk: Mitigated</span></div>`;
+                  displayCost = 30;
+                  costSuffix = " (稼働減)";
+                } else {
+                  roleLabel = "Tech Lead";
+                  riskClass = "risk-high";
+                  riskHtml = `<div class="stat-item highlight"><span class="stat-risk">⚠️ Risk: High</span></div>`;
+                }
+              }
+            }
+            if (m.id === "yamada") roleLabel = "Mentor";
+          }
+
+          const showStats = isSim || isCurrent || m.id === "sato";
+          const statsRow = showStats
+            ? `
+        <div class="card-stats">
+          ${matchHtml || '<div class="stat-item">Match: --</div>'}
+          ${valueHtml || '<div class="stat-item">Value: --</div>'}
+          ${riskHtml || '<div class="stat-item">Risk: Low</div>'}
+        </div>
+      `
+            : "";
+
+          return `
+        <div class="member-card ${riskClass} ${
+            isSim ? "in-team" : ""
+          }" onclick="${isCurrent ? "" : `app.toggleMember('${m.id}')`}">
+          <div class="card-header">
+            <div class="card-user">
+              <div class="avatar" style="background:${m.color};">${
+            m.name[0]
+          }</div>
+              <div>
+                <div style="font-weight:bold; font-size:13px; display:flex; align-items:center;">
+                  ${m.name}
+                  ${
+                    roleLabel
+                      ? `<span class="role-badge ${roleClass}">${roleLabel}</span>`
+                      : ""
+                  }
+                </div>
+                <div style="font-size:10px; color:var(--text-sub);">
+                   ¥${displayCost}万/月<span style="color:${
+            costSuffix ? "var(--success)" : "inherit"
+          }">${costSuffix}</span>
+                </div>
+              </div>
+            </div>
+            <div style="font-size:10px; color:#666;">ID:${m.id}</div>
+          </div>
+          <div class="skills-row">
+            ${m.skills
+              .map((s) => `<span class="skill-tag">${s}</span>`)
+              .join("")}
+          </div>
+          ${statsRow}
+        </div>
+      `;
+        },
+
+        selectProject: (pid) => {
+          app.curPj = pid;
+          if (pid === "ec") {
+            app.currentTeam = ["tanaka"];
+            app.simTeam = ["tanaka"];
+          } else {
+            app.currentTeam = [];
+            app.simTeam = [];
+          }
+          app.renderLists();
+          app.calc();
+          if (window.innerWidth <= 768) app.toggleMenu(); // Auto close on mobile nav
+        },
+
+        toggleMember: (mid) => {
+          if (app.simTeam.includes(mid))
+            app.simTeam = app.simTeam.filter((id) => id !== mid);
+          else app.simTeam.push(mid);
+          app.renderLists();
+          app.calc();
+        },
+
+        calc: () => {
+          const p = projects.find((x) => x.id === app.curPj);
+          const tMembers = members.filter((m) => app.simTeam.includes(m.id));
+          let totalCost = 0;
+          tMembers.forEach((m) => {
+            let cost = m.cost;
+            if (
+              app.curPj === "ec" &&
+              m.id === "tanaka" &&
+              app.simTeam.includes("sato")
+            )
+              cost = 30;
+            totalCost += cost;
+          });
+
+          const budPct = Math.min((totalCost / p.budget) * 100, 100);
+          document.getElementById(
+            "budget-text"
+          ).innerHTML = `¥${totalCost}万 / ¥${p.budget}万`;
+          document.getElementById("budget-fill").style.width = budPct + "%";
+          document.getElementById("budget-fill").style.background =
+            totalCost > p.budget ? "var(--danger)" : "var(--cyan)";
+
+          let covered = 0;
+          let totalReqs = p.reqs.length;
+          p.reqs.forEach((req) => {
+            if (tMembers.some((m) => req.c(m.skills))) covered++;
+          });
+          const reqPct = totalReqs > 0 ? (covered / totalReqs) * 100 : 0;
+          document.getElementById("req-text").innerText = `${Math.round(
+            reqPct
+          )}%`;
+          document.getElementById("req-fill").style.width = reqPct + "%";
+
+          app.updateForecastChart(tMembers, p);
+          app.updateLogs(tMembers, p, totalCost);
+        },
+
+        updateLogs: (tMembers, p, totalCost) => {
+          const logBox = document.getElementById("console-log");
+          logBox.innerHTML = "";
+          if (tMembers.length === 0) {
+            logBox.innerHTML =
+              '<div style="text-align:center;color:#666;">Awaiting Data...</div>';
+            return;
+          }
+          const sequence = [];
+          sequence.push({ agent: "SYS", msg: "Running simulation..." });
+          if (totalCost > p.budget)
+            sequence.push({
+              agent: "PM",
+              msg: `⚠️ 予算超過 (+${totalCost - p.budget}万).`,
+            });
+          else
+            sequence.push({
+              agent: "PM",
+              msg: `✅ 予算内 (残:${p.budget - totalCost}万).`,
+            });
+
+          let risk = 0;
+          if (tMembers.some((m) => m.id === "tanaka" && p.id === "ec")) {
+            const hasSato = tMembers.some((m) => m.id === "sato");
+            if (!hasSato) {
+              sequence.push({
+                agent: "HR",
+                msg: `田中氏のモチベーション低下を検知.`,
+              });
+              sequence.push({
+                agent: "RISK",
+                msg: `🚨 離職確率85%. プロジェクト崩壊の危険.`,
+              });
+              risk = 80;
+            } else {
+              sequence.push({
+                agent: "HR",
+                msg: `田中氏の負荷が軽減 (Role Change: Advisor).`,
+              });
+              sequence.push({
+                agent: "PM",
+                msg: `📉 田中氏の稼働率を調整(0.2 FTE). コスト圧縮成功.`,
+              });
+            }
+          }
+          if (tMembers.some((m) => m.id === "sato" && p.id === "ec"))
+            sequence.push({
+              agent: "HR",
+              msg: `✨ 佐藤氏: "リーダーをやりたい" (Career Match!)`,
+            });
+          const score = Math.max(0, 100 - risk);
+          sequence.push({ agent: "GUNSHI", msg: `総合スコア ${score}.` });
+
+          let delay = 0;
+          sequence.forEach((item) => {
+            setTimeout(() => app.addLog(item.agent, item.msg), delay);
+            delay += 500;
+          });
+        },
+
+        updateForecastChart: (tMembers, p) => {
+          let base = 50;
+          if (tMembers.length > 0) base += 10;
+          if (tMembers.some((m) => m.id === "sato")) base += 20;
+          if (tMembers.some((m) => m.id === "yamada")) base += 10;
+          if (tMembers.some((m) => m.id === "tanaka")) base -= 10;
+          const data = [base, base * 1.1, base * 1.2, base * 1.3];
+          if (
+            tMembers.some((m) => m.id === "tanaka") &&
+            !tMembers.some((m) => m.id === "sato")
+          ) {
+            data[1] = base;
+            data[2] = base * 0.8;
+            data[3] = base * 0.5;
+          }
+          app.charts.forecast.data.datasets[0].data = data;
+          app.charts.forecast.update();
+        },
+
+        addLog: (agent, msg) => {
+          const box = document.getElementById("console-log");
+          const div = document.createElement("div");
+          div.className = `chat-bubble agent-${agent.toLowerCase()}`;
+          div.innerHTML = `<div class="chat-icon">${agent.substring(
+            0,
+            2
+          )}</div><div class="chat-content"><div class="chat-agent">${agent}</div><div class="chat-msg">${msg}</div></div>`;
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+        },
+
+        addSlackMsg: (type, name, html) => {
+          const box = document.getElementById("sl-msgs");
+          const div = document.createElement("div");
+          div.className = "sl-msg";
+          div.innerHTML = `<div class="sl-avatar" style="background:${
+            type === "bot" ? "var(--primary)" : "#555"
+          }">${
+            type === "bot" ? "🤖" : "👤"
+          }</div><div style="flex:1;"><div style="font-weight:bold; font-size:13px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">${name} ${
+            type === "bot"
+              ? '<span style="font-size:9px; background:#555; padding:1px 4px; border-radius:3px;">APP</span>'
+              : ""
+          }<span style="font-size:10px; color:#666; font-weight:normal;">Just now</span></div><div class="sl-content">${html}</div></div>`;
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+        },
+
+        sendSlack: () => {
+          const inp = document.getElementById("sl-input");
+          const val = inp.value;
+          if (!val) return;
+          app.addSlackMsg("user", "Me", val);
+          inp.value = "";
+          if (
+            val.includes("メール") ||
+            val.includes("待って") ||
+            val.includes("変更")
+          ) {
+            setTimeout(
+              () =>
+                app.addSlackMsg(
+                  "bot",
+                  "SaihAI",
+                  `承知しました。以下の通り修正しました。<br>🔄 <b>State Update:</b> メール送信を[保留] / 社内調整を[実行]<br><div class="sl-action-bar"><button class="btn-slack primary" onclick="app.executeAll('B')">修正案を実行</button></div>`
+                ),
+              1000
+            );
+          } else {
+            setTimeout(() => {
+              app.addSlackMsg(
+                "bot",
+                "SaihAI",
+                `指示を受け付けました。直ちに実行します。<br>✅ <b>Action executed.</b>`
+              );
+            }, 1000);
+          }
+        },
+
+        jumpToSim: (pid) => {
+          router.nav("sim", document.querySelectorAll(".nav-item")[1]);
+          app.selectProject(pid);
+        },
+
+        showAiPlans: () =>
+          document.getElementById("modal-overlay").classList.add("open"),
+
+        applyPlan: (type) => {
+          document.getElementById("modal-overlay").classList.remove("open");
+          router.nav("sim", document.querySelectorAll(".nav-item")[1]);
+          if (type === "A") app.simTeam = ["tanaka", "suzuki"];
+          if (type === "B") app.simTeam = ["sato", "tanaka"];
+          if (type === "C") app.simTeam = ["sato"];
+          app.renderLists();
+          app.calc();
+        },
+
+        initChart: () => {
+          const ctx = document.getElementById("forecastChart").getContext("2d");
+          app.charts.forecast = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: ["現在", "1ヶ月後", "2ヶ月後", "3ヶ月後"],
+              datasets: [
+                {
+                  label: "チーム戦力",
+                  data: [50, 52, 54, 55],
+                  borderColor: "#6366f1",
+                  backgroundColor: "rgba(99,102,241,0.1)",
+                  fill: true,
+                  tension: 0.4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: { display: false, min: 0, max: 100 },
+                x: { grid: { color: "#334155" }, ticks: { color: "#ccc" } },
+              },
+              plugins: { legend: { display: false } },
+            },
+          });
+        },
+      };
+
+      const router = {
+        nav: (id, el) => {
+          document.querySelectorAll(".view, .view-scroll").forEach((e) => {
+            e.classList.remove("active");
+            e.style.display = "none";
+          });
+          document
+            .querySelectorAll(".nav-item")
+            .forEach((e) => e.classList.remove("active"));
+          const target = document.getElementById("view-" + id);
+          const isScroll = target.classList.contains("view-scroll");
+          target.style.display = isScroll ? "flex" : "flex";
+          setTimeout(() => target.classList.add("active"), 10);
+          if (el) el.classList.add("active");
+          const titles = {
+            dash: "経営ダッシュボード",
+            sim: "戦術シミュレーター",
+            db: "人材ゲノムDB",
+            slack: "AI Connect",
+          };
+          document.getElementById("page-title").innerText = titles[id];
+          if (id === "slack")
+            document.getElementById("slack-badge").classList.remove("show");
+          if (window.innerWidth <= 768) {
+            // Mobile auto close sidebar
+            document.getElementById("sidebar").classList.remove("open");
+            document.getElementById("sidebar-overlay").classList.remove("open");
+          }
+        },
+      };
+
+      window.onload = app.init;
+    </script>
+  </body>
+</html>
