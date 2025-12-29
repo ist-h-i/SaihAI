@@ -1,6 +1,7 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { filter } from 'rxjs';
 
 @Component({
@@ -106,6 +107,7 @@ export class App {
   protected readonly title = signal('SaihAI');
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly titleService = inject(Title);
   private readonly activePath = signal('/dashboard');
 
   protected readonly pageTitle = computed(() => {
@@ -120,6 +122,11 @@ export class App {
         return 'SaihAI';
     }
   });
+  private readonly documentTitle = computed(() => {
+    const currentTitle = this.pageTitle();
+
+    return currentTitle === 'SaihAI' ? currentTitle : `${currentTitle} | SaihAI`;
+  });
 
   constructor() {
     this.activePath.set(this.router.url.split('?')[0] || '/dashboard');
@@ -131,6 +138,10 @@ export class App {
       .subscribe(() => {
         this.activePath.set(this.router.url.split('?')[0] || '/dashboard');
       });
+
+    effect(() => {
+      this.titleService.setTitle(this.documentTitle());
+    });
   }
 
   protected triggerDemo(mode: 'alert' | 'manual'): void {
