@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+﻿import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
@@ -40,8 +40,8 @@ const HAISA_LABELS: Record<HaisaEmotion, string> = {
   anxious: '不安',
   relieved: '安心',
   explosion: '爆発',
-  energetic: '元気',
-  determined: '頑張る',
+  energetic: 'エネルギー',
+  determined: '決意',
   hopeful: '希望',
   curious: '好奇心',
 };
@@ -514,14 +514,14 @@ export class SimulatorPage implements OnDestroy {
     const initialEmotion = this.emotionForOverlay(mode, r);
     this.overlayLog.set([]);
     this.overlayChat.set([
-      {
-        from: 'ai',
-        emotion: initialEmotion,
-        text: r
-          ? `状況を分析しました。推奨プランは「${r.agents.gunshi.recommend}」です。承認（空欄）または指示を入力してください。`
-          : 'まずはシミュレーションを実行してください。',
-      },
-    ]);
+  {
+    from: 'ai',
+    emotion: initialEmotion,
+    text: r
+      ? `状況を分析しました。推奨プランは「${r.agents.gunshi.recommend}」です。承認（空欄）または指示を入力してください。`
+      : 'まずシミュレーションを実行してください。',
+  },
+]);
 
     if (r) {
       if (mode === 'alert') {
@@ -599,7 +599,7 @@ export class SimulatorPage implements OnDestroy {
         {
           from: 'ai',
           emotion: tone,
-          text: `承知しました。「${trimmed}」の方針で再計算します。`,
+          text: `承知しました。「${trimmed}」方針で再計算します。`,
         },
       ]);
     }, 450);
@@ -629,9 +629,7 @@ export class SimulatorPage implements OnDestroy {
     if (fit >= 65) return 'joy';
     if (fit >= 45) return 'energetic';
     return 'determined';
-  }
-
-  private emotionFromChatRequest(text: string): HaisaEmotion {
+  }  private emotionFromChatRequest(text: string): HaisaEmotion {
     if (text.includes('承認')) return 'relieved';
     if (text.includes('再計算')) return 'hopeful';
     if (text.includes('Plan')) return 'determined';
