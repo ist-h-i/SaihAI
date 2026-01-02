@@ -160,11 +160,92 @@ jobs:
       - name: Inject Codex auth.json (ChatGPT login)
         env:
           CODEX_AUTH_JSON_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
+          # Optional fallback: allow storing raw JSON without base64 encoding.
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
         run: |
-          set -euxo pipefail
+          set -euo pipefail
+          umask 077
           mkdir -p ~/.codex
-          echo "$CODEX_AUTH_JSON_B64" | base64 -d > ~/.codex/auth.json
-          chmod 600 ~/.codex/auth.json
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import sys
+
+          raw_json = os.environ.get("CODEX_AUTH_JSON", "")
+          raw_b64 = os.environ.get("CODEX_AUTH_JSON_B64", "")
+
+          if raw_json.strip():
+            source = "CODEX_AUTH_JSON"
+            value = raw_json.strip()
+          elif raw_b64.strip():
+            source = "CODEX_AUTH_JSON_B64"
+            value = raw_b64.strip()
+          else:
+            sys.stderr.write(
+              "Missing GitHub Secret for Codex auth. Set either CODEX_AUTH_JSON (raw auth.json) "
+              "or CODEX_AUTH_JSON_B64 (base64-encoded auth.json).\n"
+            )
+            sys.exit(1)
+
+          value = value.lstrip("\ufeff").strip()
+
+          def _is_json(text: str) -> bool:
+            try:
+              json.loads(text)
+              return True
+            except Exception:  # noqa: BLE001
+              return False
+
+          if _is_json(value):
+            auth_text = value
+          else:
+            compact = re.sub(r"\s+", "", value)
+            if (compact.startswith('"') and compact.endswith('"')) or (
+              compact.startswith("'") and compact.endswith("'")
+            ):
+              compact = compact[1:-1]
+            compact = compact.strip()
+
+            def _pad(s: str) -> str:
+              return s + ("=" * (-len(s) % 4))
+
+            kinds = ["standard", "urlsafe"]
+            if "-" in compact or "_" in compact:
+              kinds = ["urlsafe", "standard"]
+
+            errors = []
+            auth_text = ""
+            for kind in kinds:
+              try:
+                s = _pad(compact)
+                if kind == "standard":
+                  decoded = base64.b64decode(s, validate=True)
+                else:
+                  decoded = base64.urlsafe_b64decode(s)
+                text = decoded.decode("utf-8").lstrip("\ufeff").strip()
+                json.loads(text)
+                auth_text = text
+                break
+              except Exception as e:  # noqa: BLE001
+                errors.append(f"{kind}: {e}")
+
+            if not auth_text:
+              sys.stderr.write(
+                f"Failed to restore ~/.codex/auth.json from {source}. "
+                "Provide raw auth.json in CODEX_AUTH_JSON, or base64(auth.json) in CODEX_AUTH_JSON_B64. "
+                f"Errors: {', '.join(errors)}\n"
+              )
+              sys.exit(1)
+
+          path = os.path.expanduser("~/.codex/auth.json")
+          with open(path, "w", encoding="utf-8") as f:
+            f.write(auth_text)
+            if not auth_text.endswith("\n"):
+              f.write("\n")
+          print(f"Wrote {path} from {source}.")
+          PY
 
       - name: Ensure working branch exists (Issue flow)
         if: env.MODE != 'discuss' && env.PR_NUMBER == ''
@@ -238,11 +319,10 @@ jobs:
           if [ -n "${SELECTED_MODEL}" ]; then MODEL_ARGS+=(--model "${SELECTED_MODEL}"); fi
           EFFORT_ARG=(-c "model_reasoning_effort=${SELECTED_EFFORT}")
 
-          codex exec - \
+          codex --ask-for-approval never exec - \
             --output-schema .github/codex/schemas/triage.schema.json \
             -o codex-triage.json \
             --sandbox read-only \
-            --ask-for-approval never \
             "${MODEL_ARGS[@]}" \
             "${EFFORT_ARG[@]}" \
             < .github/codex/triage_prompt.md
@@ -655,7 +735,7 @@ jobs:
             ci-logs/
           retention-days: 30
 
-      - name: Post results to PR
+      - name: Post results to Issue/PR
         uses: actions/github-script@v7
         if: ${{ !cancelled() }}
         with:
@@ -663,7 +743,15 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const prNo = Number(process.env.PRN);
+            const prn = Number(process.env.PRN);
+            const prNo = Number(process.env.PR_NUMBER);
+            const rootIssueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+            const isValid = (n) => Number.isFinite(n) && n > 0;
+            const targetNo = isValid(prn) ? prn : isValid(prNo) ? prNo : isValid(rootIssueNo) ? rootIssueNo : null;
+            if (!targetNo) {
+              core.warning('No PR/Issue number found; skipping comment.');
+              return;
+            }
 
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
             const evidenceName = `codex-evidence-${context.runId}`;
@@ -693,7 +781,7 @@ jobs:
               summary,
               '',
               '---',
-              '追加指示はこのPRにコメントでOKです：`/codex run <追加指示>`'
+              '追加指示はこのIssue/PRにコメントでOKです：`/codex run <追加指示>`'
             ].join('\n');
 
-            await github.rest.issues.createComment({ owner, repo, issue_number: prNo, body });
+            await github.rest.issues.createComment({ owner, repo, issue_number: targetNo, body });
