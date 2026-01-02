@@ -24,3 +24,7 @@ yarn-debug.log*
 yarn-error.log*
 .codex/
 .vscode/
+.mcp/
+docs/MCP_**.md
+/mcp
+scripts/codex-mcp-setup.sh

@@ -112,7 +112,7 @@ flowchart TD
         Executor["<b>Action Executor</b><br/>メール送信 / 申請実行"]
         
         %% Data Persistence
-        StateDB[("<b>State Store (Redis/Postgres)</b><br/>会話履歴・承認待ち状態の保持")]
+        StateDB[("<b>State Store (PostgreSQL)</b><br/>会話履歴・承認待ち状態の保持")]
 
     end
 

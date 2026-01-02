@@ -48,7 +48,7 @@ LangGraphを用いた「マルチエージェントシステム」と、AWS上�
 | Orchestrator (Gunshi Agent) | 司令塔・調停 | 各専門エージェント（HR, PM, Risk）への指令出し。<br>相反する意見（利益 vs 感情）の調停ロジック。<br>3つの戦略シナリオ（松・竹・梅）の合成・生成機能。 |
 | Specialist Agents (専門家群) | 分析・評価 | HR Agent: 週報等の非構造化データからモチベーションやキャリア志向を解析。<br>PM Agent: スキル適合率、予算消化率の計算。<br>Risk Agent: 過去データに基づく離職確率の算出、炎上リスク予測。 |
 | Auto-Nemawashi (根回し実行) | 自動アクション | Drafting Agent: 状況に応じたメール文面（クライアント連絡用、メンバー面談招待用）の自動生成。<br>Calendar Agent: カレンダーAPIと連携した日程調整・仮押さえ（※モックまたはAPI連携）。 |
-| Human-in-the-loop (HITL) 制御 | 人間介入制御 | Checkpoint & Interrupt: AIの実行プロセスを「承認待ち」状態で一時停止させる機能。<br>State Persistence: ユーザー介入まで計算状態をDB（Redis）に保持し、指示を受けて再開（Resume）する機能。 |
+| Human-in-the-loop (HITL) 制御 | 人間介入制御 | Checkpoint & Interrupt: AIの実行プロセスを「承認待ち」状態で一時停止させる機能。<br>State Persistence: ユーザー介入まで計算状態をDB（PostgreSQL / langgraph_checkpoints）に保持し、指示を受けて再開（Resume）する機能。 |
 
 ### B. データ処理・インフラ（Data & Infrastructure）
 

@@ -8,6 +8,9 @@
 - **技術スタック:** Angular ベースの管理画面。
 - **目的:** 深い分析や複雑なシミュレーション結果の可視化を行い、マネージャーがチーム構成を検討しやすくする。
 - **機能カテゴリと要件:**
+  - **初期表示（Dashboard Load）**
+    - 起動時に初期表示用データを一括取得し、アラート/診断/提案/承認待ちを即時に表示する。
+    - 詳細: `requirement/initial-display.md`
   - **プロジェクト・メンバー可視化**
     - 現在のプロジェクト体制図とメンバー一覧を表示する。
     - メンバーの「Genome（ゲノム）」詳細（スキル、モチベーション推移、キャリア志向）を表示する。
@@ -50,7 +53,7 @@
     - **Calendar Agent:** カレンダー API 連携で日程調整や仮押さえを行う（モックまたは実 API 連携を想定）。
   - **Human-in-the-loop (HITL) 制御**
     - **Checkpoint & Interrupt:** AI の実行プロセスを「承認待ち」で一時停止できる。
-    - **State Persistence:** 介入待ちの計算状態を DB（Redis）に保持し、指示を受けて再開（Resume）できる。
+    - **State Persistence:** 介入待ちの計算状態を DB（PostgreSQL / langgraph_checkpoints）に保持し、指示を受けて再開（Resume）できる。
 
 ### 2-2. データ処理・インフラ（Data & Infrastructure）
 - **役割:** 直感的な判断材料をデータ化し、継続的に解析を回す基盤。

@@ -352,7 +352,7 @@ flowchart TD
 - **Approval Request ID（approval_request_id）**: 承認依頼を一意に識別する ID（Slack ボタンに埋め込み、再送/リトライの冪等性キー）
 - **Slack Message（channel_id / message_ts）**: 承認メッセージの参照（更新・追跡用）
 - **Idempotency Key（idempotency_key）**: 「同一 action_id は 1 回だけ」を保証するキー（例: thread_id + action_id）
-- **Checkpoint**: 実行状態を永続化する仕組み（POC: MemorySaver / 本番: Redis/DB 等）
+- **Checkpoint**: 実行状態を永続化する仕組み（POC: MemorySaver / 本番: PostgreSQL（langgraph_checkpoints）等）
 - **Interrupt（承認待ち）**: 実行直前で停止し、人間入力を待つ状態
 
 ## 4. 機能要件（MUST / SHOULD）
@@ -447,7 +447,7 @@ flowchart TD
 
 - Slack リトライ対策: `approval_request_id` + `decision` を冪等キーにし、同一キーは no-op（必要なら監査ログに重複として記録）
 - 状態遷移の排他: `thread_id` 行ロック（または version による楽観ロック）で「承認→実行」競合を防ぐ
-- action 実行の冪等性: `hitl_actions(thread_id, action_id)` を一意制約にし、executor は開始時に INSERT/ロックして二重実行を防止
+- action 実行の冪等性: `autonomous_actions(action_id)` をキーにし、executor は開始時に行ロック + `status` 更新で二重実行を防止
 
 ## 5. データ要件（例）
 
@@ -481,21 +481,13 @@ flowchart TD
 
 ### 5.3 永続化モデル（DBテーブル案）
 
-- hitl_threads（PK: thread_id）
-  - status, draft, feedback, approval_request_id
-  - approver_slack_user_id, approved_by
-  - slack_channel_id, slack_message_ts
-  - requested_at, approved_at, executed_at, expires_at, updated_at
-- hitl_actions（PK: thread_id + action_id）
-  - action_type, payload_ref
-  - status, started_at, finished_at
-- hitl_audit_events（PK: audit_id）
-  - thread_id, event_type, actor_type, actor_id, occurred_at, summary
-  - correlation_id, metadata_json（PII 除外）
+- `langgraph_checkpoints`（PK: thread_id）
+  - checkpoint（バイナリ形式のState）, metadata, updated_at
+- `autonomous_actions`（PK: action_id）
+  - action_type, draft_content, is_approved, approved_at, scheduled_at, status
+  - proposal_id（`ai_strategy_proposals` に紐付け）
 
-- 制約（例）
-  - `hitl_actions(thread_id, action_id)` を UNIQUE とし、executor は開始時に INSERT して排他する
-  - `hitl_threads.status` は列挙制約（CHECK）でガードする
+テーブル定義書: `requirement-docs/database-schema.md`
 
 ## 6. 受入条件（Acceptance Criteria / DoD）
 
