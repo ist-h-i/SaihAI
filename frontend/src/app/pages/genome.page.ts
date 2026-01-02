@@ -27,13 +27,18 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
       </div>
 
       <div class="hidden xl:block w-[360px] shrink-0">
-        <div class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
+        <div
+          class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
+        >
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
             <div class="text-xs text-slate-200 font-bold">Genome Scan</div>
-            <div class="mt-1 text-sm text-slate-300">検索とフィルタで、最適な候補を絞り込みます。</div>
+            <div class="mt-1 text-sm text-slate-300">
+              検索とフィルタで、最適な候補を絞り込みます。
+            </div>
             <div class="mt-3 text-xs text-slate-300">
-              MEMBERS: <span class="font-extrabold text-slate-100">{{ store.members().length }}</span>
+              MEMBERS:
+              <span class="font-extrabold text-slate-100">{{ store.members().length }}</span>
             </div>
           </div>
         </div>
@@ -53,7 +58,9 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                 <th class="text-left font-semibold pr-4 py-2">Member</th>
                 @for (s of topSkills(); track s) {
                   <th class="text-left font-semibold pr-4 py-2">
-                    <button type="button" class="hover:text-white" (click)="toggleSkill(s)">{{ s }}</button>
+                    <button type="button" class="hover:text-white" (click)="toggleSkill(s)">
+                      {{ s }}
+                    </button>
                   </th>
                 }
               </tr>
@@ -62,19 +69,21 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               @for (m of filteredMembers(); track m.id) {
                 <tr class="border-t border-slate-800/80">
                   <td class="py-2 pr-4">
-                  <div class="font-semibold text-slate-100">{{ m.name }}</div>
-                  <div class="text-[11px] text-slate-400">¥{{ m.cost }} / {{ m.availability }}%</div>
-                </td>
-                @for (s of topSkills(); track s) {
-                <td class="py-2 pr-4">
-                  <span
-                    class="inline-block h-2.5 w-2.5 rounded-full"
-                    [class.bg-indigo-400]="m.skills.includes(s)"
-                    [class.bg-slate-700]="!m.skills.includes(s)"
-                  ></span>
-                </td>
-                }
-              </tr>
+                    <div class="font-semibold text-slate-100">{{ m.name }}</div>
+                    <div class="text-[11px] text-slate-400">
+                      ¥{{ m.cost }} / {{ m.availability }}%
+                    </div>
+                  </td>
+                  @for (s of topSkills(); track s) {
+                    <td class="py-2 pr-4">
+                      <span
+                        class="inline-block h-2.5 w-2.5 rounded-full"
+                        [class.bg-indigo-400]="m.skills.includes(s)"
+                        [class.bg-slate-700]="!m.skills.includes(s)"
+                      ></span>
+                    </td>
+                  }
+                </tr>
               }
             </tbody>
           </table>
@@ -112,7 +121,13 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               </button>
             }
           </div>
-          <button type="button" class="mt-3 text-xs text-slate-400 hover:text-white" (click)="clearFilters()">Clear</button>
+          <button
+            type="button"
+            class="mt-3 text-xs text-slate-400 hover:text-white"
+            (click)="clearFilters()"
+          >
+            Clear
+          </button>
         </div>
       </div>
     </div>
@@ -125,57 +140,71 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
 
       <div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (m of filteredMembers(); track m.id) {
-        <div class="group perspective-1000">
-          <div class="relative preserve-3d transition-transform duration-700 group-hover:[transform:rotateY(180deg)]">
-            <div class="backface-hidden rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="font-extrabold text-slate-100 truncate">{{ m.name }}</div>
-                  <div class="mt-1 text-xs text-slate-400 truncate">{{ memberSkillsLabel(m) }}</div>
+          <div class="group perspective-1000">
+            <div
+              class="relative preserve-3d transition-transform duration-700 group-hover:[transform:rotateY(180deg)]"
+            >
+              <div class="backface-hidden rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="font-extrabold text-slate-100 truncate">{{ m.name }}</div>
+                    <div class="mt-1 text-xs text-slate-400 truncate">
+                      {{ memberSkillsLabel(m) }}
+                    </div>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                    <div class="text-xs text-slate-400">{{ m.availability }}%</div>
+                  </div>
                 </div>
-                <div class="text-right shrink-0">
-                  <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
-                  <div class="text-xs text-slate-400">{{ m.availability }}%</div>
-                </div>
-              </div>
 
-              <div class="mt-3 flex flex-wrap gap-2">
-                @for (s of previewSkills(m); track s) {
-                  <span class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200">{{ s }}</span>
-                }
-              </div>
-
-              <div class="mt-4 flex items-center justify-between">
-                <div
-                  class="text-[11px] px-2 py-1 rounded-full border font-bold"
-                  [class.border-rose-500/40]="isRisky(m)"
-                  [class.bg-rose-500/10]="isRisky(m)"
-                  [class.text-rose-200]="isRisky(m)"
-                  [class.border-emerald-500/40]="!isRisky(m)"
-                  [class.bg-emerald-500/10]="!isRisky(m)"
-                  [class.text-emerald-200]="!isRisky(m)"
-                >
-                  {{ isRisky(m) ? 'RISK' : 'STABLE' }}
-                </div>
-                <div class="text-xs text-slate-400">Hover で詳細</div>
-              </div>
-            </div>
-
-            <div class="backface-hidden absolute inset-0 rounded-xl border border-slate-800 bg-slate-950/60 p-4 [transform:rotateY(180deg)]">
-              <div class="text-sm font-extrabold text-slate-100">Notes</div>
-              <div class="mt-2 text-xs text-slate-300 leading-relaxed">{{ m.notes }}</div>
-              <div class="mt-4">
-                <div class="text-xs text-slate-400 font-semibold">Skills</div>
-                <div class="mt-2 flex flex-wrap gap-2">
-                  @for (s of m.skills; track s) {
-                    <span class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200">{{ s }}</span>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  @for (s of previewSkills(m); track s) {
+                    <span
+                      class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200"
+                      >{{ s }}</span
+                    >
                   }
                 </div>
+
+                <div class="mt-4 flex items-center justify-between">
+                  <div
+                    class="text-[11px] px-2 py-1 rounded-full border font-bold"
+                    [class.border-rose-500/40]="isRisky(m)"
+                    [class.bg-rose-500/10]="isRisky(m)"
+                    [class.text-rose-200]="isRisky(m)"
+                    [class.border-emerald-500/40]="!isRisky(m)"
+                    [class.bg-emerald-500/10]="!isRisky(m)"
+                    [class.text-emerald-200]="!isRisky(m)"
+                  >
+                    {{ isRisky(m) ? 'RISK' : 'STABLE' }}
+                  </div>
+                  <div class="text-xs text-slate-400">Hover で詳細</div>
+                </div>
               </div>
-              <div class="mt-4 text-[11px] text-slate-400">Tip: skills をクリックでフィルタできます。</div>
+
+              <div
+                class="backface-hidden absolute inset-0 rounded-xl border border-slate-800 bg-slate-950/60 p-4 [transform:rotateY(180deg)]"
+              >
+                <div class="text-sm font-extrabold text-slate-100">Notes</div>
+                <div class="mt-2 text-xs text-slate-300 leading-relaxed">{{ m.notes }}</div>
+                <div class="mt-4">
+                  <div class="text-xs text-slate-400 font-semibold">Skills</div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @for (s of m.skills; track s) {
+                      <span
+                        class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200"
+                        >{{ s }}</span
+                      >
+                    }
+                  </div>
+                </div>
+                <div class="mt-4 text-[11px] text-slate-400">
+                  Tip: skills をクリックでフィルタできます。
+                </div>
+              </div>
             </div>
           </div>
-        </div>
         }
       </div>
     </div>
@@ -195,7 +224,8 @@ export class GenomePage {
 
   protected readonly topSkills = computed(() => {
     const counts = new Map<string, number>();
-    for (const m of this.store.members()) for (const s of m.skills) counts.set(s, (counts.get(s) ?? 0) + 1);
+    for (const m of this.store.members())
+      for (const s of m.skills) counts.set(s, (counts.get(s) ?? 0) + 1);
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 8)

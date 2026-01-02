@@ -64,7 +64,9 @@ export class SimulatorStore {
 
   toggleMember(memberId: string): void {
     const current = this.selectedMemberIds();
-    const next = current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId];
+    const next = current.includes(memberId)
+      ? current.filter((id) => id !== memberId)
+      : [...current, memberId];
     this.selectedMemberIds.set(next);
   }
 

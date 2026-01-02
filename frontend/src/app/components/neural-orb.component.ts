@@ -19,7 +19,10 @@ export class NeuralOrbComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;
     const gl = (canvas.getContext('webgl2', { antialias: true }) ??
-      canvas.getContext('webgl', { antialias: true })) as WebGLRenderingContext | WebGL2RenderingContext | null;
+      canvas.getContext('webgl', { antialias: true })) as
+      | WebGLRenderingContext
+      | WebGL2RenderingContext
+      | null;
     if (!gl) return;
     this.gl = gl;
 
