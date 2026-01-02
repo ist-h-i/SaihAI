@@ -70,15 +70,20 @@ interface ClusterAccumulator {
   template: `
     <div class="flex items-start justify-between gap-6">
       <div class="min-w-0">
-        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Shadow Dashboard</div>
+        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+          Shadow Dashboard
+        </div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">経営ダッシュボード</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          影で回るAIが「予兆検知 → 根回し準備」まで済ませます。あなたは最後の「直感」で介入し、ワンクリックで決裁します。
+          影で回るAIが「予兆検知 →
+          根回し準備」まで済ませます。あなたは最後の「直感」で介入し、ワンクリックで決裁します。
         </p>
       </div>
 
       <div class="hidden xl:block w-[360px] shrink-0">
-        <div class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
+        <div
+          class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
+        >
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
             <div class="text-xs text-slate-200 font-bold">24/7 Shadow Monitoring</div>
@@ -107,9 +112,13 @@ interface ClusterAccumulator {
     <div class="mt-6 grid gap-4 grid-cols-1 md:grid-cols-4">
       @for (k of kpis(); track k.label) {
         <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-          <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{{ k.label }}</div>
+          <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+            {{ k.label }}
+          </div>
           <div class="mt-2 flex items-end gap-2">
-            <div class="text-3xl font-extrabold tracking-tight" [style.color]="k.color">{{ k.value }}</div>
+            <div class="text-3xl font-extrabold tracking-tight" [style.color]="k.color">
+              {{ k.value }}
+            </div>
             <div class="text-sm text-slate-400 pb-1">{{ k.suffix }}</div>
           </div>
           <div class="mt-2 text-xs" [style.color]="k.deltaColor">{{ k.delta }}</div>
@@ -125,7 +134,9 @@ interface ClusterAccumulator {
           class="mt-2 w-full text-left rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 p-4 flex items-center gap-4"
           (click)="goSimulator('alert', alert.id)"
         >
-          <div class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black">
+          <div
+            class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
+          >
             !
           </div>
           <div class="min-w-0">
@@ -144,13 +155,17 @@ interface ClusterAccumulator {
       <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Talent Matrix</div>
+            <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+              Talent Matrix
+            </div>
             <div class="text-sm text-slate-200 font-semibold mt-1">組織人材マップ</div>
           </div>
           <div class="text-xs text-slate-400">MOTIVATION → / PERFORMANCE ↑</div>
         </div>
 
-        <div class="mt-3 relative h-[340px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/30">
+        <div
+          class="mt-3 relative h-[340px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/30"
+        >
           <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
             <div class="border-b border-r border-slate-800/80 p-3">
               <div class="text-xs font-bold text-rose-200">Risk</div>
@@ -170,7 +185,10 @@ interface ClusterAccumulator {
             </div>
           </div>
 
-          <div class="absolute inset-0 opacity-60" style="background: radial-gradient(circle at center, rgba(99,102,241,0.20), transparent 55%)"></div>
+          <div
+            class="absolute inset-0 opacity-60"
+            style="background: radial-gradient(circle at center, rgba(99,102,241,0.20), transparent 55%)"
+          ></div>
 
           @for (visual of matrixVisuals(); track visual.id) {
             <button
@@ -181,7 +199,11 @@ interface ClusterAccumulator {
               [style.borderColor]="visual.border"
               [style.background]="visual.bg"
               [title]="visual.tooltip"
-              (click)="visual.count === 1 ? goSimulator('manual', visual.members[0].id) : toggleCluster(visual.id)"
+              (click)="
+                visual.count === 1
+                  ? goSimulator('manual', visual.members[0].id)
+                  : toggleCluster(visual.id)
+              "
             >
               @if (visual.count === 1) {
                 <span>{{ visual.members[0].initial }}</span>
@@ -211,7 +233,9 @@ interface ClusterAccumulator {
       </div>
 
       <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">AI Watchdog Log</div>
+        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+          AI Watchdog Log
+        </div>
         <div class="mt-3 space-y-3 text-sm">
           @for (row of watchdog(); track row.t) {
             <div class="flex items-start gap-3">
@@ -228,7 +252,9 @@ interface ClusterAccumulator {
           <div class="mt-4 rounded-lg border border-slate-800 bg-white/5 p-3">
             <div class="text-xs text-slate-400 font-semibold">直近シミュレーション</div>
             <div class="mt-1 text-sm text-slate-200 font-semibold">{{ r.project.name }}</div>
-            <div class="mt-1 text-xs text-slate-300">pattern: {{ r.pattern }} / risk {{ r.metrics.riskPct }}%</div>
+            <div class="mt-1 text-xs text-slate-300">
+              pattern: {{ r.pattern }} / risk {{ r.metrics.riskPct }}%
+            </div>
           </div>
         }
       </div>
@@ -242,8 +268,12 @@ export class DashboardPage {
   protected readonly kpis = computed(() => {
     const members = this.store.members();
     const scored = members.map((m) => ({ m, s: scoreMember(m) }));
-    const avgRisk = scored.length ? scored.reduce((sum, x) => sum + x.s.risk, 0) / scored.length : 0;
-    const avgMotivation = scored.length ? scored.reduce((sum, x) => sum + x.s.motivation, 0) / scored.length : 0;
+    const avgRisk = scored.length
+      ? scored.reduce((sum, x) => sum + x.s.risk, 0) / scored.length
+      : 0;
+    const avgMotivation = scored.length
+      ? scored.reduce((sum, x) => sum + x.s.motivation, 0) / scored.length
+      : 0;
     const highRiskCount = scored.filter((x) => x.s.risk >= 70).length;
 
     const engagement = clampPct(100 - avgRisk * 0.6);
@@ -251,10 +281,38 @@ export class DashboardPage {
     const margin = clampPct(96 + (avgMotivation - 50) * 0.35 - avgRisk * 0.1);
 
     return [
-      { label: 'エンゲージメント', value: engagement, suffix: '%', color: '#10b981', delta: '▲ 2.4pt', deltaColor: '#10b981' },
-      { label: 'キャリア適合率', value: careerFit, suffix: '%', color: '#d946ef', delta: '介入で「成長機会」を再設計', deltaColor: '#94a3b8' },
-      { label: '離職リスク (High)', value: highRiskCount, suffix: '名', color: '#f43f5e', delta: highRiskCount ? '※要対応' : '平常運転', deltaColor: highRiskCount ? '#f43f5e' : '#10b981' },
-      { label: '予測粗利益率', value: margin, suffix: '%', color: '#f59e0b', delta: '自動根回しで調整コスト削減', deltaColor: '#94a3b8' },
+      {
+        label: 'エンゲージメント',
+        value: engagement,
+        suffix: '%',
+        color: '#10b981',
+        delta: '▲ 2.4pt',
+        deltaColor: '#10b981',
+      },
+      {
+        label: 'キャリア適合率',
+        value: careerFit,
+        suffix: '%',
+        color: '#d946ef',
+        delta: '介入で「成長機会」を再設計',
+        deltaColor: '#94a3b8',
+      },
+      {
+        label: '離職リスク (High)',
+        value: highRiskCount,
+        suffix: '名',
+        color: '#f43f5e',
+        delta: highRiskCount ? '※要対応' : '平常運転',
+        deltaColor: highRiskCount ? '#f43f5e' : '#10b981',
+      },
+      {
+        label: '予測粗利益率',
+        value: margin,
+        suffix: '%',
+        color: '#f59e0b',
+        delta: '自動根回しで調整コスト削減',
+        deltaColor: '#94a3b8',
+      },
     ];
   });
 
@@ -350,7 +408,8 @@ export class DashboardPage {
       { t: '10:15', text: '1on1候補の自動調整を開始', dot: '#06b6d4' },
     ];
     const alert = this.activeAlert();
-    if (alert) rows.push({ t: '10:30', text: `${alert.title} / RISK=${alert.risk}%`, dot: '#f43f5e' });
+    if (alert)
+      rows.push({ t: '10:30', text: `${alert.title} / RISK=${alert.risk}%`, dot: '#f43f5e' });
     rows.push({ t: '11:00', text: '新規案件マッチング中…', dot: '#10b981' });
     return rows;
   });
@@ -361,7 +420,11 @@ export class DashboardPage {
     return `${col}:${row}`;
   }
 
-  private createFanPositions(centerX: number, centerY: number, count: number): { left: number; top: number }[] {
+  private createFanPositions(
+    centerX: number,
+    centerY: number,
+    count: number
+  ): { left: number; top: number }[] {
     if (count <= 1) {
       return [{ left: clampPct(centerX), top: clampPct(centerY) }];
     }

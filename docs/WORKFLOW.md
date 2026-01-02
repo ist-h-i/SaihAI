@@ -283,10 +283,25 @@ Codex 実行後に `git status --porcelain` が空の場合:
 
 ## 認証（重要）
 
-この PoC は、GitHub Secret `CODEX_AUTH_JSON_B64` から `~/.codex/auth.json` を復元して Codex CLI にログインさせます。
+この PoC は、GitHub Secret から `~/.codex/auth.json` を復元して Codex CLI にログインさせます。
 
-- `CODEX_AUTH_JSON_B64`: `~/.codex/auth.json` の base64 文字列
+- `CODEX_AUTH_JSON`（推奨）: `~/.codex/auth.json` の生 JSON
+- `CODEX_AUTH_JSON_B64`: `~/.codex/auth.json` の base64 文字列（互換用）
 - これはログインセッション相当のため、漏洩すると第三者に不正利用される可能性があります
+
+### Secret の作り方（例）
+
+- `CODEX_AUTH_JSON`（生 JSON をそのまま登録）
+  - GitHub の Secret に `~/.codex/auth.json` の中身を貼り付け
+- `CODEX_AUTH_JSON_B64`（base64 を登録）
+  - 例（クロスプラットフォーム）:
+    ```bash
+    python3 - <<'PY'
+    import base64, pathlib
+    p = pathlib.Path.home() / '.codex' / 'auth.json'
+    print(base64.b64encode(p.read_bytes()).decode())
+    PY
+    ```
 
 ## セキュリティ（実運用の推奨）
 
