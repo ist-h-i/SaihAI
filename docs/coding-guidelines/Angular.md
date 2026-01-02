@@ -149,18 +149,18 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
       - features/
       - environments/ (optional, or at src/environments)
 
-2) app/core (Singletons & cross-cutting concerns)
+1) app/core (Singletons & cross-cutting concerns)
 
 - Purpose: app-wide singletons & infrastructure, never feature-specific UI.
 - Typical structure:
   - src/app/core/
     - layout/
       - shell/
-        - shell.component.ts|html|scss (app shell / layout)
+        - shell.ts|html|scss (app shell / layout)
     - services/
-      - auth.service.ts
-      - api-http.service.ts
-      - logger.service.ts
+      - auth.ts
+      - api-http.ts
+      - logger.ts
     - interceptors/
       - auth.interceptor.ts
       - error.interceptor.ts
@@ -175,22 +175,22 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
   - Do NOT put feature-specific logic here.
   - Components in `core` are layout/shell-only (e.g. navigation, header, footer).
 
-3) app/shared (Reusable, feature-agnostic building blocks)
+1) app/shared (Reusable, feature-agnostic building blocks)
 
 - Purpose: small, reusable, UI and utility elements with no business semantics.
 - Typical structure:
   - src/app/shared/
     - ui/
       - button/
-        - button.component.ts|html|scss
+        - button.ts|html|scss
       - card/
-        - card.component.ts|html|scss
+        - card.ts|html|scss
     - directives/
-      - autofocus.directive.ts
-      - scroll-into-view.directive.ts
+      - autofocus.ts
+      - scroll-into-view.ts
     - pipes/
-      - date-range.pipe.ts
-      - truncate.pipe.ts
+      - date-range.ts
+      - truncate.ts
     - utils/
       - form-error.util.ts
 - Rules:
@@ -200,7 +200,7 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
     - Accept data via inputs, raise events via outputs.
   - Prefer “headless” components or directives for reusable behavior.
 
-4) app/features (Feature-oriented vertical slices)
+1) app/features (Feature-oriented vertical slices)
 
 - Purpose: each domain feature (Todo, User, Settings, etc.) lives in its own folder.
 - Typical structure:
@@ -210,11 +210,11 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
       - todo.page.ts|html|scss  (main route host component)
       - components/
         - todo-list/
-          - todo-list.component.ts|html|scss
+          - todo-list.ts|html|scss
         - todo-item/
-          - todo-item.component.ts|html|scss
+          - todo-item.ts|html|scss
       - services/
-        - todo.service.ts
+        - todo.ts
         - todo.facade.ts (optional, for view-model / state handling)
       - models/
         - todo.model.ts
@@ -223,7 +223,7 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
         - todo.store.ts (signals or NgRx store)
       - **tests**/ (optional)
         - todo.page.spec.ts
-        - todo.service.spec.ts
+        - todo.spec.ts
     - user/
       - user.routes.ts
       - user.page.ts|html|scss
@@ -244,7 +244,7 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
     - Features should NOT depend directly on each other.
     - If something is shared between features, move it into `shared` or `core`.
 
-5) Routing files per feature
+1) Routing files per feature
 
 - For each feature, create a dedicated route config file:
   - `todo.routes.ts`, `user.routes.ts`, etc.
@@ -254,17 +254,21 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
   - Export the route array for use in the app-level router config.
 - Do NOT mix route config and large business logic in the same file.
 
-6) File & naming conventions
+1) File & naming conventions
 
 - Use kebab-case for folders and filenames:
-  - `todo-list.component.ts`, `user-profile.page.ts`, `app-config.tokens.ts`
-- Suffixes:
-  - `*.component.ts`  for components
+  - `todo-list.ts`, `user-profile.page.ts`, `app-config.tokens.ts`
+- Type suffixes:
+  - Do NOT add type suffixes for Angular assets that already live in a type folder (components/services/directives/pipes).
+  - Use `*.ts` for those assets (e.g. `ui-select.ts`, `auth.ts`, `autofocus.ts`, `truncate.ts`).
+  - Note: Angular CLI may generate `*-pipe.ts` for pipes; rename to `*.ts` to match this convention when needed.
+- Class names:
+  - Components/services/directives: use PascalCase without `Component` / `Service` / `Directive` suffix.
+  - Pages: use `*Page` (do NOT use `*PageComponent`).
+  - Pipes: keep `*Pipe` for readability (optional).
+- Suffixes (used only when they add meaning beyond the folder):
   - `*.page.ts`       for route-level components (pages)
-  - `*.service.ts`    for services
   - `*.facade.ts`     for facade services (state/view-model orchestration)
-  - `*.directive.ts`  for directives
-  - `*.pipe.ts`       for pipes
   - `*.model.ts`      for domain models
   - `*.routes.ts`     for routing files
   - `*.store.ts` or `*.state.ts` for state containers
@@ -274,7 +278,7 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
   - Optional for re-exporting public API of a feature or shared module.
   - Do NOT create deep, confusing re-export chains.
 
-7) Imports & dependency direction
+1) Imports & dependency direction
 
 - Allowed import directions:
   - `features/*` → `shared/*`, `core/*`
@@ -288,7 +292,7 @@ Assume a standard Angular workspace (one app), no Nx unless explicitly mentioned
   - Move it into `core` (if infrastructure-level or singleton service).
 - Keep the dependency graph acyclic and top-down: core → shared → features.
 
-8) Version-specific notes
+1) Version-specific notes
 
 - Angular 18:
   - Feature folders may still contain older NgModule-based code.
@@ -302,5 +306,17 @@ When generating code or examples:
 - Always place files in the proper folder according to these rules.
 - When showing a code snippet, briefly mention the intended path, e.g.:
   - `// File: src/app/features/todo/todo.page.ts`
-  - `// File: src/app/shared/ui/button/button.component.ts`
+  - `// File: src/app/shared/ui/button/button.ts`
 This helps the reader keep the folder structure consistent.
+
+Migration commands:
+<https://v20.angular.dev/reference/migrations>
+<https://v20.angular.dev/reference/migrations/self-closing-tags>
+<https://v20.angular.dev/reference/migrations/cleanup-unused-imports>
+<https://v20.angular.dev/reference/migrations/signal-queries>
+<https://v20.angular.dev/reference/migrations/outputs>
+<https://v20.angular.dev/reference/migrations/signal-inputs>
+<https://v20.angular.dev/reference/migrations/route-lazy-loading>
+<https://v20.angular.dev/reference/migrations/inject-function>
+<https://v20.angular.dev/reference/migrations/control-flow>
+<https://v20.angular.dev/reference/migrations/standalone>

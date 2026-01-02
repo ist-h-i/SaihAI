@@ -1,0 +1,12 @@
+# Minimal Codex CLI configuration for GitHub Actions.
+# See: https://developers.openai.com/codex/local-config/
+
+model_reasoning_effort = "medium"
+
+# Optional: MCP servers (disabled by default).
+# Add your MCP server here if you run one in CI or inside the repository.
+#
+# [mcp_servers.github]
+# command = "node"
+# args = ["path/to/your/mcp-server.js"]
+# 
