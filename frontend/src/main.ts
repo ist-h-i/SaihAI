@@ -7,5 +7,10 @@ import { App } from './app/app';
 import { routes } from './app/app.routes';
 
 bootstrapApplication(App, {
-  providers: [provideBrowserGlobalErrorListeners(), provideZonelessChangeDetection(), provideHttpClient(), provideRouter(routes)],
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideZonelessChangeDetection(),
+    provideHttpClient(),
+    provideRouter(routes),
+  ],
 }).catch((err) => console.error(err));

@@ -108,5 +108,5 @@ E --> R[PR に結果をコメント]
 - `evidence/scenarios.json`: 証跡として撮りたい画面（URL）と確認したい文言（`assertText`）を定義
 - `tests/e2e/evidence.spec.js`: ログイン/遷移など「証跡取得までの操作」を追加・調整
 - `playwright.config.js`: 取得する証跡（trace/video）、タイムアウト、リトライなどを調整
-- `.github/workflows/codex-dispatch.yml`: ChatOps の本体。Secret `CODEX_AUTH_JSON_B64` の設定が必要（`~/.codex/auth.json` の base64。詳細は `docs/WORKFLOW.md` の「認証（重要）」参照）
+- `.github/workflows/codex-dispatch.yml`: ChatOps の本体。Secret `CODEX_AUTH_JSON`（推奨）または `CODEX_AUTH_JSON_B64` の設定が必要（詳細は `docs/WORKFLOW.md` の「認証（重要）」参照）
 - `.github/workflows/pr-ci.yml` / `package.json` / `scripts/build.js`: lint/build/test の中身を自分のリポジトリに合わせて差し替え

@@ -11,7 +11,9 @@ import { filter } from 'rxjs';
     <div class="h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 flex">
       <aside class="w-[260px] bg-slate-950 border-r border-slate-800 p-5 flex flex-col gap-6">
         <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 grid place-items-center">
+          <div
+            class="h-10 w-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 grid place-items-center"
+          >
             <span class="font-black text-indigo-300">AI</span>
           </div>
           <div class="leading-tight">
@@ -24,7 +26,9 @@ import { filter } from 'rxjs';
         </div>
 
         <div>
-          <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">Cockpit</div>
+          <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">
+            Cockpit
+          </div>
           <a
             routerLink="/dashboard"
             routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
@@ -49,7 +53,9 @@ import { filter } from 'rxjs';
         </div>
 
         <div>
-          <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">Debug & Demo</div>
+          <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">
+            Debug & Demo
+          </div>
           <button
             type="button"
             class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15"
@@ -75,8 +81,12 @@ import { filter } from 'rxjs';
         </div>
       </aside>
 
-      <div class="flex-1 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,#1e293b_0%,#0b1022_55%)]">
-        <header class="h-16 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-6 flex items-center justify-between">
+      <div
+        class="flex-1 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,#1e293b_0%,#0b1022_55%)]"
+      >
+        <header
+          class="h-16 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-6 flex items-center justify-between"
+        >
           <div class="text-base font-bold tracking-tight">{{ pageTitle() }}</div>
           <div class="flex items-center gap-3">
             <button
