@@ -1,0 +1,699 @@
+﻿name: Codex ChatOps (Issue/PR comment)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: codex-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.meta.outputs.should_run }}
+      mode: ${{ steps.meta.outputs.mode }}
+      command_line: ${{ steps.meta.outputs.command_line }}
+      extra_instructions: ${{ steps.meta.outputs.extra_instructions }}
+      pr_number: ${{ steps.meta.outputs.pr_number }}
+      root_issue_number: ${{ steps.meta.outputs.root_issue_number }}
+      branch: ${{ steps.meta.outputs.branch }}
+      base: ${{ steps.meta.outputs.base }}
+      model: ${{ steps.meta.outputs.model }}
+      effort: ${{ steps.meta.outputs.effort }}
+      model_override: ${{ steps.meta.outputs.model_override }}
+      effort_override: ${{ steps.meta.outputs.effort_override }}
+    steps:
+      - name: Parse /codex command and context
+        id: meta
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const body = context.payload.comment?.body ?? '';
+            const cmdLine = body
+              .split('\n')
+              .map((line) => line.trim())
+              .find((line) => line.startsWith('/codex'));
+            if (!cmdLine) {
+              core.setOutput('should_run', 'false');
+              return;
+            }
+
+            const tokens = cmdLine.split(/\s+/).filter(Boolean);
+            const sub = (tokens[1] || 'start').toLowerCase();
+            const modeMap = { start: 'start', run: 'run', discuss: 'discuss', plan: 'discuss', e2e: 'e2e' };
+            const mode = modeMap[sub] || 'start';
+
+            const flags = tokens.slice(2);
+            const has = (flag) => flags.includes(flag);
+            const getKV = (name) => {
+              const match = flags.find((flag) => flag.startsWith(name + '='));
+              return match ? match.slice(name.length + 1) : '';
+            };
+
+            const userModel = getKV('--model');
+            const userEffort = getKV('--effort');
+            const fast = has('--fast');
+            const deep = has('--deep');
+            const xhigh = has('--xhigh');
+
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner, repo: context.repo.repo
+            });
+
+            const base = repo.default_branch;
+            const issueOrPrNumber = context.payload.issue.number;
+            const isPrComment = !!context.payload.issue.pull_request;
+
+            let prNumber = '';
+            let branch = '';
+            let rootIssueNumber = issueOrPrNumber;
+
+            if (isPrComment) {
+              const pr = (await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo, pull_number: issueOrPrNumber
+              })).data;
+
+              prNumber = String(pr.number);
+              branch = pr.head.ref;
+
+              const bodyText = pr.body || '';
+              const match = bodyText.match(/(?:Closes|Fixes|Resolves)\s+#(\d+)/i) || bodyText.match(/#(\d+)/);
+              if (match) rootIssueNumber = Number(match[1]);
+            } else {
+              branch = `ai/issue-${issueOrPrNumber}`;
+              const head = `${context.repo.owner}:${branch}`;
+              const prs = await github.rest.pulls.list({
+                owner: context.repo.owner, repo: context.repo.repo, state: 'open', head
+              });
+              if (prs.data.length) prNumber = String(prs.data[0].number);
+            }
+
+            // Reasoning effort mapped to Codex config key model_reasoning_effort.
+            const issueBody = context.payload.issue.body || '';
+            const size = issueBody.length + body.length;
+            let effort = 'medium';
+            if (mode === 'discuss') effort = 'low';
+
+            // Heuristic complexity-based default (user can override):
+            // - xhigh: explicitly requested
+            // - high: long issues/comments or --deep
+            // - low/minimal: --fast or discuss mode
+            if (deep || size > 2000) effort = 'high';
+            if (fast) effort = 'low';
+            if (xhigh) effort = 'xhigh';
+            if (userEffort) effort = userEffort;
+
+            const model = (userModel || '').trim();
+            const extra = body.replace(cmdLine, '').trim();
+
+            core.setOutput('should_run', 'true');
+            core.setOutput('mode', mode);
+            core.setOutput('command_line', cmdLine);
+            core.setOutput('extra_instructions', extra);
+            core.setOutput('pr_number', prNumber);
+            core.setOutput('root_issue_number', String(rootIssueNumber));
+            core.setOutput('branch', branch);
+            core.setOutput('base', base);
+            core.setOutput('model', model);
+            core.setOutput('effort', effort);
+            core.setOutput('model_override', userModel ? 'true' : 'false');
+            core.setOutput('effort_override', (fast || deep || xhigh || userEffort) ? 'true' : 'false');
+
+  run:
+    needs: meta
+    if: needs.meta.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ needs.meta.outputs.mode }}
+      COMMAND_LINE: ${{ needs.meta.outputs.command_line }}
+      EXTRA_INSTRUCTIONS: ${{ needs.meta.outputs.extra_instructions }}
+      PR_NUMBER: ${{ needs.meta.outputs.pr_number }}
+      ROOT_ISSUE_NUMBER: ${{ needs.meta.outputs.root_issue_number }}
+      BRANCH: ${{ needs.meta.outputs.branch }}
+      BASE: ${{ needs.meta.outputs.base }}
+      SELECTED_MODEL: ${{ needs.meta.outputs.model }}
+      SELECTED_EFFORT: ${{ needs.meta.outputs.effort }}
+      MODEL_OVERRIDE: ${{ needs.meta.outputs.model_override }}
+      EFFORT_OVERRIDE: ${{ needs.meta.outputs.effort_override }}
+    steps:
+      - name: Checkout repository (default branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+
+      - name: Install Codex CLI
+        run: npm i -g @openai/codex
+
+      - name: Inject Codex auth.json (ChatGPT login)
+        env:
+          CODEX_AUTH_JSON_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
+        run: |
+          set -euxo pipefail
+          mkdir -p ~/.codex
+          echo "$CODEX_AUTH_JSON_B64" | base64 -d > ~/.codex/auth.json
+          chmod 600 ~/.codex/auth.json
+
+      - name: Ensure working branch exists (Issue flow)
+        if: env.MODE != 'discuss' && env.PR_NUMBER == ''
+        run: |
+          set -euxo pipefail
+          if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
+            git checkout "${BRANCH}"
+          else
+            git checkout -b "${BRANCH}" "origin/${BASE}"
+          fi
+          git push -u origin "${BRANCH}"
+
+      - name: Fetch and checkout PR head branch (PR flow)
+        if: env.MODE != 'discuss' && env.PR_NUMBER != ''
+        run: |
+          set -euxo pipefail
+          git fetch --no-tags origin "${BRANCH}:${BRANCH}" || true
+          git checkout "${BRANCH}"
+
+      - name: Install dependencies
+        if: env.MODE != 'discuss'
+        run: npm install
+
+      - name: Install Playwright browsers (system deps)
+        if: env.MODE != 'discuss'
+        run: npx playwright install --with-deps
+
+      # ---------- Stage A: Triage ----------
+      - name: Generate triage prompt
+        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+
+            const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
+
+            const prompt = [
+              '# 役割',
+              'あなたはシニアソフトウェアエンジニアです。以下のIssueを「要件定義のリライト + 不明点のヒアリング + 実装方針」へ整理してください。',
+              '',
+              '## 重要',
+              '- 出力は **JSON** で返してください（スキーマに準拠）。',
+              '- 推測と事実を区別し、推測は `assumptions` に明記してください。',
+              '- 不明点がある場合は `recommended_mode` を `needs_info` にし、`questions` に最小限の質問を列挙してください。',
+              '- 実装開始可能な場合は `recommended_mode` を `implement` にし、**実装の推奨モデル/推論 effort (`recommended_model` / `recommended_effort`)** を返してください。',
+              '- `recommended_effort` は複雑さに応じて選んでください（minimal/low/medium/high/xhigh）。',
+              '',
+              '## Issue',
+              `Title: ${issue.title}`,
+              `Number: #${issue.number}`,
+              'Body:',
+              issue.body || '',
+              '',
+              '## ユーザーの追加コメント',
+              process.env.EXTRA_INSTRUCTIONS || '(なし)'
+            ].join('\n');
+
+            fs.mkdirSync('.github/codex', { recursive: true });
+            fs.writeFileSync('.github/codex/triage_prompt.md', prompt, 'utf8');
+
+      - name: Run Codex triage (non-interactive, schema enforced)
+        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
+        run: |
+          set -euxo pipefail
+          MODEL_ARGS=()
+          if [ -n "${SELECTED_MODEL}" ]; then MODEL_ARGS+=(--model "${SELECTED_MODEL}"); fi
+          EFFORT_ARG=(-c "model_reasoning_effort=${SELECTED_EFFORT}")
+
+          codex exec - \
+            --output-schema .github/codex/schemas/triage.schema.json \
+            -o codex-triage.json \
+            --sandbox read-only \
+            --ask-for-approval never \
+            "${MODEL_ARGS[@]}" \
+            "${EFFORT_ARG[@]}" \
+            < .github/codex/triage_prompt.md
+
+      - name: Decide next action from triage JSON
+        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
+        id: triage_decision
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const triage = JSON.parse(fs.readFileSync('codex-triage.json', 'utf8'));
+            core.setOutput('recommended_mode', (triage.recommended_mode || '').trim());
+            core.setOutput('recommended_model', (triage.recommended_model || '').trim());
+            core.setOutput('recommended_effort', (triage.recommended_effort || '').trim());
+
+      - name: Post triage / questions (Issue or PR)
+        if: env.MODE == 'discuss' || steps.triage_decision.outputs.recommended_mode != 'implement'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const triageJson = fs.readFileSync('codex-triage.json', 'utf8');
+            const rootIssueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+            const prNo = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : null;
+
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = process.env.MODE === 'discuss'
+              ? '## Codex 要件壁打ち (discuss)'
+              : '## Codex ヒアリング結果（追加質問あり）';
+
+            const body = [
+              title,
+              '',
+              `- Workflow run: ${runUrl}`,
+              '',
+              '```json',
+              triageJson,
+              '```',
+              '',
+              '---',
+              '続ける場合は、このIssue/PRに追加情報をコメントして `/codex start` または `/codex run` を実行してください。'
+            ].join('\n');
+
+            const target = prNo ?? rootIssueNo;
+            await github.rest.issues.createComment({ owner, repo, issue_number: target, body });
+
+      - name: Stop if not implementing
+        if: env.MODE == 'discuss' || steps.triage_decision.outputs.recommended_mode != 'implement'
+        run: echo "Not implementing in this run."
+
+      # ---------- Ensure PR exists (Issue flow) ----------
+      - name: Ensure PR exists (create if needed)
+        if: env.MODE != 'discuss' && env.PR_NUMBER == '' && steps.triage_decision.outputs.recommended_mode == 'implement'
+        id: ensure_pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+            const branch = process.env.BRANCH;
+            const head = `${owner}:${branch}`;
+
+            const prs = await github.rest.pulls.list({ owner, repo, state: 'open', head });
+            if (prs.data.length) {
+              core.setOutput('pr_number', String(prs.data[0].number));
+              return;
+            }
+
+            const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
+            const pr = await github.rest.pulls.create({
+              owner, repo,
+              title: `AI: ${issue.title} (#${issueNo})`,
+              head: branch,
+              base: process.env.BASE,
+              body: [
+                `Closes #${issueNo}`,
+                '',
+                'This PR was created by Codex ChatOps.',
+                'Evidence (screenshots/videos/trace) will be attached as a workflow artifact and linked in PR comments.'
+              ].join('\n')
+            });
+
+            core.setOutput('pr_number', String(pr.data.number));
+
+      - name: Set effective PR number
+        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
+        run: |
+          set -euo pipefail
+          PRN="${PR_NUMBER}"
+          if [ -z "$PRN" ]; then PRN="${{ steps.ensure_pr.outputs.pr_number }}"; fi
+          echo "PRN=$PRN" >> "$GITHUB_ENV"
+
+      # ---------- Stage B: Implementation ----------
+      - name: Generate implementation prompt
+        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+
+            const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
+
+            const prNo = Number(process.env.PRN);
+            const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNo })).data;
+
+            const triage = fs.readFileSync('codex-triage.json', 'utf8');
+
+            const prompt = [
+              '# 役割',
+              'あなたは自律的に作業するソフトウェアエンジニアです。与えられたIssue/PRに対して、実装・ドキュメント更新・テスト追加を行ってください。',
+              '',
+              '# 重要（運用ルール）',
+              '- 作業はこのリポジトリ内に限定する。',
+              '- 変更後、`npm run lint` / `npm run build` / `npm test` が通る状態にする（失敗する場合は原因と対応案を説明）。',
+              '- Playwrightの証跡（スクショ/動画/trace）はテストで自動生成される。必要なら `evidence/scenarios.json` と `tests/e2e/evidence.spec.js` を更新して証跡が残るようにする。',
+              '- `playwright-report/` と `test-results/` はコミットしない（gitignore済み）。',
+              '- **git commit / push / PR操作はしない**（ワークフロー側で行う）。',
+              '',
+              '# Triage 出力',
+              '```json',
+              triage,
+              '```',
+              '',
+              '# Issue',
+              `Title: ${issue.title}`,
+              `Number: #${issue.number}`,
+              'Body:',
+              issue.body || '',
+              '',
+              '# PR（current）',
+              `PR: #${pr.number}`,
+              `Head: ${pr.head.ref}`,
+              `Base: ${pr.base.ref}`,
+              '',
+              '# ユーザーの追加コメント',
+              process.env.EXTRA_INSTRUCTIONS || '(なし)',
+              '',
+              '# Doneの定義',
+              '1) コード変更',
+              '2) ドキュメント更新（必要なら）',
+              '3) テスト追加/更新（受け入れ条件を検証できること）',
+              '4) 画面証跡の更新（必要なら `evidence/scenarios.json` を更新）',
+              '',
+              '# 最終出力（Markdown）',
+              '最後に以下をMarkdownで簡潔に出力すること:',
+              '- 変更概要（ファイル単位）',
+              '- 受け入れ条件との対応',
+              '- 実行したコマンドと結果',
+              '- 画面証跡の対応（どのシナリオがどのスクショ/動画に対応するか）',
+              '- 残課題/リスク/質問（あれば）'
+            ].join('\n');
+
+            fs.mkdirSync('.github/codex', { recursive: true });
+            fs.writeFileSync('.github/codex/runtime_prompt.md', prompt, 'utf8');
+
+      - name: Run Codex implementation (full-auto)
+        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
+        run: |
+          set -euxo pipefail
+          REC_MODEL="${{ steps.triage_decision.outputs.recommended_model }}"
+          REC_EFFORT="${{ steps.triage_decision.outputs.recommended_effort }}"
+          MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
+          EFFORT="${REC_EFFORT:-${SELECTED_EFFORT}}"
+          if [ "${MODEL_OVERRIDE}" = "true" ] && [ -n "${SELECTED_MODEL}" ]; then
+            MODEL="${SELECTED_MODEL}"
+          fi
+          if [ "${EFFORT_OVERRIDE}" = "true" ]; then
+            EFFORT="${SELECTED_EFFORT}"
+          fi
+          if [ -z "${MODEL}" ]; then
+            MODEL="${SELECTED_MODEL}"
+          fi
+          if [ -z "${EFFORT}" ]; then
+            EFFORT="${SELECTED_EFFORT}"
+          fi
+
+          MODEL_ARGS=()
+          if [ -n "${MODEL}" ]; then MODEL_ARGS+=(--model "${MODEL}"); fi
+          EFFORT_ARG=(-c "model_reasoning_effort=${EFFORT}")
+
+          codex exec - \
+            --full-auto \
+            --sandbox workspace-write \
+            --output-last-message codex-output.md \
+            "${MODEL_ARGS[@]}" \
+            "${EFFORT_ARG[@]}" \
+            < .github/codex/runtime_prompt.md
+
+      - name: CI auto-fix loop (max 5, 5th = gpt-5.2-codex xhigh)
+        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
+        id: ci_loop
+        env:
+          REC_MODEL: ${{ steps.triage_decision.outputs.recommended_model }}
+          REC_EFFORT: ${{ steps.triage_decision.outputs.recommended_effort }}
+        run: |
+          set -euo pipefail
+
+          # Resolve base model/effort for fix attempts (triage recommendation first)
+          BASE_MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
+          BASE_EFFORT="${REC_EFFORT:-${SELECTED_EFFORT}}"
+          if [ "${MODEL_OVERRIDE}" = "true" ] && [ -n "${SELECTED_MODEL}" ]; then
+            BASE_MODEL="${SELECTED_MODEL}"
+          fi
+          if [ "${EFFORT_OVERRIDE}" = "true" ]; then
+            BASE_EFFORT="${SELECTED_EFFORT}"
+          fi
+
+          mkdir -p .github/codex ci-logs
+
+          success="false"
+          attempts=0
+          nodiff_escalated="false"  # becomes true after the one-time xhigh escalation due to no diff
+
+          while [ "$attempts" -lt 5 ]; do
+            attempts=$((attempts+1))
+            echo "=== CI attempt ${attempts}/5 ==="
+
+            ci_log="ci-logs/ci-attempt-${attempts}.log"
+
+            # Run CI steps, capturing logs.
+            set +e
+            echo "## attempt ${attempts}: lint" | tee "${ci_log}"
+            npm run lint 2>&1 | tee -a "${ci_log}"
+            lint_ec=${PIPESTATUS[0]}
+            echo "" | tee -a "${ci_log}"
+
+            echo "## attempt ${attempts}: build" | tee -a "${ci_log}"
+            npm run build 2>&1 | tee -a "${ci_log}"
+            build_ec=${PIPESTATUS[0]}
+            echo "" | tee -a "${ci_log}"
+
+            echo "## attempt ${attempts}: test" | tee -a "${ci_log}"
+            npm test 2>&1 | tee -a "${ci_log}"
+            test_ec=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$lint_ec" -eq 0 ] && [ "$build_ec" -eq 0 ] && [ "$test_ec" -eq 0 ]; then
+              success="true"
+              echo "CI succeeded on attempt ${attempts}."
+              break
+            fi
+
+            echo "CI failed on attempt ${attempts} (lint=${lint_ec}, build=${build_ec}, test=${test_ec})."
+
+            # Summary length: increase if we are doing the one-time no-diff escalation
+            tail_lines=400
+            if [ "${nodiff_escalated}" = "true" ]; then
+              tail_lines=1200
+            fi
+
+            summary=".github/codex/ci_failure_summary.md"
+            {
+              echo "# CI失敗要約"
+              echo ""
+              echo "- attempt: ${attempts}/5"
+              echo "- exit codes: lint=${lint_ec}, build=${build_ec}, test=${test_ec}"
+              echo ""
+              echo "## 直近ログ（末尾 ${tail_lines} 行）"
+              echo ""
+              echo "```"
+              tail -n "${tail_lines}" "${ci_log}" || true
+              echo "```"
+            } > "${summary}"
+
+            # Decide model/effort for the fix request.
+            # - Normal attempts (1-4): triage recommended (BASE_MODEL/BASE_EFFORT)
+            # - 5th attempt: forced gpt-5.2-codex + xhigh
+            fix_model="${BASE_MODEL}"
+            fix_effort="${BASE_EFFORT}"
+
+            if [ "$attempts" -eq 5 ]; then
+              fix_model="gpt-5.2-codex"
+              fix_effort="xhigh"
+            fi
+
+            echo "Requesting Codex fix (model=${fix_model:-default}, effort=${fix_effort})."
+
+            fix_prompt=".github/codex/fix_prompt.md"
+            {
+              echo "# 目的"
+              echo "CI（lint/build/test）が失敗しました。失敗要約をもとに、原因を修正してください。"
+              echo ""
+              echo "# 重要"
+              echo "- 変更はこのリポジトリ内に限定する。"
+              echo "- 目的は CI を成功させること。過度な変更は避ける。"
+              echo "- 実行コマンドはワークフロー側が行う。あなたは修正差分（コード/設定/テスト）のみ作る。"
+              echo "- Evidence はテストで自動生成される。必要なら `evidence/scenarios.json` と `tests/e2e/evidence.spec.js` を更新してよい。"
+              echo "- `playwright-report/` と `test-results/` はコミットしない。"
+              echo ""
+              echo "# 失敗要約"
+              cat "${summary}"
+              echo ""
+              echo "# 出力ルール"
+              echo "- 修正により git の差分が出ること。"
+              echo "- もし差分が出せない場合は、理由を短く書き、次に人が確認すべき点を列挙する。"
+            } > "${fix_prompt}"
+
+            MODEL_ARGS=()
+            if [ -n "${fix_model}" ]; then MODEL_ARGS+=(--model "${fix_model}"); fi
+            EFFORT_ARG=(-c "model_reasoning_effort=${fix_effort}")
+
+            codex exec - \
+              --full-auto \
+              --sandbox workspace-write \
+              --output-last-message "ci-logs/codex-fix-attempt-${attempts}.md" \
+              "${MODEL_ARGS[@]}" \
+              "${EFFORT_ARG[@]}" \
+              < "${fix_prompt}"
+
+            git config user.name "codex-bot"
+            git config user.email "codex-bot@users.noreply.github.com"
+
+            if [ -z "$(git status --porcelain)" ]; then
+              # No diff: do ONE escalation, then if still no diff afterwards, stop (human handoff).
+              if [ "${nodiff_escalated}" = "false" ]; then
+                echo "No changes produced. Escalating ONE time: model=gpt-5.2-codex, effort=xhigh, and increasing log context."
+                nodiff_escalated="true"
+
+                # Run escalation fix immediately without consuming an extra CI attempt counter.
+                fix_model="gpt-5.2-codex"
+                fix_effort="xhigh"
+                tail_lines=1200
+
+                {
+                  echo "# CI失敗要約（拡張）"
+                  echo ""
+                  echo "- attempt: ${attempts}/5"
+                  echo "- exit codes: lint=${lint_ec}, build=${build_ec}, test=${test_ec}"
+                  echo ""
+                  echo "## 直近ログ（末尾 ${tail_lines} 行）"
+                  echo ""
+                  echo "```"
+                  tail -n "${tail_lines}" "${ci_log}" || true
+                  echo "```"
+                } > "${summary}"
+
+                {
+                  echo "# 目的"
+                  echo "CI（lint/build/test）が失敗しました。失敗要約（拡張）をもとに、原因を修正してください。"
+                  echo ""
+                  echo "# 強制条件"
+                  echo "- 必ず git の差分を作ること。"
+                  echo "- 目的は CI を成功させること。"
+                  echo ""
+                  echo "# 失敗要約（拡張）"
+                  cat "${summary}"
+                } > "${fix_prompt}"
+
+                MODEL_ARGS=(--model "${fix_model}")
+                EFFORT_ARG=(-c "model_reasoning_effort=${fix_effort}")
+
+                codex exec - \
+                  --full-auto \
+                  --sandbox workspace-write \
+                  --output-last-message "ci-logs/codex-fix-attempt-${attempts}-escalated.md" \
+                  "${MODEL_ARGS[@]}" \
+                  "${EFFORT_ARG[@]}" \
+                  < "${fix_prompt}"
+
+                if [ -z "$(git status --porcelain)" ]; then
+                  echo "Still no changes after escalation. Stopping loop for human handoff."
+                  break
+                fi
+              else
+                echo "No changes produced (already escalated once). Stopping loop for human handoff."
+                break
+              fi
+            fi
+
+            # Commit & push changes, then loop to re-run CI.
+            git add -A
+            git commit -m "AI: fix CI (attempt ${attempts}/5)"
+            git push -u origin "${BRANCH}"
+          done
+
+          echo "success=${success}" >> "$GITHUB_OUTPUT"
+          echo "attempts=${attempts}" >> "$GITHUB_OUTPUT"
+          echo "nodiff_escalated=${nodiff_escalated}" >> "$GITHUB_OUTPUT"
+
+          if [ "${success}" != "true" ]; then
+            echo "CI did not reach success after ${attempts} attempt(s)."
+            exit 1
+          fi
+
+      - name: Upload evidence artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: codex-evidence-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            codex-output.md
+            codex-triage.json
+            .github/codex/runtime_prompt.md
+            .github/codex/triage_prompt.md
+            .github/codex/ci_failure_summary.md
+            ci-logs/
+          retention-days: 30
+
+      - name: Post results to PR
+        uses: actions/github-script@v7
+        if: ${{ !cancelled() }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNo = Number(process.env.PRN);
+
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const evidenceName = `codex-evidence-${context.runId}`;
+
+            const fs = require('fs');
+            let summary = '_No summary available._';
+            if (fs.existsSync('codex-output.md')) summary = fs.readFileSync('codex-output.md', 'utf8');
+
+            const attempts = `${{ steps.ci_loop.outputs.attempts || '0' }}`;
+            const success = `${{ steps.ci_loop.outputs.success || 'false' }}`;
+
+            const body = [
+              '## Codex 実行結果',
+              '',
+              `- Mode: \`${process.env.MODE}\``,
+              `- Branch: \`${process.env.BRANCH}\``,
+              `- Workflow run: ${runUrl}`,
+              `- Evidence artifact: **${evidenceName}**（RunページのArtifactsからダウンロード）`,
+              `- CI auto-fix: success=\`${success}\`, attempts=\`${attempts}\``,
+              '',
+              '### 確認ポイント（レビュー用）',
+              '- 変更差分がIssueの意図に合っているか',
+              '- Artifacts の `test-results/`（スクショ/動画/trace）で画面確認できるか',
+              '- 失敗があった場合は `ci-logs/` と `.github/codex/ci_failure_summary.md` を参照',
+              '',
+              '### Codex サマリ',
+              summary,
+              '',
+              '---',
+              '追加指示はこのPRにコメントでOKです：`/codex run <追加指示>`'
+            ].join('\n');
+
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNo, body });

@@ -1,0 +1,7 @@
+[
+  {
+    "name": "example.com landing",
+    "url": "https://example.com/",
+    "assertText": "Example Domain"
+  }
+]

@@ -15,3 +15,16 @@ frontend/out-tsc/
 # Env
 .env
 
+playwright-report/
+test-results/
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.codex/
+.vscode/
+.mcp/
+docs/MCP_**.md
+/mcp
+scripts/codex-mcp-setup.sh

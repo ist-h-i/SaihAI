@@ -13,7 +13,7 @@ where npm >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] "npm" not found in PATH.
   echo Run dev-setup.bat first (after installing Node.js^).
-  exit /b 1
+  goto :pause_on_error
 )
 
 set "BACKEND_CMD="
@@ -27,7 +27,7 @@ if not errorlevel 1 (
   ) else (
     echo [ERROR] Neither "uv" nor "uvicorn" found in PATH.
     echo Run dev-setup.bat first (and ensure uv is installed^).
-    exit /b 1
+    goto :pause_on_error
   )
 )
 
@@ -58,20 +58,38 @@ if not exist "%ROOT%\backend\.venv" (
 )
 
 echo Starting backend...
-if /i "%NO_NEW_WINDOW%"=="1" (
-  powershell -NoProfile -Command "Start-Process -WorkingDirectory '%ROOT%\\backend' -FilePath 'uv' -ArgumentList @('run','uvicorn','app.main:app','--reload','--port','%BACKEND_PORT%')"
-) else (
-  start "SaihAI Backend" cmd /k "cd /d \"%ROOT%\\backend\" && %BACKEND_CMD% --port %BACKEND_PORT%"
+pushd "%ROOT%\backend" >nul
+if errorlevel 1 (
+  echo [ERROR] backend directory not found: "%ROOT%\backend"
+  goto :pause_on_error
 )
+if /i "%NO_NEW_WINDOW%"=="1" (
+  start "" /b cmd /c %BACKEND_CMD% --port %BACKEND_PORT%
+) else (
+  start "SaihAI Backend" cmd /k %BACKEND_CMD% --port %BACKEND_PORT%
+)
+popd >nul
 
 echo Starting frontend...
-if /i "%NO_NEW_WINDOW%"=="1" (
-  powershell -NoProfile -Command "Start-Process -WorkingDirectory '%ROOT%\\frontend' -FilePath 'cmd.exe' -ArgumentList @('/c','npm','run','start','--','--port','%FRONTEND_PORT%')"
-) else (
-  start "SaihAI Frontend" cmd /k "cd /d \"%ROOT%\\frontend\" && npm run start -- --port %FRONTEND_PORT%"
+pushd "%ROOT%\frontend" >nul
+if errorlevel 1 (
+  echo [ERROR] frontend directory not found: "%ROOT%\frontend"
+  goto :pause_on_error
 )
+if /i "%NO_NEW_WINDOW%"=="1" (
+  start "" /b cmd /c npm run start -- --port %FRONTEND_PORT%
+) else (
+  start "SaihAI Frontend" cmd /k npm run start -- --port %FRONTEND_PORT%
+)
+popd >nul
 
 echo.
 echo Backend:  http://localhost:%BACKEND_PORT%/api/health
 echo Frontend: http://localhost:%FRONTEND_PORT%
 exit /b 0
+
+:pause_on_error
+echo.
+echo Press any key to close...
+pause >nul
+exit /b 1
