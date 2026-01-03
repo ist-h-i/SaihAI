@@ -203,6 +203,29 @@ interface ChatEntry {
             </div>
 
             <div class="mt-4">
+              <div class="text-sm font-semibold">要件カバー率</div>
+              @if (r.requirementResult.length) {
+                <div class="mt-2 flex flex-wrap gap-2">
+                  @for (req of r.requirementResult; track req.name) {
+                    <span
+                      class="text-[11px] px-2 py-1 rounded-full border"
+                      [class.border-emerald-500/40]="req.fulfilled"
+                      [class.bg-emerald-500/10]="req.fulfilled"
+                      [class.text-emerald-200]="req.fulfilled"
+                      [class.border-rose-500/40]="!req.fulfilled"
+                      [class.bg-rose-500/10]="!req.fulfilled"
+                      [class.text-rose-200]="!req.fulfilled"
+                    >
+                      {{ req.name }} {{ req.fulfilled ? 'OK' : 'NG' }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <div class="mt-2 text-xs text-slate-400">requiredSkills 未登録</div>
+              }
+            </div>
+
+            <div class="mt-4">
               <div class="text-sm font-semibold">未来タイムライン</div>
               <ul class="mt-2 space-y-2 timeline-list">
                 @for (t of r.timeline; track $index) {
@@ -288,16 +311,16 @@ interface ChatEntry {
                       </span>
                     }
                     <div class="font-semibold text-slate-100 leading-tight pr-10">
-                      {{ p.id }}: {{ p.title }}
+                      Plan {{ p.planType }}: {{ p.summary }}
                     </div>
                     <div class="mt-3 text-xs text-slate-300 space-y-1">
                       <div class="flex items-baseline gap-1">
                         <span class="text-slate-400">pros:</span>
-                        <span class="text-slate-200">{{ p.pros.join(' / ') }}</span>
+                        <span class="text-slate-200">{{ p.prosCons.pros.join(' / ') }}</span>
                       </div>
                       <div class="flex items-baseline gap-1">
                         <span class="text-slate-400">cons:</span>
-                        <span class="text-slate-200">{{ p.cons.join(' / ') }}</span>
+                        <span class="text-slate-200">{{ p.prosCons.cons.join(' / ') }}</span>
                       </div>
                     </div>
                   </div>
@@ -397,7 +420,7 @@ interface ChatEntry {
                           [class.border-emerald-500]="p.recommended"
                           [class.border-slate-800]="!p.recommended"
                           [class.status-recommended]="p.recommended"
-                          (click)="selectPlan(p.id)"
+                          (click)="selectPlan(p.planType)"
                         >
                           @if (p.recommended) {
                             <div
@@ -406,12 +429,14 @@ interface ChatEntry {
                               AI推奨
                             </div>
                           }
-                          <div class="font-extrabold text-slate-100">{{ p.id }}: {{ p.title }}</div>
+                          <div class="font-extrabold text-slate-100">
+                            Plan {{ p.planType }}: {{ p.summary }}
+                          </div>
                           <div class="mt-2 text-xs text-slate-300">
-                            pros: {{ p.pros.join(' / ') }}
+                            pros: {{ p.prosCons.pros.join(' / ') }}
                           </div>
                           <div class="mt-1 text-xs text-slate-300">
-                            cons: {{ p.cons.join(' / ') }}
+                            cons: {{ p.prosCons.cons.join(' / ') }}
                           </div>
                         </button>
                       }

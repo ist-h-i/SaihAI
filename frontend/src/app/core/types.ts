@@ -5,6 +5,18 @@ export interface Project {
   name: string;
   budget: number;
   requiredSkills?: string[];
+  status?: string | null;
+  difficulty?: string | null;
+  description?: string | null;
+}
+
+export interface MemberAnalysis {
+  patternId: string;
+  patternName?: string | null;
+  pmRiskScore?: number | null;
+  hrRiskScore?: number | null;
+  riskRiskScore?: number | null;
+  finalDecision?: string | null;
 }
 
 export interface Member {
@@ -14,6 +26,10 @@ export interface Member {
   availability: number;
   skills: string[];
   notes: string;
+  role?: string | null;
+  skillLevel?: number | null;
+  careerAspiration?: string | null;
+  analysis?: MemberAnalysis | null;
 }
 
 export interface SimulationRequest {
@@ -21,7 +37,13 @@ export interface SimulationRequest {
   memberIds: string[];
 }
 
-export interface SimulationResult {
+export interface RequirementResult {
+  name: string;
+  fulfilled: boolean;
+}
+
+export interface SimulationEvaluation {
+  id: string;
   project: { id: string; name: string; budget: number };
   team: { id: string; name: string; cost: number }[];
   metrics: {
@@ -46,13 +68,21 @@ export interface SimulationResult {
     risk: { vote: Vote; note: string };
     gunshi: { recommend: 'A' | 'B' | 'C'; note: string };
   };
-  plans: {
-    id: 'A' | 'B' | 'C';
-    title: string;
-    pros: string[];
-    cons: string[];
-    recommended: boolean;
-  }[];
+  requirementResult: RequirementResult[];
+}
+
+export interface SimulationPlan {
+  id: string;
+  simulationId: string;
+  planType: 'A' | 'B' | 'C';
+  summary: string;
+  prosCons: { pros: string[]; cons: string[] };
+  score: number;
+  recommended: boolean;
+}
+
+export interface SimulationResult extends SimulationEvaluation {
+  plans: SimulationPlan[];
 }
 
 export type AiDebateIntensity = 'Low' | 'Mid' | 'High';
@@ -90,4 +120,56 @@ export interface AiPlan {
 export interface AiResponse {
   analysis_meta: AiAnalysisMeta;
   three_plans: AiPlan[];
+}
+
+export interface DashboardKpi {
+  label: string;
+  value: number;
+  suffix: string;
+  delta: string;
+  color: string;
+  deltaColor: string;
+}
+
+export interface DashboardAlert {
+  id: string;
+  title: string;
+  subtitle: string;
+  risk: number;
+  severity: string;
+  status: string;
+  projectId?: string | null;
+}
+
+export interface DashboardProposal {
+  id: number;
+  projectId: string;
+  planType: string;
+  description: string;
+  recommendationScore: number;
+  isRecommended: boolean;
+}
+
+export interface DashboardPendingAction {
+  id: number;
+  proposalId: number;
+  actionType: string;
+  title: string;
+  status: string;
+}
+
+export interface DashboardTimelineEntry {
+  t: string;
+  text: string;
+  dot: string;
+}
+
+export interface DashboardInitialResponse {
+  kpis: DashboardKpi[];
+  alerts: DashboardAlert[];
+  members: Member[];
+  proposals: DashboardProposal[];
+  pendingActions: DashboardPendingAction[];
+  watchdog: DashboardTimelineEntry[];
+  checkpointWaiting: boolean;
 }

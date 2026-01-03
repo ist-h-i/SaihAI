@@ -276,17 +276,17 @@
 ### 7.1 認証（IMP-002/IMP-023）
 
 - [ ] IMP-002-01 認証方針の docs 固定（完了条件: 本書 6.1 が方針を満たす / 検証: `tests/docs/tasklist-doc.spec.js`）
-- [ ] IMP-023-01 Backend: JWT 検証ミドルウェア + 401（完了条件: 保護APIが未認証で401 / 検証: APIテスト）
-- [ ] IMP-023-02 Backend: `POST /api/v1/auth/login`（開発用ユーザーでJWT発行）（完了条件: JWT を返せる / 検証: APIテスト）
-- [ ] IMP-023-03 Frontend: ログイン導線（最小） + トークン保持（完了条件: 画面からログイン→保持 / 検証: E2E）
-- [ ] IMP-023-04 Frontend: ガード（未ログイン→ログインへ） + API 401 ハンドリング（完了条件: 未ログインで遷移不可 / 検証: E2E）
+- [x] IMP-023-01 Backend: JWT 検証ミドルウェア + 401（完了条件: 保護APIが未認証で401 / 検証: APIテスト）
+- [x] IMP-023-02 Backend: `POST /api/v1/auth/login`（開発用ユーザーでJWT発行）（完了条件: JWT を返せる / 検証: APIテスト）
+- [x] IMP-023-03 Frontend: ログイン導線（最小） + トークン保持（完了条件: 画面からログイン→保持 / 検証: E2E）
+- [x] IMP-023-04 Frontend: ガード（未ログイン→ログインへ） + API 401 ハンドリング（完了条件: 未ログインで遷移不可 / 検証: E2E）
 
 ### 7.2 DB 基盤（IMP-005/IMP-006）
 
 - [ ] IMP-005-01 DBスキーマ “正” の固定（完了条件: 本書 6.2 が方針を満たす / 検証: `tests/docs/tasklist-doc.spec.js`）
-- [ ] IMP-006-01 Backend: DB 接続設定（env: `DATABASE_URL`）追加（完了条件: ローカルDBへ接続できる / 検証: 接続テスト）
-- [ ] IMP-006-02 Alembic（または同等）導入 + 初回マイグレーション（完了条件: migrate up/down / 検証: CI or ローカル）
-- [ ] IMP-006-03 seed.json を DB に投入する seed スクリプト（完了条件: 一覧APIがDB由来 / 検証: APIテスト）
+- [x] IMP-006-01 Backend: DB 接続設定（env: `DATABASE_URL`）追加（完了条件: ローカルDBへ接続できる / 検証: 接続テスト）
+- [x] IMP-006-02 Alembic（または同等）導入 + 初回マイグレーション（完了条件: migrate up/down / 検証: CI or ローカル）
+- [x] IMP-006-03 seed.json を DB に投入する seed スクリプト（完了条件: 一覧APIがDB由来 / 検証: APIテスト）
 - [ ] IMP-006-04 CI で DB を立てて最小の統合テストを回す（完了条件: CIで再現 / 検証: `npm test` または別ジョブ）
 
 ### 7.3 API/クライアント/マスタ（IMP-003/IMP-004/IMP-007）
@@ -296,33 +296,33 @@
 - [x] IMP-004-01 Frontend: API base URL を環境変数で切替（完了条件: 切替で疎通 / 検証: E2E）
 - [x] IMP-004-02 Frontend: Auth ヘッダ注入（HttpInterceptor）実装（完了条件: 認証APIが通る / 検証: E2E）
 - [x] IMP-004-03 Frontend: API エラーの統一 UI（toast 等）実装（完了条件: エラーが可視化 / 検証: E2E）
-- [ ] IMP-007-01 Backend: `GET /api/v1/projects`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
-- [ ] IMP-007-02 Backend: `GET /api/v1/members`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
-- [ ] IMP-007-03 Backend: マスタAPIのシード置換方針を docs 化（完了条件: 移行手順が残る / 検証: レビュー）
+- [x] IMP-007-01 Backend: `GET /api/v1/projects`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
+- [x] IMP-007-02 Backend: `GET /api/v1/members`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
+- [x] IMP-007-03 Backend: マスタAPIのシード置換方針を docs 化（完了条件: 移行手順が残る / 検証: レビュー）
 
 ### 7.4 Dashboard（IMP-008/IMP-009）
 
-- [ ] IMP-008-01 `GET /api/v1/dashboard/initial` のレスポンス型（Pydantic）を定義（完了条件: OpenAPI に型が出る / 検証: OpenAPI）
-- [ ] IMP-008-02 DB から初期表示データを集約して返す（完了条件: 初期表示の必要データが揃う / 検証: API統合テスト）
-- [ ] IMP-009-01 Frontend: 初期表示を `dashboard/initial` に統合（完了条件: API駆動で描画 / 検証: 画面確認）
-- [ ] IMP-009-02 Frontend: “承認待ち” を一覧表示（完了条件: 画面に出る / 検証: E2E）
+- [x] IMP-008-01 `GET /api/v1/dashboard/initial` のレスポンス型（Pydantic）を定義（完了条件: OpenAPI に型が出る / 検証: OpenAPI）
+- [x] IMP-008-02 DB から初期表示データを集約して返す（完了条件: 初期表示の必要データが揃う / 検証: API統合テスト）
+- [x] IMP-009-01 Frontend: 初期表示を `dashboard/initial` に統合（完了条件: API駆動で描画 / 検証: 画面確認）
+- [x] IMP-009-02 Frontend: “承認待ち” を一覧表示（完了条件: 画面に出る / 検証: E2E）
 - [ ] IMP-009-03 Evidence 更新（必要時のみ）（完了条件: 証跡が取れる / 検証: `evidence/scenarios.json` + Playwright）
 
 ### 7.5 Simulator（IMP-010/IMP-011/IMP-012）
 
-- [ ] IMP-010-01 `POST /api/v1/simulations/evaluate` を DB 裏で動かす（完了条件: DB 前提で動く / 検証: APIテスト）
-- [ ] IMP-010-02 `POST /api/v1/simulations/{id}/plans/generate` を返せる（完了条件: 3案が返る / 検証: APIテスト）
-- [ ] IMP-011-01 Frontend: v1 evaluate → generate の呼び出し接続（完了条件: 実データで表示 / 検証: E2E）
-- [ ] IMP-012-01 要件カバー率 UI をデータ駆動に修正（完了条件: requiredSkills が表示 / 検証: E2E）
+- [x] IMP-010-01 `POST /api/v1/simulations/evaluate` を DB 裏で動かす（完了条件: DB 前提で動く / 検証: APIテスト）
+- [x] IMP-010-02 `POST /api/v1/simulations/{id}/plans/generate` を返せる（完了条件: 3案が返る / 検証: APIテスト）
+- [x] IMP-011-01 Frontend: v1 evaluate → generate の呼び出し接続（完了条件: 実データで表示 / 検証: E2E）
+- [x] IMP-012-01 要件カバー率 UI をデータ駆動に修正（完了条件: requiredSkills が表示 / 検証: E2E）
 - [ ] IMP-013-01 Drag & Drop UI（手動配置）実装（完了条件: UIで配置変更できる / 検証: E2E）
 - [ ] IMP-013-02 手動配置→再評価（budget/skill/risk）導線（完了条件: 評価が更新 / 検証: E2E）
 - [ ] IMP-013-03 手動シミュレーションの仕様（制約/Undo 等）を docs 化（完了条件: 仕様が残る / 検証: レビュー）
 
 ### 7.6 Genome（IMP-014/IMP-015/IMP-016）
 
-- [ ] IMP-014-01 Genome 詳細項目を API レスポンスに落とす（完了条件: 型が確定 / 検証: OpenAPI）
-- [ ] IMP-015-01 `GET /api/v1/members/{id}` を実装（完了条件: 詳細が返る / 検証: APIテスト）
-- [ ] IMP-016-01 Frontend: 詳細表示を API から取得（完了条件: 画面に出る / 検証: E2E）
+- [x] IMP-014-01 Genome 詳細項目を API レスポンスに落とす（完了条件: 型が確定 / 検証: OpenAPI）
+- [x] IMP-015-01 `GET /api/v1/members/{id}` を実装（完了条件: 詳細が返る / 検証: APIテスト）
+- [x] IMP-016-01 Frontend: 詳細表示を API から取得（完了条件: 画面に出る / 検証: E2E）
 
 ### 7.7 AI/Watchdog（IMP-019/IMP-021/IMP-025/IMP-027/IMP-028/IMP-029 + EXT-001/EXT-002）
 

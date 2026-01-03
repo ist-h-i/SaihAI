@@ -3,7 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { AppConfigService } from './config/app-config.service';
-import { Member, Project, SimulationRequest, SimulationResult } from './types';
+import {
+  DashboardInitialResponse,
+  Member,
+  Project,
+  SimulationEvaluation,
+  SimulationPlan,
+  SimulationRequest,
+} from './types';
 
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
@@ -18,8 +25,23 @@ export class ApiClient {
     return this.http.get<Member[]>(this.buildUrl('/members'));
   }
 
-  simulate(req: SimulationRequest): Observable<SimulationResult> {
-    return this.http.post<SimulationResult>(this.buildUrl('/simulate'), req);
+  getMemberDetail(memberId: string): Observable<Member> {
+    return this.http.get<Member>(this.buildUrl(`/members/${memberId}`));
+  }
+
+  getDashboardInitial(): Observable<DashboardInitialResponse> {
+    return this.http.get<DashboardInitialResponse>(this.buildUrl('/dashboard/initial'));
+  }
+
+  evaluateSimulation(req: SimulationRequest): Observable<SimulationEvaluation> {
+    return this.http.post<SimulationEvaluation>(this.buildUrl('/simulations/evaluate'), req);
+  }
+
+  generatePlans(simulationId: string): Observable<SimulationPlan[]> {
+    return this.http.post<SimulationPlan[]>(
+      this.buildUrl(`/simulations/${simulationId}/plans/generate`),
+      {}
+    );
   }
 
   private buildUrl(path: string): string {

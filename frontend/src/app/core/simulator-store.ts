@@ -99,7 +99,9 @@ export class SimulatorStore {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const result = await firstValueFrom(this.api.simulate({ projectId, memberIds }));
+      const evaluation = await firstValueFrom(this.api.evaluateSimulation({ projectId, memberIds }));
+      const plans = await firstValueFrom(this.api.generatePlans(evaluation.id));
+      const result: SimulationResult = { ...evaluation, plans };
       this.simulationResult.set(result);
     } catch (e) {
       if (!(e instanceof HttpErrorResponse)) {

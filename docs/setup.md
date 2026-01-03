@@ -68,11 +68,17 @@ PGDATABASE=saih_ai
 ```
 docker run --name saihai-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=saih_ai -p 5432:5432 -d ankane/pgvector:latest
 ```
-2) psql で接続し拡張とスキーマ適用
+2) マイグレーション実行（backend の DB ツール）
+```
+cd backend
+python scripts/db_tool.py up
+python scripts/db_tool.py seed --force
+```
+3) psql で接続し拡張とスキーマ適用（手動確認）
 ```
 # 拡張有効化
 psql postgresql://postgres:postgres@localhost:5432/saih_ai -c "CREATE EXTENSION IF NOT EXISTS vector;"
-# スキーマは requirement-docs/database-schema.md の DDL セクションを順に適用
+# スキーマは backend/migrations/0001_init.up.sql と一致することを確認
 ```
 
 ローカル動作確認
@@ -81,7 +87,8 @@ psql postgresql://postgres:postgres@localhost:5432/saih_ai -c "CREATE EXTENSION 
 - `requirement-docs/database-schema.md` のサンプル INSERT が成功すること
 
 補足
-- 本リポジトリの現行コードは DB 接続をまだ実装していません（FastAPI 設定は静的）。将来的に `DATABASE_URL` 等の環境変数をバックエンドが参照する想定です。
+- `DATABASE_URL` を設定しない場合、SQLite (`sqlite:///./saihai.db`) で起動します。
+- `backend/scripts/db_tool.py seed` は `backend/app/data/seed.json` を DB に投入し、`/api/v1/projects` と `/api/v1/members` が DB 由来になります。
 
 ## Slack: Web API / アプリ作成
 
@@ -121,6 +128,8 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - SAIHAI_API_BASE_URL: Frontend が参照する API base URL（`npm start`/`npm run build` で `src/assets/runtime-config.json` に反映）
 - SAIHAI_AUTH_TOKEN: Frontend が付与する開発用 Bearer トークン（任意）
 - DATABASE_URL または PG* 系: ローカル PostgreSQL の接続文字列/情報
+- DEV_LOGIN_PASSWORD: 開発用ログインの共通パスワード（デフォルト `saihai`）
+- JWT_SECRET / JWT_TTL_MINUTES: JWT 署名キーと有効期限（分）
 - SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET / SLACK_APP_TOKEN: Slack アプリ管理画面（Basic Information / OAuth & Permissions / Socket Mode）
 
 保存先

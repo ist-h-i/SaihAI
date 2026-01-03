@@ -5,7 +5,7 @@ export interface AppConfig {
   authToken?: string | null;
 }
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8000/api';
+const DEFAULT_API_BASE_URL = 'http://localhost:8000/api/v1';
 const RUNTIME_CONFIG_PATH = '/assets/runtime-config.json';
 
 @Injectable({ providedIn: 'root' })
