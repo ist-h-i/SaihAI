@@ -31,6 +31,8 @@ GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で�
 要件を整理して、不明点があれば質問して。おすすめの model/effort も教えて。
 ```
 
+補足: discuss の結果コメントには、推奨モデル/effort を反映した「次に実行すべき `/codex ...` コマンド」も表示されます。
+
 ### 2) 実装開始（Issue から）
 
 ```text

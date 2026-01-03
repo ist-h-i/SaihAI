@@ -249,6 +249,69 @@ jobs:
           print(f"Wrote {path} from {source}.")
           PY
 
+      - name: Collect comment history (Issue/PR)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const rootIssueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+            const prNo = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : null;
+
+            const truncate = (text, max) => {
+              const normalized = String(text || '').replace(/\r\n/g, '\n').trim();
+              if (!normalized) return '';
+              if (normalized.length <= max) return normalized;
+              return `${normalized.slice(0, max)}\n...[truncated]`;
+            };
+
+            const fetchIssueComments = async (issueNumber) =>
+              github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100
+              });
+
+            const formatSection = (label, comments) => {
+              const sorted = comments
+                .filter((c) => c && typeof c.body === 'string')
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+              const recent = sorted.slice(-20);
+
+              if (!recent.length) {
+                return `## ${label}\n(コメントなし)`;
+              }
+
+              const lines = [`## ${label}`, `(直近 ${recent.length} 件)`];
+              for (const comment of recent) {
+                const author = comment.user?.login || 'unknown';
+                const created = comment.created_at;
+                const body = truncate(comment.body, 1500);
+                lines.push('');
+                lines.push('---');
+                lines.push(`[${author} at ${created}]`);
+                lines.push(body || '(空)');
+              }
+              return lines.join('\n');
+            };
+
+            const sections = [];
+            if (Number.isFinite(rootIssueNo) && rootIssueNo > 0) {
+              const issueComments = await fetchIssueComments(rootIssueNo);
+              sections.push(formatSection(`Issue #${rootIssueNo} コメント`, issueComments));
+            }
+            if (Number.isFinite(prNo) && prNo > 0 && prNo !== rootIssueNo) {
+              const prComments = await fetchIssueComments(prNo);
+              sections.push(formatSection(`PR #${prNo} コメント`, prComments));
+            }
+
+            const output = sections.length ? sections.join('\n\n') : '(コメントなし)';
+            fs.mkdirSync('.github/codex', { recursive: true });
+            fs.writeFileSync('.github/codex/comment_history.md', output, 'utf8');
+
       - name: Generate triage prompt
         uses: actions/github-script@v7
         with:
@@ -260,6 +323,9 @@ jobs:
             const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
 
             const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
+            const commentHistory = fs.existsSync('.github/codex/comment_history.md')
+              ? fs.readFileSync('.github/codex/comment_history.md', 'utf8')
+              : '(コメントなし)';
 
             const prompt = [
               '# 役割',
@@ -279,7 +345,10 @@ jobs:
               issue.body || '',
               '',
               '## ユーザーの追加コメント',
-              process.env.EXTRA_INSTRUCTIONS || '(なし)'
+              process.env.EXTRA_INSTRUCTIONS || '(なし)',
+              '',
+              '## コメント履歴（Issue/PR）',
+              commentHistory
             ].join('\n');
 
             fs.mkdirSync('.github/codex', { recursive: true });
@@ -322,6 +391,7 @@ jobs:
           path: |
             codex-triage.json
             .github/codex/triage_prompt.md
+            .github/codex/comment_history.md
           retention-days: 30
           if-no-files-found: warn
 
@@ -353,6 +423,15 @@ jobs:
             const listOrNone = (items) =>
               Array.isArray(items) && items.length ? items.map((item) => `- ${item}`).join('\n') : '- (なし)';
             const valueOrNone = (value) => (value && String(value).trim() ? String(value).trim() : '(なし)');
+            const rawMode = String(triage?.recommended_mode || '').trim().toLowerCase();
+            const rawModel = String(triage?.recommended_model || '').trim();
+            const rawEffort = String(triage?.recommended_effort || '').trim();
+            const baseCommand = prNo ? '/codex run' : '/codex start';
+            const suggestedBase = rawMode === 'implement' ? baseCommand : '/codex discuss';
+            const commandParts = [suggestedBase];
+            if (rawModel) commandParts.push(`--model=${rawModel}`);
+            if (rawEffort) commandParts.push(`--effort=${rawEffort}`);
+            const suggestedCommand = commandParts.join(' ');
 
             const body = triage ? [
               title,
@@ -374,6 +453,11 @@ jobs:
               `- recommended_mode: ${valueOrNone(triage.recommended_mode)}`,
               `- recommended_model: ${valueOrNone(triage.recommended_model)}`,
               `- recommended_effort: ${valueOrNone(triage.recommended_effort)}`,
+              '',
+              '#### 推奨コマンド（コピー用）',
+              '```text',
+              suggestedCommand,
+              '```',
               '',
               '### Suggested evidence',
               listOrNone(triage.suggested_evidence),
@@ -637,6 +721,9 @@ jobs:
             const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNo })).data;
 
             const triage = fs.readFileSync('codex-triage.json', 'utf8');
+            const commentHistory = fs.existsSync('.github/codex/comment_history.md')
+              ? fs.readFileSync('.github/codex/comment_history.md', 'utf8')
+              : '(コメントなし)';
 
             const prompt = [
               '# 役割',
@@ -659,6 +746,9 @@ jobs:
               `Number: #${issue.number}`,
               'Body:',
               issue.body || '',
+              '',
+              '# コメント履歴（Issue/PR）',
+              commentHistory,
               '',
               '# PR（current）',
               `PR: #${pr.number}`,
@@ -1148,6 +1238,7 @@ jobs:
             codex-triage.json
             .github/codex/runtime_prompt.md
             .github/codex/triage_prompt.md
+            .github/codex/comment_history.md
             .github/codex/ci_failure_summary.md
             ci-logs/
           retention-days: 30

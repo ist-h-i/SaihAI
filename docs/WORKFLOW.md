@@ -219,12 +219,13 @@ U7 -- いいえ --> U8
 
 対象: `MODE` が `discuss|start|run` のとき。
 
-1. GitHub Script で `.github/codex/triage_prompt.md` を生成
-2. `codex exec` を **read-only sandbox** で実行し、`codex-triage.json` を生成
+1. Issue/PR のコメント履歴を取得し、`.github/codex/comment_history.md` を生成
+2. GitHub Script で `.github/codex/triage_prompt.md` を生成（コメント履歴を含める）
+3. `codex exec` を **read-only sandbox** で実行し、`codex-triage.json` を生成
    - スキーマ: `.github/codex/schemas/triage.schema.json`
    - 出力は JSON 固定（CI 側でパースして分岐）
-3. `MODE == discuss` の場合、`codex-triage.json` を Issue/PR にコメントとして投稿して終了
-4. `MODE != discuss` の場合、`codex-triage.json` は Artifacts に保存され、実装プロンプト/モデル選定に使われた上で実装へ進む
+4. `MODE == discuss` の場合、`codex-triage.json` を Issue/PR にコメントとして投稿して終了（推奨コマンドも併記）
+5. `MODE != discuss` の場合、`codex-triage.json` は Artifacts に保存され、実装プロンプト/モデル選定に使われた上で実装へ進む
 
 `codex-triage.json` の主な項目:
 
@@ -246,7 +247,7 @@ U7 -- いいえ --> U8
 
 `MODE != discuss` のとき:
 
-- `.github/codex/runtime_prompt.md` を生成（Issue/PR コンテキスト + 追加指示を含む）
+- `.github/codex/runtime_prompt.md` を生成（Issue/PR コンテキスト + 追加指示 + コメント履歴を含む）
 - `codex exec --full-auto` を **workspace-write sandbox** で実行
 - 生成物（例）:
   - `codex-output.md`（最後のメッセージ要約）
@@ -286,6 +287,7 @@ Codex 実行後に `git status --porcelain` が空の場合:
 - `codex-output.md`
 - `codex-triage.json`
 - `.github/codex/triage_prompt.md`（実行時に生成）
+- `.github/codex/comment_history.md`（Issue/PR コメント履歴）
 - `.github/codex/runtime_prompt.md`（実行時に生成）
 - `.github/codex/ci_failure_summary.md`（失敗時）
 - `ci-logs/`（失敗時のログ）
