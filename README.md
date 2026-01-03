@@ -4,6 +4,10 @@ GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で�
 
 関連ドキュメント: `docs/WORKFLOW.md`
 
+## Setup / 外部サービス
+
+本プロジェクトで必要な外部サービス（AWS Bedrock / PostgreSQL+pgvector / Slack）と、環境変数・ローカル確認手順は `docs/setup.md` を参照してください。
+
 ## できること
 
 このテンプレートが提供する価値の概要です。具体的なコマンド例は下の「使い方」を参照してください。
