@@ -4,9 +4,11 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { Title } from '@angular/platform-browser';
 import { filter } from 'rxjs';
 
+import { ToastCenterComponent } from './core/toast-center.component';
+
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastCenterComponent],
   template: `
     <div class="h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 flex">
       <aside class="w-[260px] bg-slate-950 border-r border-slate-800 p-5 flex flex-col gap-6">
@@ -110,6 +112,7 @@ import { filter } from 'rxjs';
         </main>
       </div>
     </div>
+    <app-toast-center />
   `,
   styles: [],
 })

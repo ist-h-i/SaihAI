@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "ng": "ng",
+    "prestart": "node ./scripts/write-runtime-config.cjs",
     "start": "ng serve --port 4200",
+    "prebuild": "node ./scripts/write-runtime-config.cjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test:e2e": "playwright test",

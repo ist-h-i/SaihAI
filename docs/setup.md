@@ -118,6 +118,8 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - AWS_BEARER_TOKEN_BEDROCK: AWS 管理画面（Bedrock 対応の資格情報）。Bearer/STS 等の運用方針はセキュリティポリシーに従う。
 - AWS_REGION: 利用リージョン（例: ap-northeast-1）
 - AWS_BEDROCK_MODEL_ID: 利用モデル ID（例は `STRANDS_BEDROCK.md` を参照）
+- SAIHAI_API_BASE_URL: Frontend が参照する API base URL（`npm start`/`npm run build` で `src/assets/runtime-config.json` に反映）
+- SAIHAI_AUTH_TOKEN: Frontend が付与する開発用 Bearer トークン（任意）
 - DATABASE_URL または PG* 系: ローカル PostgreSQL の接続文字列/情報
 - SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET / SLACK_APP_TOKEN: Slack アプリ管理画面（Basic Information / OAuth & Permissions / Socket Mode）
 
@@ -138,4 +140,3 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 
 - 配置: `docs/setup.md`（本ファイル）
 - 参照: リポジトリの `README.md` からリンク（下部の「Setup / 外部サービス」セクション）
-
