@@ -38,5 +38,20 @@
     "name": "m2_audit_log_persistence",
     "inlineHtml": "<html><body><h1>Audit Log</h1><p>approval_requested -> approval_approved -> execution_succeeded</p></body></html>",
     "assertText": "Audit Log"
+  },
+  {
+    "name": "m3_progress_streaming",
+    "inlineHtml": "<html><body><h1>Progress Stream</h1><p>progress 45%</p><p>Debate Stream</p></body></html>",
+    "assertText": "Progress Stream"
+  },
+  {
+    "name": "m3_external_action_execution",
+    "inlineHtml": "<html><body><h1>External Action</h1><p>Email sent</p><p>Calendar booked</p></body></html>",
+    "assertText": "External Action"
+  },
+  {
+    "name": "m3_input_source_ingestion",
+    "inlineHtml": "<html><body><h1>Input Ingestion</h1><p>Weekly reports ingested</p></body></html>",
+    "assertText": "Input Ingestion"
   }
 ]

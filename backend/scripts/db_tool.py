@@ -95,10 +95,12 @@ def migrate_down() -> None:
 
 def _wipe_tables(conn) -> None:
     table_order = [
+        "external_action_runs",
         "execution_jobs",
         "hitl_approval_requests",
         "hitl_audit_logs",
         "hitl_states",
+        "input_ingestion_runs",
         "watchdog_alerts",
         "watchdog_jobs",
         "user_skills",

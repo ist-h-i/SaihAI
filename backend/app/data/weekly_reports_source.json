@@ -1,0 +1,17 @@
+[
+  {
+    "user_id": "tanaka",
+    "posted_at": "2026-01-01T09:00:00",
+    "content": "Weekly report: fatigue is building up, need rest. Legacy stack feels repetitive."
+  },
+  {
+    "user_id": "yamada",
+    "posted_at": "2026-01-02T09:00:00",
+    "content": "Weekly report: eager to tackle harder tasks and learn AI tooling."
+  },
+  {
+    "user_id": "sato",
+    "posted_at": "2026-01-03T09:00:00",
+    "content": "Weekly report: available for architecture review, limited weekly hours."
+  }
+]
