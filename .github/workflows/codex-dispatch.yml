@@ -537,10 +537,18 @@ jobs:
             const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
             const branch = process.env.BRANCH;
             const head = `${owner}:${branch}`;
+            const base = process.env.BASE;
 
             const prs = await github.rest.pulls.list({ owner, repo, state: 'open', head });
             if (prs.data.length) {
               core.setOutput('pr_number', String(prs.data[0].number));
+              return;
+            }
+
+            const compare = await github.rest.repos.compareCommits({ owner, repo, base, head });
+            if (compare.data.ahead_by === 0) {
+              core.info(`No commits between ${base} and ${branch}; skipping PR creation.`);
+              core.setOutput('pr_number', '');
               return;
             }
 
@@ -549,7 +557,7 @@ jobs:
               owner, repo,
               title: `AI: ${issue.title} (#${issueNo})`,
               head: branch,
-              base: process.env.BASE,
+              base,
               body: [
                 `Closes #${issueNo}`,
                 '',
@@ -568,6 +576,7 @@ jobs:
     outputs:
       has_changes: ${{ steps.commit_changes.outputs.has_changes }}
       commit_sha: ${{ steps.commit_changes.outputs.commit_sha }}
+      pr_number: ${{ steps.ensure_pr.outputs.pr_number }}
     env:
       MODE: ${{ needs.meta.outputs.mode }}
       COMMAND_LINE: ${{ needs.meta.outputs.command_line }}
@@ -718,7 +727,9 @@ jobs:
             const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
 
             const prNo = Number(process.env.PRN);
-            const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNo })).data;
+            const pr = Number.isFinite(prNo) && prNo > 0
+              ? (await github.rest.pulls.get({ owner, repo, pull_number: prNo })).data
+              : null;
 
             const triage = fs.readFileSync('codex-triage.json', 'utf8');
             const commentHistory = fs.existsSync('.github/codex/comment_history.md')
@@ -751,9 +762,9 @@ jobs:
               commentHistory,
               '',
               '# PR（current）',
-              `PR: #${pr.number}`,
-              `Head: ${pr.head.ref}`,
-              `Base: ${pr.base.ref}`,
+              pr ? `PR: #${pr.number}` : 'PR: (not created yet)',
+              `Head: ${pr ? pr.head.ref : process.env.BRANCH}`,
+              `Base: ${pr ? pr.base.ref : process.env.BASE}`,
               '',
               '# ユーザーの追加コメント',
               process.env.EXTRA_INSTRUCTIONS || '(なし)',
@@ -841,6 +852,54 @@ jobs:
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Ensure PR exists (after commit)
+        id: ensure_pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNo = Number(process.env.PRN);
+            if (Number.isFinite(prNo) && prNo > 0) {
+              core.setOutput('pr_number', String(prNo));
+              return;
+            }
+
+            const branch = process.env.BRANCH;
+            const base = process.env.BASE;
+            const head = `${owner}:${branch}`;
+
+            const prs = await github.rest.pulls.list({ owner, repo, state: 'open', head });
+            if (prs.data.length) {
+              core.setOutput('pr_number', String(prs.data[0].number));
+              return;
+            }
+
+            const compare = await github.rest.repos.compareCommits({ owner, repo, base, head });
+            if (compare.data.ahead_by === 0) {
+              core.info(`No commits between ${base} and ${branch}; skipping PR creation.`);
+              core.setOutput('pr_number', '');
+              return;
+            }
+
+            const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
+            const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNo })).data;
+            const pr = await github.rest.pulls.create({
+              owner, repo,
+              title: `AI: ${issue.title} (#${issueNo})`,
+              head: branch,
+              base,
+              body: [
+                `Closes #${issueNo}`,
+                '',
+                'This PR was created by Codex ChatOps.',
+                'Evidence (screenshots/videos/trace) will be attached as a workflow artifact and linked in PR comments.'
+              ].join('\n')
+            });
+
+            core.setOutput('pr_number', String(pr.data.number));
+
       - name: Upload implementation artifact
         uses: actions/upload-artifact@v4
         with:
@@ -871,7 +930,7 @@ jobs:
       EFFORT_OVERRIDE: ${{ needs.meta.outputs.effort_override }}
       REC_MODEL: ${{ needs.triage.outputs.recommended_model }}
       REC_EFFORT: ${{ needs.triage.outputs.recommended_effort }}
-      PRN: ${{ needs.prepare.outputs.pr_number }}
+      PRN: ${{ needs.implement.outputs.pr_number || needs.prepare.outputs.pr_number }}
       HAS_CHANGES: ${{ needs.implement.outputs.has_changes || 'false' }}
       IMPLEMENT_RESULT: ${{ needs.implement.result }}
     steps:
