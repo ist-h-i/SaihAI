@@ -1,11 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.engine import Connection
 
-from app.data.seed import get_projects
+from app.db import get_db
+from app.db.repository import fetch_projects
 
 router = APIRouter()
 
 
 @router.get("/projects")
-def list_projects() -> list[dict]:
-    return get_projects()
-
+def list_projects(conn: Connection = Depends(get_db)) -> list[dict]:
+    return fetch_projects(conn)

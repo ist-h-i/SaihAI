@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS user_skills;
+DROP TABLE IF EXISTS user_profiles;
+DROP TABLE IF EXISTS langgraph_checkpoints;
+DROP TABLE IF EXISTS project_health_snapshots;
+DROP TABLE IF EXISTS user_motivation_history;
+DROP TABLE IF EXISTS autonomous_actions;
+DROP TABLE IF EXISTS ai_strategy_proposals;
+DROP TABLE IF EXISTS ai_analysis_results;
+DROP TABLE IF EXISTS assignment_patterns;
+DROP TABLE IF EXISTS weekly_reports;
+DROP TABLE IF EXISTS assignments;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS users;

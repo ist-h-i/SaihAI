@@ -1,14 +1,25 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
+import { AuthTokenStore } from '../auth-token.store';
 import { ToastService } from '../toast.service';
 
 export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
+  const tokenStore = inject(AuthTokenStore);
+  const router = inject(Router);
   return next(req).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse) {
+        if (error.status === 401) {
+          tokenStore.clearToken();
+          if (!router.url.startsWith('/login')) {
+            void router.navigate(['/login'], { queryParams: { redirect: router.url } });
+          }
+          return throwError(() => error);
+        }
         toast.error(buildApiErrorMessage(error));
       }
       return throwError(() => error);

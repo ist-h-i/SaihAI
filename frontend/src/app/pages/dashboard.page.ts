@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { NeuralOrbComponent } from '../components/neural-orb.component';
+import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
 import { Member } from '../core/types';
 
@@ -132,7 +133,7 @@ interface ClusterAccumulator {
         <button
           type="button"
           class="mt-2 w-full text-left rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 p-4 flex items-center gap-4"
-          (click)="goSimulator('alert', alert.id)"
+          (click)="goSimulator('alert')"
         >
           <div
             class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
@@ -150,6 +151,53 @@ interface ClusterAccumulator {
         </button>
       </div>
     }
+
+    <div class="mt-6 grid gap-4 lg:grid-cols-2">
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <div class="text-sm font-semibold text-slate-200">AI 提案（松竹梅）</div>
+        @if (dashboard.proposals().length) {
+          <div class="mt-3 space-y-3">
+            @for (p of dashboard.proposals(); track p.id) {
+              <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-sm font-semibold">
+                    {{ p.planType }}
+                    @if (p.isRecommended) {
+                      <span class="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200">
+                        推奨
+                      </span>
+                    }
+                  </div>
+                  <div class="text-xs text-slate-400">score {{ p.recommendationScore }}</div>
+                </div>
+                <div class="mt-2 text-xs text-slate-300">{{ p.description }}</div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="mt-3 text-xs text-slate-500">提案を準備中です。</div>
+        }
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <div class="text-sm font-semibold text-slate-200">承認待ち</div>
+        @if (dashboard.pendingActions().length) {
+          <div class="mt-3 space-y-2">
+            @for (action of dashboard.pendingActions(); track action.id) {
+              <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-sm font-semibold">{{ action.title }}</div>
+                  <div class="text-[11px] text-slate-400">{{ action.actionType }}</div>
+                </div>
+                <div class="mt-1 text-xs text-slate-400">status: {{ action.status }}</div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="mt-3 text-xs text-slate-500">承認待ちはありません。</div>
+        }
+      </div>
+    </div>
 
     <div class="mt-6 grid gap-4 lg:grid-cols-3">
       <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
@@ -263,75 +311,18 @@ interface ClusterAccumulator {
 })
 export class DashboardPage {
   protected readonly store = inject(SimulatorStore);
+  protected readonly dashboard = inject(DashboardStore);
   private readonly router = inject(Router);
 
-  protected readonly kpis = computed(() => {
-    const members = this.store.members();
-    const scored = members.map((m) => ({ m, s: scoreMember(m) }));
-    const avgRisk = scored.length
-      ? scored.reduce((sum, x) => sum + x.s.risk, 0) / scored.length
-      : 0;
-    const avgMotivation = scored.length
-      ? scored.reduce((sum, x) => sum + x.s.motivation, 0) / scored.length
-      : 0;
-    const highRiskCount = scored.filter((x) => x.s.risk >= 70).length;
-
-    const engagement = clampPct(100 - avgRisk * 0.6);
-    const careerFit = clampPct(avgMotivation);
-    const margin = clampPct(96 + (avgMotivation - 50) * 0.35 - avgRisk * 0.1);
-
-    return [
-      {
-        label: 'エンゲージメント',
-        value: engagement,
-        suffix: '%',
-        color: '#10b981',
-        delta: '▲ 2.4pt',
-        deltaColor: '#10b981',
-      },
-      {
-        label: 'キャリア適合率',
-        value: careerFit,
-        suffix: '%',
-        color: '#d946ef',
-        delta: '介入で「成長機会」を再設計',
-        deltaColor: '#94a3b8',
-      },
-      {
-        label: '離職リスク (High)',
-        value: highRiskCount,
-        suffix: '名',
-        color: '#f43f5e',
-        delta: highRiskCount ? '※要対応' : '平常運転',
-        deltaColor: highRiskCount ? '#f43f5e' : '#10b981',
-      },
-      {
-        label: '予測粗利益率',
-        value: margin,
-        suffix: '%',
-        color: '#f59e0b',
-        delta: '自動根回しで調整コスト削減',
-        deltaColor: '#94a3b8',
-      },
-    ];
-  });
+  protected readonly kpis = computed(() => this.dashboard.kpis());
 
   protected readonly activeAlert = computed(() => {
-    const worst = this.store
-      .members()
-      .map((m) => ({ m, s: scoreMember(m) }))
-      .sort((a, b) => b.s.risk - a.s.risk)[0];
-    if (!worst || worst.s.risk < 70) return null;
-    return {
-      id: worst.m.id,
-      risk: worst.s.risk,
-      title: `要介入: ${worst.m.name}`,
-      subtitle: '週報/面談ログより「燃え尽き」シグナルを検知。クリックして介入プランを確認。',
-    };
+    const alerts = [...this.dashboard.alerts()].sort((a, b) => b.risk - a.risk);
+    return alerts[0] ?? null;
   });
 
   protected readonly matrixPoints = computed(() => {
-    return this.store.members().map((m) => {
+    return this.dashboard.members().map((m) => {
       const s = scoreMember(m);
       const x = clampPct(10 + s.motivation * 0.8);
       const yTop = clampPct(100 - (10 + s.performance * 0.8));
@@ -403,15 +394,7 @@ export class DashboardPage {
   protected readonly openedClusterId = signal<string | null>(null);
 
   protected readonly watchdog = computed(() => {
-    const rows = [
-      { t: '09:00', text: '全社解析完了（週報/勤怠/チャット）', dot: '#6366f1' },
-      { t: '10:15', text: '1on1候補の自動調整を開始', dot: '#06b6d4' },
-    ];
-    const alert = this.activeAlert();
-    if (alert)
-      rows.push({ t: '10:30', text: `${alert.title} / RISK=${alert.risk}%`, dot: '#f43f5e' });
-    rows.push({ t: '11:00', text: '新規案件マッチング中…', dot: '#10b981' });
-    return rows;
+    return this.dashboard.watchdog();
   });
 
   private clusterKey(x: number, yTop: number, cellSize: number): string {
@@ -444,7 +427,7 @@ export class DashboardPage {
   }
 
   constructor() {
-    void this.store.loadOnce();
+    void this.dashboard.load();
   }
 
   protected goSimulator(demo?: 'alert' | 'manual', focusMemberId?: string): void {

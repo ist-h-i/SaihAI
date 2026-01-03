@@ -22,7 +22,7 @@ const sampleMembers = [
 
 const mockConfig = (overrides?: { apiBaseUrl?: string; authToken?: string }) => ({
   apiBaseUrl: 'http://127.0.0.1:4200/mock-api',
-  authToken: '',
+  authToken: 'token-123',
   ...overrides,
 });
 
