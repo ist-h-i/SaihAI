@@ -13,13 +13,15 @@ test.describe('Docs: tasklist.md', () => {
       '/simulator',
       '/genome',
       'タスク運用基準',
+      'Issue→PR',
       'タスクリスト',
       '実装（Implementation）',
       'インフラ構築（AWS）',
       '外部API連携',
       'AIエンドポイント要件表',
       '主要エンドポイント一覧',
-      '認証方式',
+      'Bearer JWT',
+      'サブタスク（PR単位',
       'IMP-003',
       'AWS-001',
       'EXT-001',
@@ -28,6 +30,7 @@ test.describe('Docs: tasklist.md', () => {
     for (const section of required) {
       expect(tasklist).toContain(section);
     }
+
+    expect(tasklist).not.toContain('TBD');
   });
 });
-
