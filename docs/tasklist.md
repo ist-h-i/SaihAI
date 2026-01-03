@@ -331,42 +331,42 @@
 - [ ] IMP-021-01 Plans Generate: LLM プロンプト/システムプロンプト整備（完了条件: JSON を必ず返す / 検証: モックで検証）
 - [ ] IMP-021-02 Plans Generate: LLM 失敗時フォールバック（完了条件: fallback が返る / 検証: 失敗再現）
 - [ ] IMP-025-01 Nemawashi Generate: LLM で下書き生成（完了条件: 画面向け構造 / 検証: APIテスト）
-- [ ] EXT-002-01 Embedding 生成（Titan）+ pgvector 保存（完了条件: 1024次元で保存 / 検証: DB統合）
+- [x] EXT-002-01 Embedding 生成（Titan）+ pgvector 保存（完了条件: 1024次元で保存 / 検証: DB統合）
 - [ ] EXT-002-02 類似検索 API（メンバー/週報）導入（完了条件: topK が返る / 検証: APIテスト）
-- [ ] IMP-027-01 LangGraph: Orchestrator（最小）導入（完了条件: グラフが動く / 検証: ユニット）
+- [x] IMP-027-01 LangGraph: Orchestrator（最小）導入（完了条件: グラフが動く / 検証: ユニット）
 - [ ] IMP-027-02 LangGraph: Checkpoint 永続化（thread_id）導入（完了条件: resume できる / 検証: 統合テスト）
-- [ ] IMP-028-01 Watchdog: 1回起動で1件分析→保存（完了条件: DB に結果 / 検証: 統合テスト）
+- [x] IMP-028-01 Watchdog: 1回起動で1件分析→保存（完了条件: DB に結果 / 検証: 統合テスト）
 - [ ] IMP-028-02 Watchdog: 失敗時リトライ/スキップ方針（完了条件: 破綻しない / 検証: 失敗再現）
 - [ ] IMP-029-01 長時間AI処理の進捗 API（SSE/WS）導入（完了条件: FEが追える / 検証: E2E）
 
 ### 7.8 Slack/HITL（IMP-017/IMP-018/IMP-022/IMP-024/IMP-026/IMP-030 + EXT-003/EXT-004/EXT-005）
 
-- [ ] IMP-017-01 DB に approval/state/audit の最小テーブルを作る（完了条件: 主要キー/制約あり / 検証: migrate + API）
-- [ ] IMP-018-01 冪等キー設計 + 多重実行防止（完了条件: 2回実行で1回だけ / 検証: テスト）
-- [ ] IMP-022-01 介入（Steer）受付→ state 更新→再生成（完了条件: 介入が反映 / 検証: 統合テスト）
-- [ ] IMP-024-01 Execute をジョブ化（キュー/worker）し状態遷移（完了条件: pending→done/failed / 検証: 統合テスト）
+- [x] IMP-017-01 DB に approval/state/audit の最小テーブルを作る（完了条件: 主要キー/制約あり / 検証: migrate + API）
+- [x] IMP-018-01 冪等キー設計 + 多重実行防止（完了条件: 2回実行で1回だけ / 検証: テスト）
+- [x] IMP-022-01 介入（Steer）受付→ state 更新→再生成（完了条件: 介入が反映 / 検証: 統合テスト）
+- [x] IMP-024-01 Execute をジョブ化（キュー/worker）し状態遷移（完了条件: pending→done/failed / 検証: 統合テスト）
 - [ ] IMP-026-01 Frontend: 根回し下書き表示 + 承認依頼 UI（完了条件: 画面で完結 / 検証: E2E）
-- [ ] IMP-030-01 監査ログ（append-only）最小実装（完了条件: thread_id で追える / 検証: APIテスト）
-- [ ] EXT-003-01 Slack App 権限/Events/Interactivity 設計を docs 化（完了条件: 手順が再現可能 / 検証: レビュー）
-- [ ] EXT-004-01 Slack 通知（Block Kit）送信（完了条件: 送信できる / 検証: dry-run）
-- [ ] EXT-005-01 `/slack/interactions` 署名検証 + 状態遷移（完了条件: 署名NGで拒否 / 検証: サンプルpayload）
-- [ ] EXT-005-02 `/slack/events` で介入テキスト受信 + AI パース（完了条件: 介入が取れる / 検証: サンプルpayload）
+- [x] IMP-030-01 監査ログ（append-only）最小実装（完了条件: thread_id で追える / 検証: APIテスト）
+- [x] EXT-003-01 Slack App 権限/Events/Interactivity 設計を docs 化（完了条件: 手順が再現可能 / 検証: レビュー）
+- [x] EXT-004-01 Slack 通知（Block Kit）送信（完了条件: 送信できる / 検証: dry-run）
+- [x] EXT-005-01 `/slack/interactions` 署名検証 + 状態遷移（完了条件: 署名NGで拒否 / 検証: サンプルpayload）
+- [x] EXT-005-02 `/slack/events` で介入テキスト受信 + AI パース（完了条件: 介入が取れる / 検証: サンプルpayload）
 
 ### 7.9 AWS（AWS-003〜AWS-009）
 
 - [ ] AWS-002-01 `infra/`（CDK）初期セットアップ + `cdk synth`（完了条件: synth が通る / 検証: CI）
 - [ ] AWS-003-01 VPC/SG などネットワークを CDK で定義（完了条件: 最小NWが定義 / 検証: synth diff）
-- [ ] AWS-004-01 Aurora(pgvector) + Secrets Manager（完了条件: 秘密情報が外に出ない / 検証: review）
+- [x] AWS-004-01 Aurora(pgvector) + Secrets Manager（完了条件: 秘密情報が外に出ない / 検証: review）
 - [ ] AWS-005-01 ECS(Fargate)+ALB で Backend を公開（完了条件: `/api/health` / 検証: staging）
 - [ ] AWS-006-01 S3+CloudFront で Frontend を公開（完了条件: SPAが動く / 検証: staging）
-- [ ] AWS-007-01 EventBridge→SQS を構成（完了条件: enqueue できる / 検証: staging）
-- [ ] AWS-008-01 Worker 実行（ECS）で watchdog を消費（完了条件: 1件処理 / 検証: staging）
-- [ ] AWS-009-01 CloudWatch Logs + 最低限アラーム（完了条件: 監視できる / 検証: staging）
+- [x] AWS-007-01 EventBridge→SQS を構成（完了条件: enqueue できる / 検証: staging）
+- [x] AWS-008-01 Worker 実行（ECS）で watchdog を消費（完了条件: 1件処理 / 検証: staging）
+- [x] AWS-009-01 CloudWatch Logs + 最低限アラーム（完了条件: 監視できる / 検証: staging）
 
 ### 7.10 品質/CI/証跡（IMP-031/IMP-032）
 
-- [ ] IMP-031-01 主要フローのE2E（Dashboard→Simulator→Approval）追加（完了条件: 安定して通る / 検証: `npm test`）
-- [ ] IMP-031-02 証跡シナリオ更新（主要画面のURL/操作）（完了条件: trace/video が残る / 検証: Artifacts）
+- [x] IMP-031-01 主要フローのE2E（Dashboard→Simulator→Approval）追加（完了条件: 安定して通る / 検証: `npm test`）
+- [x] IMP-031-02 証跡シナリオ更新（主要画面のURL/操作）（完了条件: trace/video が残る / 検証: Artifacts）
 - [ ] IMP-032-01 CI に `frontend` ビルドを追加（完了条件: CIでビルド / 検証: workflow）
 - [ ] IMP-032-02 CI に `backend` のユニット/型チェックを追加（完了条件: 破綻検知 / 検証: workflow）
 

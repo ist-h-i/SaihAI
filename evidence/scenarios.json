@@ -13,5 +13,30 @@
     "name": "api error toast presence",
     "inlineHtml": "<html><body><div role='status'>APIエラー</div><p>APIエラー (500): boom</p></body></html>",
     "assertText": "APIエラー"
+  },
+  {
+    "name": "m2_slack_approval_flow",
+    "inlineHtml": "<html><body><h1>Slack Approval</h1><p>HITL approval requested</p><button>Approve</button><button>Reject</button></body></html>",
+    "assertText": "HITL approval"
+  },
+  {
+    "name": "m2_hitl_steer_rerun",
+    "inlineHtml": "<html><body><h1>Steer Update</h1><p>Feedback received and re-generated</p></body></html>",
+    "assertText": "Feedback received"
+  },
+  {
+    "name": "m2_execute_async_state_transition",
+    "inlineHtml": "<html><body><h1>Execute Job</h1><p>queued -> running -> succeeded</p></body></html>",
+    "assertText": "queued"
+  },
+  {
+    "name": "m2_watchdog_alert_pipeline",
+    "inlineHtml": "<html><body><h1>Watchdog Alert</h1><p>Alert candidate stored</p></body></html>",
+    "assertText": "Watchdog"
+  },
+  {
+    "name": "m2_audit_log_persistence",
+    "inlineHtml": "<html><body><h1>Audit Log</h1><p>approval_requested -> approval_approved -> execution_succeeded</p></body></html>",
+    "assertText": "Audit Log"
   }
 ]
