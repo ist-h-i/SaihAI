@@ -25,6 +25,10 @@ test.describe('Docs: tasklist.md', () => {
       'IMP-003',
       'AWS-001',
       'EXT-001',
+      'M0 実行ロードマップ',
+      'M1 実行ロードマップ',
+      'M2 実行ロードマップ',
+      'M3 実行ロードマップ',
     ];
 
     for (const section of required) {
