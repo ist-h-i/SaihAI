@@ -199,6 +199,23 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                     }
                   </div>
                 </div>
+                <div class="mt-4">
+                  <div class="text-xs text-slate-400 font-semibold">Profile</div>
+                  <div class="mt-2 text-xs text-slate-300">
+                    Role: {{ m.role ?? 'N/A' }} / Level: {{ m.skillLevel ?? '-' }}
+                  </div>
+                  @if (m.careerAspiration) {
+                    <div class="mt-1 text-xs text-slate-400">{{ m.careerAspiration }}</div>
+                  }
+                  @if (m.analysis) {
+                    <div class="mt-2 text-xs text-slate-300">
+                      Pattern: {{ m.analysis.patternName ?? m.analysis.patternId }}
+                    </div>
+                    <div class="text-xs text-slate-400">
+                      Decision: {{ m.analysis.finalDecision ?? 'N/A' }}
+                    </div>
+                  }
+                </div>
                 <div class="mt-4 text-[11px] text-slate-400">
                   Tip: skills をクリックでフィルタできます。
                 </div>
@@ -266,6 +283,7 @@ export class GenomePage {
   }
 
   protected isRisky(m: Member): boolean {
+    if (m.analysis?.riskRiskScore != null) return m.analysis.riskRiskScore >= 70;
     return hasAny(m.notes ?? '', RISK_HINTS);
   }
 

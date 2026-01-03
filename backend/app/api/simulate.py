@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.engine import Connection
 
-from app.data.seed import find_members, find_project
+from app.db import get_db
+from app.db.repository import fetch_members_by_ids, fetch_project
 from app.domain.models import SimulationRequest
 from app.domain.patterns import Vote, detect_pattern
 from app.domain.scoring import score
@@ -87,12 +89,12 @@ def _decision_risk(metrics: dict[str, int], pattern: str) -> tuple[str, int, str
 
 
 @router.post("/simulate")
-def simulate(req: SimulationRequest) -> dict:
-    project = find_project(req.projectId)
+def simulate(req: SimulationRequest, conn: Connection = Depends(get_db)) -> dict:
+    project = fetch_project(conn, req.projectId)
     if not project:
         raise HTTPException(status_code=404, detail="project not found")
 
-    team = find_members(req.memberIds)
+    team = fetch_members_by_ids(conn, req.memberIds)
     if req.memberIds and len(team) != len(set(req.memberIds)):
         raise HTTPException(status_code=404, detail="member not found")
 
