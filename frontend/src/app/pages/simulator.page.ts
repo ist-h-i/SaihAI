@@ -176,6 +176,64 @@ interface ChatEntry {
           </button>
         </div>
 
+        @if (store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length) {
+          <div class="mb-4 rounded border border-slate-800 bg-slate-900/30 p-3">
+            <div class="text-sm font-semibold">AI進捗ストリーム</div>
+            <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
+              <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
+            </div>
+            <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
+              <div
+                class="h-2 bg-indigo-500"
+                [style.width.%]="store.planProgress()?.progress ?? 0"
+              ></div>
+            </div>
+
+            <div class="mt-3 grid gap-4 md:grid-cols-2">
+              <div>
+                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                  Progress Log
+                </div>
+                @if (store.planProgressLog().length) {
+                  <ul class="mt-2 space-y-1 text-xs text-slate-300">
+                    @for (entry of store.planProgressLog(); track $index) {
+                      <li>{{ entry.message }}</li>
+                    }
+                  </ul>
+                } @else {
+                  <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
+                }
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                  Debate Stream
+                </div>
+                @if (store.planDiscussionLog().length) {
+                  <ul class="mt-2 space-y-2 text-xs">
+                    @for (entry of store.planDiscussionLog(); track $index) {
+                      <li class="flex items-start gap-2">
+                        <span
+                          class="shrink-0 px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60"
+                          [class.border-rose-500/40]="entry.tone === 'risk'"
+                          [class.border-emerald-500/40]="entry.tone === 'hr'"
+                          [class.border-indigo-500/40]="entry.tone === 'pm'"
+                          [class.border-amber-500/40]="entry.tone === 'gunshi'"
+                        >
+                          {{ entry.agent }}
+                        </span>
+                        <span class="text-slate-200">{{ entry.message }}</span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <div class="mt-2 text-xs text-slate-500">Waiting for debate...</div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
         @if (store.simulationResult(); as r) {
           <div>
             <div class="text-sm text-slate-300">
@@ -551,6 +609,7 @@ export class SimulatorPage implements OnDestroy {
     this.timers.splice(0).forEach((t) => window.clearTimeout(t));
     this.querySub?.unsubscribe();
     this.querySub = null;
+    this.store.closePlanStream();
   }
 
   private async init(): Promise<void> {

@@ -8,6 +8,7 @@ from uuid import uuid4
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from app.domain.external_actions import ExternalActionError, execute_external_action
 from app.integrations.slack import SlackMeta, send_approval_message
 
 
@@ -716,18 +717,18 @@ def process_execution_job(
         detail={"action_id": action_id},
     )
 
-    if simulate_failure:
+    def _mark_failed(error_message: str) -> ExecutionJobResult:
         conn.execute(
             text(
                 """
                 UPDATE execution_jobs
                 SET status = 'failed',
                     finished_at = CURRENT_TIMESTAMP,
-                    last_error = 'simulated failure'
+                    last_error = :error
                 WHERE job_id = :job_id
                 """
             ),
-            {"job_id": job["job_id"]},
+            {"job_id": job["job_id"], "error": error_message},
         )
         conn.execute(
             text(
@@ -746,7 +747,7 @@ def process_execution_job(
             event_type="execution_failed",
             actor="worker",
             correlation_id=job["job_id"],
-            detail={"action_id": action_id},
+            detail={"action_id": action_id, "error": error_message},
         )
         return ExecutionJobResult(
             job_id=job["job_id"],
@@ -754,6 +755,27 @@ def process_execution_job(
             thread_id=job["thread_id"],
             action_id=action_id,
         )
+
+    if simulate_failure:
+        return _mark_failed("simulated failure")
+
+    try:
+        action_run = execute_external_action(conn, job_id=job["job_id"], action_id=action_id)
+        if action_run:
+            _record_audit(
+                conn,
+                thread_id=job["thread_id"],
+                event_type="external_action_executed",
+                actor="worker",
+                correlation_id=action_run.run_id,
+                detail={
+                    "action_id": action_id,
+                    "action_type": action_run.action_type,
+                    "provider": action_run.provider,
+                },
+            )
+    except (ExternalActionError, ValueError) as exc:
+        return _mark_failed(str(exc))
 
     conn.execute(
         text(

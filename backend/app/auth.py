@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Query
 from sqlalchemy.engine import Connection
 
 from app.db import get_db
@@ -87,11 +87,36 @@ def get_current_user(
     authorization: str | None = Header(default=None),
     conn: Connection = Depends(get_db),
 ) -> AuthUser:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    token = authorization.split(" ", 1)[1].strip()
+    token = _resolve_token(authorization, None)
     if not token:
         raise HTTPException(status_code=401, detail="missing bearer token")
+    return _build_user_from_token(token, conn)
+
+
+def get_current_user_or_token(
+    token: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+    conn: Connection = Depends(get_db),
+) -> AuthUser:
+    resolved = _resolve_token(authorization, token)
+    if not resolved:
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    return _build_user_from_token(resolved, conn)
+
+
+def _resolve_token(authorization: str | None, token: str | None) -> str | None:
+    if token:
+        trimmed = token.strip()
+        if trimmed.lower().startswith("bearer "):
+            trimmed = trimmed.split(" ", 1)[1].strip()
+        return trimmed or None
+    if authorization and authorization.lower().startswith("bearer "):
+        trimmed = authorization.split(" ", 1)[1].strip()
+        return trimmed or None
+    return None
+
+
+def _build_user_from_token(token: str, conn: Connection) -> AuthUser:
     try:
         payload = decode_jwt(token)
     except ValueError:

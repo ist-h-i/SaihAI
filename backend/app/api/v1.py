@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from app.auth import AuthUser, get_current_user, issue_token
+from app.auth import AuthUser, get_current_user, get_current_user_or_token, issue_token
 from app.db import get_db
 from app.db.repository import (
     fetch_member_detail,
@@ -20,6 +23,8 @@ from app.db.repository import (
 )
 from app.domain.patterns import detect_pattern
 from app.domain.scoring import score
+from app.domain.external_actions import ACTION_TYPE_CALENDAR, ACTION_TYPE_EMAIL
+from app.domain.input_sources import fetch_ingestion_runs, ingest_weekly_reports
 
 router = APIRouter(prefix="/v1")
 
@@ -211,6 +216,50 @@ class DashboardInitialResponse(BaseModel):
     pendingActions: list[DashboardPendingAction]
     watchdog: list[DashboardTimelineEntry]
     checkpointWaiting: bool
+
+
+class ExternalEmailActionRequest(BaseModel):
+    to: str = Field(min_length=1)
+    subject: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+    proposalId: int | None = None
+
+
+class ExternalCalendarActionRequest(BaseModel):
+    attendee: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    startAt: str = Field(min_length=1)
+    endAt: str = Field(min_length=1)
+    timezone: str | None = None
+    description: str | None = None
+    proposalId: int | None = None
+
+
+class ActionCreateResponse(BaseModel):
+    actionId: int
+    status: str
+    actionType: str
+
+
+class ExternalActionRunResponse(BaseModel):
+    runId: str
+    jobId: str
+    actionId: int
+    actionType: str
+    provider: str
+    status: str
+    executedAt: str | None = None
+    error: str | None = None
+
+
+class InputIngestionRunResponse(BaseModel):
+    runId: str
+    sourceType: str
+    status: str
+    itemsInserted: int
+    startedAt: str
+    finishedAt: str
+    error: str | None = None
 
 
 _simulations: dict[str, dict] = {}
@@ -502,9 +551,200 @@ def generate_plans(simulation_id: str) -> list[dict]:
         raise HTTPException(status_code=404, detail="simulation not found")
 
     risk_score = int(simulation.get("riskScore", 0))
-    recommended = "A" if risk_score <= 50 else "B"
+    return _build_plans(simulation_id, risk_score)
 
-    plans = []
+
+@router.get("/simulations/{simulation_id}/plans/stream")
+async def stream_plans(
+    simulation_id: str,
+    user: AuthUser = Depends(get_current_user_or_token),
+) -> StreamingResponse:
+    simulation = _simulations.get(simulation_id)
+    if not simulation:
+        raise HTTPException(status_code=404, detail="simulation not found")
+
+    risk_score = int(simulation.get("riskScore", 0))
+    evaluation = simulation.get("evaluation") or {}
+    logs = _build_stream_logs(evaluation)
+    steps = [
+        {"phase": "prepare", "message": "collecting signals", "progress": 10},
+        {"phase": "debate", "message": "running agent debate", "progress": 45},
+        {"phase": "draft", "message": "drafting intervention plans", "progress": 75},
+        {"phase": "score", "message": "scoring options", "progress": 90},
+    ]
+
+    async def event_stream():
+        yield _sse_event("progress", {"phase": "queued", "message": "job queued", "progress": 5})
+        await asyncio.sleep(0.2)
+        for step in steps:
+            yield _sse_event("progress", step)
+            await asyncio.sleep(0.25)
+            if step["phase"] == "debate":
+                for entry in logs:
+                    yield _sse_event("log", entry)
+                    await asyncio.sleep(0.2)
+
+        plans = _build_plans(simulation_id, risk_score)
+        yield _sse_event("complete", {"plans": plans})
+
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    return StreamingResponse(event_stream(), headers=headers, media_type="text/event-stream")
+
+
+@router.post(
+    "/actions/email",
+    response_model=ActionCreateResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def create_email_action(
+    req: ExternalEmailActionRequest,
+    conn: Connection = Depends(get_db),
+) -> ActionCreateResponse:
+    payload = {"to": req.to, "subject": req.subject, "body": req.body}
+    draft_content = f"Email to {req.to}: {req.subject}"
+    conn.execute(
+        text(
+            """
+            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status, action_payload)
+            VALUES (:proposal_id, :action_type, :draft_content, 'pending', :action_payload)
+            """
+        ),
+        {
+            "proposal_id": req.proposalId,
+            "action_type": ACTION_TYPE_EMAIL,
+            "draft_content": draft_content,
+            "action_payload": json.dumps(payload),
+        },
+    )
+    action_id = conn.execute(
+        text(
+            """
+            SELECT action_id
+            FROM autonomous_actions
+            ORDER BY action_id DESC
+            LIMIT 1
+            """
+        )
+    ).scalar()
+    return ActionCreateResponse(
+        actionId=int(action_id),
+        status="pending",
+        actionType=ACTION_TYPE_EMAIL,
+    )
+
+
+@router.post(
+    "/actions/calendar",
+    response_model=ActionCreateResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def create_calendar_action(
+    req: ExternalCalendarActionRequest,
+    conn: Connection = Depends(get_db),
+) -> ActionCreateResponse:
+    payload = {
+        "attendee": req.attendee,
+        "title": req.title,
+        "start_at": req.startAt,
+        "end_at": req.endAt,
+        "timezone": req.timezone,
+        "description": req.description,
+    }
+    draft_content = f"Calendar booking: {req.title} ({req.startAt} - {req.endAt})"
+    conn.execute(
+        text(
+            """
+            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status, action_payload)
+            VALUES (:proposal_id, :action_type, :draft_content, 'pending', :action_payload)
+            """
+        ),
+        {
+            "proposal_id": req.proposalId,
+            "action_type": ACTION_TYPE_CALENDAR,
+            "draft_content": draft_content,
+            "action_payload": json.dumps(payload),
+        },
+    )
+    action_id = conn.execute(
+        text(
+            """
+            SELECT action_id
+            FROM autonomous_actions
+            ORDER BY action_id DESC
+            LIMIT 1
+            """
+        )
+    ).scalar()
+    return ActionCreateResponse(
+        actionId=int(action_id),
+        status="pending",
+        actionType=ACTION_TYPE_CALENDAR,
+    )
+
+
+@router.get(
+    "/external-actions/runs",
+    response_model=list[ExternalActionRunResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_external_action_runs(conn: Connection = Depends(get_db)) -> list[dict]:
+    rows = conn.execute(
+        text(
+            """
+            SELECT run_id, job_id, action_id, action_type, provider, status, executed_at, error
+            FROM external_action_runs
+            ORDER BY executed_at DESC
+            LIMIT 20
+            """
+        )
+    ).mappings().all()
+
+    results: list[dict] = []
+    for row in rows:
+        executed_at = row.get("executed_at")
+        executed_at_str = (
+            executed_at.isoformat() if hasattr(executed_at, "isoformat") else str(executed_at)
+            if executed_at
+            else None
+        )
+        results.append(
+            {
+                "runId": row["run_id"],
+                "jobId": row["job_id"],
+                "actionId": row["action_id"],
+                "actionType": row["action_type"],
+                "provider": row["provider"],
+                "status": row["status"],
+                "executedAt": executed_at_str,
+                "error": row.get("error"),
+            }
+        )
+    return results
+
+
+@router.post(
+    "/input-sources/weekly-reports/ingest",
+    response_model=InputIngestionRunResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def ingest_weekly_reports_api(conn: Connection = Depends(get_db)) -> dict:
+    result = ingest_weekly_reports(conn)
+    return _ingestion_response(result)
+
+
+@router.get(
+    "/input-sources/weekly-reports/runs",
+    response_model=list[InputIngestionRunResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_weekly_report_ingestion_runs(conn: Connection = Depends(get_db)) -> list[dict]:
+    runs = fetch_ingestion_runs(conn)
+    return [_ingestion_response(run) for run in runs]
+
+
+def _build_plans(simulation_id: str, risk_score: int) -> list[dict]:
+    recommended = "A" if risk_score <= 50 else "B"
+    plans: list[dict] = []
     for pid, title, pros, cons in [
         ("A", "堅実維持", ["短期安定"], ["疲労蓄積"]),
         ("B", "未来投資", ["育成と安定の両立"], ["調整コスト"]),
@@ -523,6 +763,69 @@ def generate_plans(simulation_id: str) -> list[dict]:
         _plans[plan_id] = plan
         plans.append(plan)
     return plans
+
+
+def _build_stream_logs(evaluation: dict) -> list[dict]:
+    meeting_log = evaluation.get("meetingLog") or []
+
+    def tone(agent_id: str) -> str:
+        if agent_id == "PM":
+            return "pm"
+        if agent_id == "HR":
+            return "hr"
+        if agent_id == "RISK":
+            return "risk"
+        if agent_id == "GUNSHI":
+            return "gunshi"
+        return "gunshi"
+
+    logs: list[dict] = []
+    for entry in meeting_log:
+        agent_id = str(entry.get("agent_id") or "SYSTEM")
+        message = str(entry.get("message") or "")
+        if not message:
+            continue
+        logs.append({"agent": agent_id, "message": message, "tone": tone(agent_id)})
+    if logs:
+        return logs
+
+    metrics = evaluation.get("metrics") or {}
+    pattern = evaluation.get("pattern") or ""
+    fallback = [
+        {"agent": "SYSTEM", "message": f"pattern={pattern}", "tone": "gunshi"},
+        {
+            "agent": "PM",
+            "message": f"budget_pct={metrics.get('budgetPct', 0)}",
+            "tone": "pm",
+        },
+        {
+            "agent": "HR",
+            "message": f"career_fit={metrics.get('careerFitPct', 0)}",
+            "tone": "hr",
+        },
+        {
+            "agent": "RISK",
+            "message": f"risk_pct={metrics.get('riskPct', 0)}",
+            "tone": "risk",
+        },
+    ]
+    return fallback
+
+
+def _sse_event(event: str, payload: dict) -> str:
+    return f"event: {event}\n" + f"data: {json.dumps(payload)}\n\n"
+
+
+def _ingestion_response(run) -> dict:
+    return {
+        "runId": run.run_id,
+        "sourceType": run.source_type,
+        "status": run.status,
+        "itemsInserted": run.items_inserted,
+        "startedAt": run.started_at.isoformat(),
+        "finishedAt": run.finished_at.isoformat(),
+        "error": run.error,
+    }
 
 
 def _vote_pm(metrics: dict[str, int]) -> Literal["ok", "ng"]:

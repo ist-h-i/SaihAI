@@ -3,11 +3,23 @@ import { Injectable, computed, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiClient } from './api-client';
-import { Member, Project, SimulationResult } from './types';
+import { AuthTokenStore } from './auth-token.store';
+import { AppConfigService } from './config/app-config.service';
+import {
+  Member,
+  PlanStreamComplete,
+  PlanStreamLog,
+  PlanStreamProgress,
+  Project,
+  SimulationPlan,
+  SimulationResult,
+} from './types';
 
 @Injectable({ providedIn: 'root' })
 export class SimulatorStore {
   private readonly api: ApiClient;
+  private readonly config: AppConfigService;
+  private readonly tokenStore: AuthTokenStore;
 
   readonly projects = signal<Project[]>([]);
   readonly members = signal<Member[]>([]);
@@ -15,11 +27,16 @@ export class SimulatorStore {
   readonly selectedProjectId = signal<string | null>(null);
   readonly selectedMemberIds = signal<string[]>([]);
   readonly simulationResult = signal<SimulationResult | null>(null);
+  readonly planProgress = signal<PlanStreamProgress | null>(null);
+  readonly planProgressLog = signal<PlanStreamProgress[]>([]);
+  readonly planDiscussionLog = signal<PlanStreamLog[]>([]);
+  readonly streaming = signal(false);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
   private readonly loaded = signal(false);
+  private planStream: EventSource | null = null;
 
   readonly selectedProject = computed(() => {
     const id = this.selectedProjectId();
@@ -31,8 +48,10 @@ export class SimulatorStore {
     return this.members().filter((m) => wanted.has(m.id));
   });
 
-  constructor(api: ApiClient) {
+  constructor(api: ApiClient, config: AppConfigService, tokenStore: AuthTokenStore) {
     this.api = api;
+    this.config = config;
+    this.tokenStore = tokenStore;
   }
 
   async loadOnce(): Promise<void> {
@@ -63,6 +82,7 @@ export class SimulatorStore {
     this.selectedProjectId.set(projectId);
     this.selectedMemberIds.set([]);
     this.simulationResult.set(null);
+    this.resetProgress();
   }
 
   toggleMember(memberId: string): void {
@@ -82,6 +102,7 @@ export class SimulatorStore {
   clearSelection(): void {
     this.selectedMemberIds.set([]);
     this.simulationResult.set(null);
+    this.resetProgress();
   }
 
   async runSimulation(): Promise<void> {
@@ -98,9 +119,10 @@ export class SimulatorStore {
 
     this.loading.set(true);
     this.error.set(null);
+    this.resetProgress();
     try {
       const evaluation = await firstValueFrom(this.api.evaluateSimulation({ projectId, memberIds }));
-      const plans = await firstValueFrom(this.api.generatePlans(evaluation.id));
+      const plans = await this.streamPlans(evaluation.id);
       const result: SimulationResult = { ...evaluation, plans };
       this.simulationResult.set(result);
     } catch (e) {
@@ -108,7 +130,97 @@ export class SimulatorStore {
         this.error.set(e instanceof Error ? e.message : 'simulate failed');
       }
     } finally {
+      this.streaming.set(false);
       this.loading.set(false);
     }
+  }
+
+  closePlanStream(): void {
+    if (this.planStream) {
+      this.planStream.close();
+      this.planStream = null;
+    }
+  }
+
+  private resetProgress(): void {
+    this.closePlanStream();
+    this.planProgress.set(null);
+    this.planProgressLog.set([]);
+    this.planDiscussionLog.set([]);
+    this.streaming.set(false);
+  }
+
+  private async streamPlans(simulationId: string): Promise<SimulationPlan[]> {
+    if (typeof EventSource === 'undefined') {
+      return firstValueFrom(this.api.generatePlans(simulationId));
+    }
+    return new Promise((resolve, reject) => {
+      this.closePlanStream();
+      const url = this.buildStreamUrl(simulationId);
+      const source = new EventSource(url);
+      this.planStream = source;
+      this.streaming.set(true);
+      let done = false;
+
+      source.addEventListener('progress', (event) => {
+        const data = this.parseEvent<PlanStreamProgress>(event);
+        if (!data) return;
+        this.planProgress.set(data);
+        this.planProgressLog.update((curr) => [...curr, data]);
+      });
+
+      source.addEventListener('log', (event) => {
+        const data = this.parseEvent<PlanStreamLog>(event);
+        if (!data) return;
+        this.planDiscussionLog.update((curr) => [...curr, data]);
+      });
+
+      source.addEventListener('complete', (event) => {
+        const data = this.parseEvent<PlanStreamComplete>(event);
+        if (!data?.plans?.length) return;
+        done = true;
+        this.streaming.set(false);
+        this.closePlanStream();
+        resolve(data.plans);
+      });
+
+      source.addEventListener('error', () => {
+        if (done) return;
+        void this.handleStreamError(simulationId, resolve, reject);
+      });
+    });
+  }
+
+  private parseEvent<T>(event: Event): T | null {
+    if (!(event instanceof MessageEvent)) return null;
+    try {
+      return JSON.parse(String(event.data)) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private async handleStreamError(
+    simulationId: string,
+    resolve: (plans: SimulationPlan[]) => void,
+    reject: (reason?: unknown) => void
+  ): Promise<void> {
+    this.closePlanStream();
+    this.streaming.set(false);
+    try {
+      const fallback = await firstValueFrom(this.api.generatePlans(simulationId));
+      resolve(fallback);
+    } catch (error) {
+      reject(error);
+    }
+  }
+
+  private buildStreamUrl(simulationId: string): string {
+    const url = new URL(`${this.config.apiBaseUrl}/simulations/${simulationId}/plans/stream`);
+    const token = this.tokenStore.token();
+    if (token) {
+      url.searchParams.set('token', token);
+    }
+    return url.toString();
   }
 }

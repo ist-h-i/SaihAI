@@ -81,6 +81,24 @@ export interface SimulationPlan {
   recommended: boolean;
 }
 
+export type PlanStreamTone = 'pm' | 'hr' | 'risk' | 'gunshi';
+
+export interface PlanStreamProgress {
+  phase: string;
+  message: string;
+  progress: number;
+}
+
+export interface PlanStreamLog {
+  agent: string;
+  message: string;
+  tone: PlanStreamTone;
+}
+
+export interface PlanStreamComplete {
+  plans: SimulationPlan[];
+}
+
 export interface SimulationResult extends SimulationEvaluation {
   plans: SimulationPlan[];
 }
