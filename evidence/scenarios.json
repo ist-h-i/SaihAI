@@ -3,5 +3,10 @@
     "name": "setup doc presence",
     "inlineHtml": "<html><body><h1>README Link Check</h1><a href='docs/setup.md'>docs/setup.md</a><p>Setup / 外部サービス</p></body></html>",
     "assertText": "Setup / 外部サービス"
+  },
+  {
+    "name": "tasklist doc presence",
+    "inlineHtml": "<html><body><h1>Docs Link Check</h1><a href='docs/tasklist.md'>docs/tasklist.md</a><p>タスクリスト</p></body></html>",
+    "assertText": "タスクリスト"
   }
 ]
