@@ -2,7 +2,7 @@
 
 GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で実行する ChatOps を搭載しています。`/codex` コマンド 1 行で「要件整理（triage）→実装→lint/build/test→Playwright 証跡→PR へ結果返信」まで回します。
 
-関連ドキュメント: `docs/WORKFLOW.md`
+関連ドキュメント: `docs/WORKFLOW.md` / `docs/tasklist.md`（プロダクト完遂までのタスクリスト）
 
 ## Setup / 外部サービス
 
