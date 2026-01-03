@@ -164,7 +164,7 @@
 | [ ] | IMP-017 | P1 | M | M2 | IMP-006 | “承認待ち状態”の永続化（DB） | 承認依頼→承認/却下→実行ログがDBに残る（監査ログを含む） |
 | [ ] | IMP-018 | P1 | M | M2 | IMP-017 | 承認の冪等性/多重実行防止 | `requirement-docs/human-in-the-loop.md` の要件を満たし、二重クリック等で破綻しない |
 | [ ] | IMP-019 | P0 | M | M0 | IMP-003 | AI応答スキーマ（画面直結）の型を整備 | `requirement-docs/response-example.md` を基準に Pydantic/TS 型が整備される |
-| [x] | IMP-020 | P0 | M | M0 | IMP-019 | AI呼び出し要件を“エンドポイント単位”で確定 | 5.4 の表が埋まり、方針が固定されている |
+| [x] | IMP-020 | P0 | M | M0 | IMP-003 | AI呼び出し要件を“エンドポイント単位”で確定 | 5.4 の表が埋まり、方針が固定されている |
 | [ ] | IMP-021 | P0 | L | M1 | IMP-020,EXT-001 | AI: 3プラン生成をLLM化 | 3プラン（推奨/スコア/議論要約）がLLM生成で返る（失敗時フォールバック含む） |
 | [ ] | IMP-022 | P1 | L | M2 | IMP-018,EXT-003 | HITL: 介入指示→再計算→再提示 | “Steer”入力で条件を反映し、再度プラン/下書きが更新される |
 | [ ] | IMP-023 | P0 | M | M1 | IMP-002,IMP-003 | FE/BE 認証つなぎ込み | FEでログイン→トークン保持→APIが認可される（未認証は拒否） |
@@ -385,3 +385,175 @@
 
 - UI の追加画面（履歴/監査、プロジェクト詳細）は要件上有用だが、M1/M2 の進捗を阻害しない範囲で段階導入する。
 - 本番SSO（Cognito等）の詳細は M3 で詰める（M1 は JWT で先に進める）。
+
+---
+
+## 9. M0 実行ロードマップ（優先順位/起票順）
+
+### 9.1 スコープ
+
+- 対象: **MS=M0 の未完了タスク（P0/P1）**。
+- 注: 本書の後半（10章以降）に、M1〜M3 までの実行ロードマップも同様に記載する。
+
+### 9.2 M0 未完了の上位タスク（依存関係込み）
+
+- IMP-019（Depends: IMP-003）
+- IMP-004（Depends: IMP-003）
+
+### 9.3 起票順（サブタスクID）
+
+1) IMP-019-01（AI応答スキーマの型起こし。FE/BE の型整合を先に固定）
+2) IMP-004-01（API base URL の環境変数化。以降の疎通土台）
+3) IMP-004-02（Auth ヘッダ注入。認証導線の前提）
+4) IMP-004-03（API エラー統一UI。疎通時の可視化）
+
+### 9.4 並列可否（参考）
+
+- IMP-019-01 と IMP-004-01 は独立。並列実施可。
+- IMP-004-02/IMP-004-03 は IMP-004-01 完了後に実施。
+
+---
+
+## 10. M1 実行ロードマップ（MVP到達: 認証+DB+主要画面疎通）
+
+### 10.1 スコープ
+
+- 対象: **MS=M1 の P0 タスクを中心に、MVP（M1 完了条件）に到達するまで**。
+- 前提: **M0（9章）の未完了が解消**していること（特に `IMP-004-*` の疎通土台）。
+
+### 10.2 先に開通させる “疎通ライン”（DoD）
+
+- ローカル: `frontend` → `backend` → `db` の疎通（認証ありの `GET /api/v1/me` が通る）
+- 主要API: `GET /openapi.json` / `GET /api/v1/projects` / `GET /api/v1/members` が **DB裏**で応答
+- 最低限E2E: ログイン→`/dashboard` 初期表示→`/simulator` evaluate→generate が **Playwright** で自動化できる
+
+### 10.3 起票順（サブタスクID）
+
+1) DB基盤（最優先で “データの正” を作る）
+   - IMP-006-01（DB接続設定）
+   - IMP-006-02（マイグレーション導入）
+   - IMP-006-03（seed投入）
+   - IMP-006-04（CIでDB統合テストを回す）
+
+2) 認証（APIを “守る”）
+   - IMP-023-01（JWT検証 + 401）
+   - IMP-023-02（`POST /api/v1/auth/login`）
+   - IMP-023-03（Frontend: ログイン導線 + トークン保持）
+   - IMP-023-04（Frontend: ガード + 401ハンドリング）
+
+3) マスタAPI（画面の土台データ）
+   - IMP-007-01（`GET /api/v1/projects`）
+   - IMP-007-02（`GET /api/v1/members`）
+   - IMP-007-03（移行方針docs化）
+
+4) Dashboard（初期表示の一本化）
+   - IMP-008-01（`dashboard/initial` のレスポンス型）
+   - IMP-008-02（DB集約で初期表示データ返却）
+   - IMP-009-01（Frontend: `/dashboard` 実データ化）
+   - IMP-009-02（“承認待ち” 表示）
+   - IMP-009-03（Evidence 更新）
+
+5) Simulator（v1 API 接続）
+   - IMP-010-01（evaluate をDB裏で動かす）
+   - IMP-010-02（`plans/generate` を返せる）
+   - IMP-011-01（Frontend: evaluate→generate 接続）
+   - IMP-012-01（要件カバー率UIのデータ駆動化）
+
+6) Genome（詳細表示まで）
+   - IMP-014-01（詳細情報設計の確定）
+   - IMP-015-01（Backend: member詳細等）
+   - IMP-016-01（Frontend: `/genome` 実データ化）
+
+7) AI（M1で “LLM化” まで進める場合）
+   - EXT-001-01（Bedrock 呼び出し基盤）
+   - IMP-021-01（3プラン生成のLLM化 + フォールバック）
+   - IMP-025-01（根回し下書きAPI）
+   - IMP-026-01（Frontend: 根回し表示 + 承認依頼UI）
+
+### 10.4 並列可否（参考）
+
+- Lane A（Backend/DB）: IMP-006-* → IMP-007-* / IMP-008-* / IMP-010-* / IMP-015-01
+- Lane B（Frontend）: IMP-023-03/04 → IMP-009-* / IMP-011-01 / IMP-016-01
+- Lane C（External/AI）: EXT-001-01 は DB と並列可（ただし IMP-021/IMP-025/IMP-026 は Simulator 系完了後が安全）
+- ブロッカー: DB（IMP-006）未完だと M1 の大半が止まるため、最優先で “先頭固定”
+
+---
+
+## 11. M2 実行ロードマップ（P1: Slack/HITL/Watchdog/永続化）
+
+### 11.1 スコープ
+
+- 対象: **MS=M2 の P1 タスク**（Slack/HITL/Watchdog/永続化/Worker/監視）を “一連の運用導線” として成立させる。
+- 前提: **M1 が成立**していること（認証+DB+主要画面が疎通）。
+
+### 11.2 起票順（サブタスクID）
+
+1) 承認/監査の永続化（Slackより先に “状態の正” を作る）
+   - IMP-017-01（approval/state/audit の最小テーブル）
+   - IMP-030-01（監査ログ append-only）
+   - IMP-018-01（冪等/多重実行防止）
+
+2) Slack 基盤（設計→受信→送信の順）
+   - EXT-003-01（Slack App 設計 docs）
+   - EXT-005-01（interactions 署名検証 + 状態遷移）
+   - EXT-005-02（events 受信 + 介入テキストパース）
+   - EXT-004-01（通知送信）
+
+3) HITL（介入→再生成→再提示）
+   - IMP-022-01（Steer 受付→state更新→再生成）
+
+4) Execute の非同期化（承認後の “実行” を安全にする）
+   - IMP-024-01（Execute ジョブ化 + 状態遷移）
+
+5) Orchestrator/Watchdog（Shadow Monitoring）
+   - IMP-027-01（LangGraph導入 + Checkpoint）
+   - AWS-007-01（EventBridge→SQS）
+   - AWS-008-01（Worker 実行基盤）
+   - IMP-028-01（Watchdog 処理）
+   - AWS-009-01（Logs/Alarm）
+
+6) pgvector/embedding（Watchdog の精度を上げる）
+   - AWS-004-01（Aurora pgvector）
+   - EXT-002-01（埋め込み生成）
+
+7) 品質/証跡（M2 の “動作証拠” を残す）
+   - IMP-031-01（主要フローE2E）
+   - IMP-031-02（証跡シナリオ更新）
+
+### 11.3 並列可否（参考）
+
+- Lane A（DB/Backend）: IMP-017-01 → IMP-018-01/IMP-030-01 → IMP-022-01/IMP-024-01
+- Lane B（Slack）: EXT-003-01 → EXT-005-* → EXT-004-01（ただし state テーブルが無いと “正しい遷移” が作りづらい）
+- Lane C（Infra）: AWS-007-01/AWS-008-01/AWS-009-01 は M1 のAWS基盤がある前提で並列可
+
+---
+
+## 12. M3 実行ロードマップ（P2: 仕上げ/拡張）
+
+### 12.1 スコープ
+
+- 対象: **MS=M3 の P2 タスク**（長時間処理のUX、CI強化、外部アクション、入力ソース連携）。
+- 前提: **M2 の “運用導線” が成立**していること（状態永続化 + Slack/HITL + Watchdog）。
+
+### 12.2 起票順（サブタスクID）
+
+1) UX/安定性（長時間AI処理の進捗配信）
+   - IMP-029-01（SSE/WS で進捗/議論ログ配信）
+
+2) CI/品質（破綻の早期検知）
+   - IMP-032-01（CIに `frontend` build）
+   - IMP-032-02（CIに `backend` の検証）
+
+3) 外部アクション（承認後の実行先を増やす）
+   - EXT-006-01/EXT-006-02（メール送信連携）
+   - EXT-007-01/EXT-007-02（カレンダー予約連携）
+
+4) 入力ソース（学習/解析の材料を増やす）
+   - EXT-008-01（最小1ソース決定）
+   - EXT-008-02（取り込みジョブ実装）
+
+### 12.3 並列可否（参考）
+
+- Lane A（App/UX）: IMP-029-01
+- Lane B（CI）: IMP-032-01/IMP-032-02
+- Lane C（External）: EXT-006/EXT-007/EXT-008（ただし Execute/監査の要件に沿って実装する）
