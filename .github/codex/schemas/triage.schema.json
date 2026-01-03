@@ -1,63 +1,59 @@
 {
-  "name": "codex_triage",
-  "strict": true,
-  "schema": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "rewrite": {
-        "type": "string",
-        "description": "Rewritten spec in Japanese, including Goals/Non-Goals/Acceptance Criteria."
-      },
-      "assumptions": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      },
-      "questions": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      },
-      "recommended_mode": {
-        "type": "string",
-        "enum": [
-          "implement",
-          "needs_info",
-          "discuss_only"
-        ]
-      },
-      "recommended_effort": {
-        "type": "string",
-        "enum": [
-          "minimal",
-          "low",
-          "medium",
-          "high",
-          "xhigh"
-        ]
-      },
-      "recommended_model": {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "rewrite": {
+      "type": "string",
+      "description": "Rewritten spec in Japanese, including Goals/Non-Goals/Acceptance Criteria."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
         "type": "string"
-      },
-      "suggested_evidence": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Suggested UI evidence scenarios to capture (names/flows)."
       }
     },
-    "required": [
-      "rewrite",
-      "assumptions",
-      "questions",
-      "recommended_mode",
-      "recommended_effort",
-      "recommended_model",
-      "suggested_evidence"
-    ]
-  }
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommended_mode": {
+      "type": "string",
+      "enum": [
+        "implement",
+        "needs_info",
+        "discuss_only"
+      ]
+    },
+    "recommended_effort": {
+      "type": "string",
+      "enum": [
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    "recommended_model": {
+      "type": "string"
+    },
+    "suggested_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Suggested UI evidence scenarios to capture (names/flows)."
+    }
+  },
+  "required": [
+    "rewrite",
+    "assumptions",
+    "questions",
+    "recommended_mode",
+    "recommended_effort",
+    "recommended_model",
+    "suggested_evidence"
+  ]
 }
