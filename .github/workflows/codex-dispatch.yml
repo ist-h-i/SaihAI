@@ -696,17 +696,17 @@ jobs:
           print(f"Wrote {path} from {source}.")
           PY
 
-      - name: Download triage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: codex-triage-${{ github.run_id }}
-          path: .
-
       - name: Checkout target branch
         run: |
           set -euo pipefail
           git fetch --no-tags origin "${BRANCH}"
           git checkout -B "${BRANCH}" "origin/${BRANCH}"
+
+      - name: Download triage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-triage-${{ github.run_id }}
+          path: .
 
       - name: Install dependencies
         run: npm install
@@ -827,6 +827,7 @@ jobs:
             "codex-output.md"
             "codex-triage.json"
             ".github/codex/triage_prompt.md"
+            ".github/codex/comment_history.md"
             ".github/codex/runtime_prompt.md"
             ".github/codex/ci_failure_summary.md"
             ".github/codex/fix_prompt.md"
@@ -1037,6 +1038,12 @@ jobs:
           print(f"Wrote {path} from {source}.")
           PY
 
+      - name: Checkout target branch
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${BRANCH}"
+          git checkout -B "${BRANCH}" "origin/${BRANCH}"
+
       - name: Download triage artifact
         uses: actions/download-artifact@v4
         with:
@@ -1048,12 +1055,6 @@ jobs:
         with:
           name: codex-implementation-${{ github.run_id }}
           path: .
-
-      - name: Checkout target branch
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin "${BRANCH}"
-          git checkout -B "${BRANCH}" "origin/${BRANCH}"
 
       - name: Install dependencies
         if: env.HAS_CHANGES == 'true'
@@ -1100,6 +1101,7 @@ jobs:
             "codex-output.md"
             "codex-triage.json"
             ".github/codex/triage_prompt.md"
+            ".github/codex/comment_history.md"
             ".github/codex/runtime_prompt.md"
             ".github/codex/ci_failure_summary.md"
             ".github/codex/fix_prompt.md"
