@@ -21,7 +21,7 @@ from app.db.repository import (
 from app.domain.patterns import detect_pattern
 from app.domain.scoring import score
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/v1")
 
 DEV_LOGIN_PASSWORD = os.getenv("DEV_LOGIN_PASSWORD", "saihai")
 

@@ -4,15 +4,24 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
 import { AuthTokenStore } from '../auth-token.store';
+import { LoggerService } from '../logger.service';
 import { ToastService } from '../toast.service';
 
 export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
   const tokenStore = inject(AuthTokenStore);
   const router = inject(Router);
+  const logger = inject(LoggerService);
   return next(req).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse) {
+        logger.error('API request failed', {
+          method: req.method,
+          url: req.url,
+          status: error.status,
+          statusText: error.statusText,
+          requestId: error.headers?.get('X-Request-ID') ?? req.headers.get('X-Request-ID') ?? undefined,
+        });
         if (error.status === 401) {
           tokenStore.clearToken();
           if (!router.url.startsWith('/login')) {

@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 .ruff_cache/
 
+# Logs
+*.log
+*.log.*
+logs/
+
 # Backend venv (uv)
 backend/.venv/
 
