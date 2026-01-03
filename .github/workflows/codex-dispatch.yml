@@ -831,6 +831,7 @@ jobs:
             ".github/codex/runtime_prompt.md"
             ".github/codex/ci_failure_summary.md"
             ".github/codex/fix_prompt.md"
+            ".github/workflows"
             "ci-logs"
             "playwright-report"
             "test-results"
@@ -838,6 +839,7 @@ jobs:
 
           git add -A
           git reset -- "${EXCLUDE_PATHS[@]}" >/dev/null 2>&1 || true
+          git checkout -- .github/workflows >/dev/null 2>&1 || true
 
           if git diff --cached --quiet; then
             echo "No substantive changes to commit."
@@ -1105,6 +1107,7 @@ jobs:
             ".github/codex/runtime_prompt.md"
             ".github/codex/ci_failure_summary.md"
             ".github/codex/fix_prompt.md"
+            ".github/workflows"
             "ci-logs"
             "playwright-report"
             "test-results"
@@ -1113,6 +1116,7 @@ jobs:
           stage_changes() {
             git add -A
             git reset -- "${EXCLUDE_PATHS[@]}" >/dev/null 2>&1 || true
+            git checkout -- .github/workflows >/dev/null 2>&1 || true
           }
 
           success="false"
