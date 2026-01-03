@@ -1317,7 +1317,11 @@ jobs:
             const prNo = Number(process.env.PR_NUMBER);
             const rootIssueNo = Number(process.env.ROOT_ISSUE_NUMBER);
             const isValid = (n) => Number.isFinite(n) && n > 0;
-            const targetNo = isValid(prn) ? prn : isValid(prNo) ? prNo : isValid(rootIssueNo) ? rootIssueNo : null;
+            const originWasPr = isValid(prNo);
+            const prRef = isValid(prn) ? prn : isValid(prNo) ? prNo : null;
+            const targetNo = originWasPr
+              ? (isValid(prNo) ? prNo : isValid(prn) ? prn : null)
+              : (isValid(rootIssueNo) ? rootIssueNo : isValid(prn) ? prn : null);
             if (!targetNo) {
               core.warning('No PR/Issue number found; skipping comment.');
               return;
@@ -1341,11 +1345,16 @@ jobs:
               implStatus = hasChanges === 'true' ? 'changes committed' : 'no changes';
             }
 
-            const body = [
+            const bodyLines = [
               '## Codex 実行結果',
               '',
               `- Mode: \`${process.env.MODE}\``,
               `- Branch: \`${process.env.BRANCH}\``,
+            ];
+            if (!originWasPr && isValid(prRef) && prRef !== rootIssueNo) {
+              bodyLines.push(`- PR: #${prRef}`);
+            }
+            bodyLines.push(
               `- Workflow run: ${runUrl}`,
               `- Evidence artifact: **${evidenceName}**（RunページのArtifactsからダウンロード）`,
               `- Implementation: ${implStatus}`,
@@ -1361,7 +1370,9 @@ jobs:
               '',
               '---',
               '追加指示はこのIssue/PRにコメントでOKです：`/codex run <追加指示>`'
-            ].join('\n');
+            );
+
+            const body = bodyLines.join('\n');
 
             await github.rest.issues.createComment({ owner, repo, issue_number: targetNo, body });
         env:
