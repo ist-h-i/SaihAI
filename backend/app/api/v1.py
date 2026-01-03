@@ -335,7 +335,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
             """
             SELECT action_id, proposal_id, action_type, draft_content, status
             FROM autonomous_actions
-            WHERE status = 'pending'
+            WHERE status IN ('pending', 'approval_pending')
             ORDER BY action_id
             """
         )
@@ -357,7 +357,18 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
         conn.execute(text("SELECT 1 FROM langgraph_checkpoints LIMIT 1")).scalar()
     )
 
-    watchdog = _build_watchdog_timeline(len(members), len(pending_actions))
+    watchdog_alerts = conn.execute(
+        text(
+            """
+            SELECT summary, severity, created_at
+            FROM watchdog_alerts
+            ORDER BY created_at DESC
+            LIMIT 3
+            """
+        )
+    ).mappings().all()
+
+    watchdog = _build_watchdog_timeline(len(members), len(pending_actions), watchdog_alerts)
 
     return {
         "kpis": kpis,
@@ -662,8 +673,12 @@ def _build_kpis(members: list[dict], analysis_by_user: dict[str, dict]) -> list[
     ]
 
 
-def _build_watchdog_timeline(member_count: int, pending_count: int) -> list[dict]:
-    return [
+def _build_watchdog_timeline(
+    member_count: int,
+    pending_count: int,
+    alerts: list[dict] | None = None,
+) -> list[dict]:
+    timeline = [
         {
             "t": "09:00",
             "text": f"全社解析完了（{member_count}名の週報/面談を更新）",
@@ -674,12 +689,31 @@ def _build_watchdog_timeline(member_count: int, pending_count: int) -> list[dict
             "text": f"承認待ちタスク {pending_count} 件",
             "dot": "#06b6d4",
         },
+    ]
+
+    if alerts:
+        for alert in alerts:
+            severity = alert.get("severity") or "low"
+            dot = "#f43f5e" if severity == "high" else ("#f59e0b" if severity == "medium" else "#10b981")
+            timeline.append(
+                {
+                    "t": (alert.get("created_at") or "auto").strftime("%H:%M")
+                    if hasattr(alert.get("created_at"), "strftime")
+                    else "auto",
+                    "text": alert.get("summary") or "Watchdog alert",
+                    "dot": dot,
+                }
+            )
+        return timeline
+
+    timeline.append(
         {
             "t": "11:00",
             "text": "新規案件マッチング中…",
             "dot": "#10b981",
-        },
-    ]
+        }
+    )
+    return timeline
 
 
 def _load_assignments(conn: Connection, user_id: str) -> list[dict]:

@@ -110,15 +110,18 @@ SLACK_DEFAULT_CHANNEL=C0123456789
 2) OAuth & Permissions
    - Bot Token Scopes の例: `chat:write`, `channels:read`, `groups:read`, `im:read`, `mpim:read`
    - 連携ワークスペースにインストール
-3)（将来）Events / Interactivity は FastAPI 側のエンドポイント実装後に有効化
-   - 予定エンドポイント例: `POST /slack/events`（Interactive + Events を同一で受ける）
+3) Events / Interactivity を有効化
+   - Interactivity: `POST /slack/interactions`
+   - Event Subscriptions: `POST /slack/events`
+   - 詳細は `docs/slack-app.md` を参照
 
 ローカル動作確認（現段階の最小確認）
 - トークン有効性の確認（Web API `auth.test`）
 ```
 curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.test | jq
 ```
-- `ok: true` が返れば認証成功。現状のバックエンドには Slack 受信エンドポイントは未実装です。
+- `ok: true` が返れば認証成功。
+- 署名検証の一時無効化は `SLACK_ALLOW_UNSIGNED=true`（ローカル専用）を使用。
 
 ## 環境変数/シークレット一覧と取得元
 
@@ -131,6 +134,8 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - DEV_LOGIN_PASSWORD: 開発用ログインの共通パスワード（デフォルト `saihai`）
 - JWT_SECRET / JWT_TTL_MINUTES: JWT 署名キーと有効期限（分）
 - SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET / SLACK_APP_TOKEN: Slack アプリ管理画面（Basic Information / OAuth & Permissions / Socket Mode）
+- SLACK_ALLOW_UNSIGNED: ローカル検証用の署名検証無効化フラグ（`true` のときのみ許可）
+- INTERNAL_API_TOKEN: Watchdog の内部実行 API に付与するトークン（未設定の場合は無効）
 
 保存先
 - ローカル開発: リポジトリ直下に `.env`（バックエンドの `.env` 読み込みに準拠）
@@ -141,6 +146,7 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - AI: `STRANDS_BEDROCK.md` のサンプル実行で応答が得られる
 - DB: Docker の PostgreSQL に接続でき、`vector` 拡張とスキーマが適用できる
 - Slack: `auth.test` で `ok: true`
+- Watchdog: `cd backend && python scripts/watchdog_enqueue.py` → `python scripts/watchdog_worker.py`
 - アプリ
   - Backend: `cd backend && uvicorn app.main:app --reload` で `GET /api/health` が `{"status":"ok"}` を返す
   - Frontend: `cd frontend && npm i && npm start` でローカル起動（運用は S3+CloudFront を想定）
@@ -149,3 +155,4 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 
 - 配置: `docs/setup.md`（本ファイル）
 - 参照: リポジトリの `README.md` からリンク（下部の「Setup / 外部サービス」セクション）
+- 関連: `docs/slack-app.md`（Slack App 設計）
