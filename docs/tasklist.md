@@ -148,7 +148,7 @@
 | [x] | IMP-001 | P0 | S | M0 |  | “主要画面”の完成定義を確定 | 本書 4.1 の完成定義が固定されている |
 | [x] | IMP-002 | P0 | M | M0 |  | 認証方針を確定（Web） | 本書 6.1/7.1 に認証方針・主要APIが固定されている |
 | [x] | IMP-003 | P0 | M | M0 | IMP-002 | 主要エンドポイント一式の確定 | 本書 6. に主要エンドポイント一覧が固定されている |
-| [ ] | IMP-004 | P0 | M | M0 | IMP-003 | FE↔BE のAPIクライアント設計 | `frontend` 側の base URL/認証ヘッダ/エラー方針を環境変数化し、疎通できる |
+| [x] | IMP-004 | P0 | M | M0 | IMP-003 | FE↔BE のAPIクライアント設計 | `frontend` 側の base URL/認証ヘッダ/エラー方針を環境変数化し、疎通できる |
 | [x] | IMP-005 | P0 | M | M0 |  | DBモデル方針の確定（seed→DB） | 本書 6.2/7.2 に “正” のスキーマ参照が固定されている |
 | [ ] | IMP-006 | P0 | L | M1 | IMP-005 | Backend: DB接続 + マイグレーション導入 | ローカルPostgresで起動し、テーブル作成/seed投入/CRUDが通る |
 | [ ] | IMP-007 | P0 | M | M1 | IMP-003,IMP-006 | Backend: `/api/v1/projects` `/members` の実装 | DB裏の一覧取得ができ、既存seedの置き換え方針が明確 |
@@ -163,7 +163,7 @@
 | [ ] | IMP-016 | P0 | M | M1 | IMP-004,IMP-015 | Frontend: `/genome` を実データ駆動に置換 | メンバー詳細がAPI由来で表示/フィルタできる |
 | [ ] | IMP-017 | P1 | M | M2 | IMP-006 | “承認待ち状態”の永続化（DB） | 承認依頼→承認/却下→実行ログがDBに残る（監査ログを含む） |
 | [ ] | IMP-018 | P1 | M | M2 | IMP-017 | 承認の冪等性/多重実行防止 | `requirement-docs/human-in-the-loop.md` の要件を満たし、二重クリック等で破綻しない |
-| [ ] | IMP-019 | P0 | M | M0 | IMP-003 | AI応答スキーマ（画面直結）の型を整備 | `requirement-docs/response-example.md` を基準に Pydantic/TS 型が整備される |
+| [x] | IMP-019 | P0 | M | M0 | IMP-003 | AI応答スキーマ（画面直結）の型を整備 | `requirement-docs/response-example.md` を基準に Pydantic/TS 型が整備される |
 | [x] | IMP-020 | P0 | M | M0 | IMP-003 | AI呼び出し要件を“エンドポイント単位”で確定 | 5.4 の表が埋まり、方針が固定されている |
 | [ ] | IMP-021 | P0 | L | M1 | IMP-020,EXT-001 | AI: 3プラン生成をLLM化 | 3プラン（推奨/スコア/議論要約）がLLM生成で返る（失敗時フォールバック含む） |
 | [ ] | IMP-022 | P1 | L | M2 | IMP-018,EXT-003 | HITL: 介入指示→再計算→再提示 | “Steer”入力で条件を反映し、再度プラン/下書きが更新される |
@@ -293,9 +293,9 @@
 
 - [ ] IMP-003-01 OpenAPI 生成方針の確定（FastAPI 由来を正）（完了条件: OpenAPI を出力できる / 検証: `GET /openapi.json`）
 - [ ] IMP-003-02 主要エンドポイントの req/res を Pydantic で型定義（完了条件: OpenAPI に反映 / 検証: 差分確認）
-- [ ] IMP-004-01 Frontend: API base URL を環境変数で切替（完了条件: 切替で疎通 / 検証: E2E）
-- [ ] IMP-004-02 Frontend: Auth ヘッダ注入（HttpInterceptor）実装（完了条件: 認証APIが通る / 検証: E2E）
-- [ ] IMP-004-03 Frontend: API エラーの統一 UI（toast 等）実装（完了条件: エラーが可視化 / 検証: E2E）
+- [x] IMP-004-01 Frontend: API base URL を環境変数で切替（完了条件: 切替で疎通 / 検証: E2E）
+- [x] IMP-004-02 Frontend: Auth ヘッダ注入（HttpInterceptor）実装（完了条件: 認証APIが通る / 検証: E2E）
+- [x] IMP-004-03 Frontend: API エラーの統一 UI（toast 等）実装（完了条件: エラーが可視化 / 検証: E2E）
 - [ ] IMP-007-01 Backend: `GET /api/v1/projects`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
 - [ ] IMP-007-02 Backend: `GET /api/v1/members`（DB裏）実装（完了条件: DB から返る / 検証: APIテスト）
 - [ ] IMP-007-03 Backend: マスタAPIのシード置換方針を docs 化（完了条件: 移行手順が残る / 検証: レビュー）
@@ -326,7 +326,7 @@
 
 ### 7.7 AI/Watchdog（IMP-019/IMP-021/IMP-025/IMP-027/IMP-028/IMP-029 + EXT-001/EXT-002）
 
-- [ ] IMP-019-01 `response-example.md` の JSON を Pydantic/TS に型起こし（完了条件: 型が参照できる / 検証: 型チェック）
+- [x] IMP-019-01 `response-example.md` の JSON を Pydantic/TS に型起こし（完了条件: 型が参照できる / 検証: 型チェック）
 - [ ] EXT-001-01 Bedrock クライアントラッパ（本番）+ モック実装（CI）を用意（完了条件: キー無しでもテストが通る / 検証: ユニット）
 - [ ] IMP-021-01 Plans Generate: LLM プロンプト/システムプロンプト整備（完了条件: JSON を必ず返す / 検証: モックで検証）
 - [ ] IMP-021-02 Plans Generate: LLM 失敗時フォールバック（完了条件: fallback が返る / 検証: 失敗再現）

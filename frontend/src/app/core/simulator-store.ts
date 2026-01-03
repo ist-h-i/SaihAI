@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
@@ -49,7 +50,9 @@ export class SimulatorStore {
       this.members.set(members);
       if (!this.selectedProjectId() && projects.length) this.selectedProjectId.set(projects[0].id);
     } catch (e) {
-      this.error.set(e instanceof Error ? e.message : 'failed to load');
+      if (!(e instanceof HttpErrorResponse)) {
+        this.error.set(e instanceof Error ? e.message : 'failed to load');
+      }
     } finally {
       this.loading.set(false);
     }
@@ -99,7 +102,9 @@ export class SimulatorStore {
       const result = await firstValueFrom(this.api.simulate({ projectId, memberIds }));
       this.simulationResult.set(result);
     } catch (e) {
-      this.error.set(e instanceof Error ? e.message : 'simulate failed');
+      if (!(e instanceof HttpErrorResponse)) {
+        this.error.set(e instanceof Error ? e.message : 'simulate failed');
+      }
     } finally {
       this.loading.set(false);
     }

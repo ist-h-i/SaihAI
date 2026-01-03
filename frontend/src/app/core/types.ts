@@ -54,3 +54,40 @@ export interface SimulationResult {
     recommended: boolean;
   }[];
 }
+
+export type AiDebateIntensity = 'Low' | 'Mid' | 'High';
+export type AiDecision = '採用' | '不採用' | '条件付';
+export type AiDebateSpeaker = 'PM' | 'HR' | 'Risk' | 'Gunshi';
+export type AiPlanId = 'Plan_A' | 'Plan_B' | 'Plan_C';
+
+export interface AiAnalysisMeta {
+  candidate_name: string;
+  debate_intensity: AiDebateIntensity;
+}
+
+export interface AiFinalJudgment {
+  decision: AiDecision;
+  total_score: number;
+  gunshi_summary: string;
+}
+
+export interface AiDebateSummaryEntry {
+  speaker: AiDebateSpeaker;
+  content: string;
+}
+
+export interface AiPlan {
+  id: AiPlanId;
+  is_recommended: boolean;
+  recommendation_score: number;
+  risk_score: number;
+  risk_reward_ratio: string;
+  description: string;
+  final_judgment: AiFinalJudgment;
+  debate_summary: AiDebateSummaryEntry[];
+}
+
+export interface AiResponse {
+  analysis_meta: AiAnalysisMeta;
+  three_plans: AiPlan[];
+}

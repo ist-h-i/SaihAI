@@ -8,5 +8,10 @@
     "name": "tasklist doc presence",
     "inlineHtml": "<html><body><h1>Docs Link Check</h1><a href='docs/tasklist.md'>docs/tasklist.md</a><p>タスクリスト</p></body></html>",
     "assertText": "タスクリスト"
+  },
+  {
+    "name": "api error toast presence",
+    "inlineHtml": "<html><body><div role='status'>APIエラー</div><p>APIエラー (500): boom</p></body></html>",
+    "assertText": "APIエラー"
   }
 ]
