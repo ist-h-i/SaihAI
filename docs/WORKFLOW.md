@@ -8,9 +8,19 @@
 
 1. `/codex` コマンド行を解析（mode/flags/追加指示/対象 Issue/PR を特定）
 2. （`discuss|start|run` の場合）Codex で triage を実行し、要件リライト + 質問 + 推奨 `model/effort` を JSON で出す
-3. triage の結果が `implement` のときだけ実装へ進む（PR がなければ作成）
-4. Codex で実装（full-auto）→ lint/build/test → Playwright 証跡 → PR へ結果コメント
+3. `/codex discuss` は triage 結果をコメントして終了
+4. `/codex start|run` は triage 結果を実装プロンプト/推奨モデル選定に使い、PR 準備 → 実装 → lint/build/test → 証跡 → 結果コメントまで進む
 5. CI 失敗時は最大 5 回まで自動修正ループ（途中で no-diff の場合は 1 回だけ強化実行）
+
+## ジョブ構成（進捗の可視化）
+
+この workflow は段階ごとにジョブを分割しています。
+
+- `meta`: `/codex` コマンド解析とコンテキスト特定
+- `triage`: 要件整理（discuss の場合はここでコメントして終了）
+- `prepare`: ブランチ/PR の準備（Issue 起点のみ PR 作成）
+- `implement`: Codex 実装と変更コミット
+- `verify`: lint/build/test と自動修正ループ、Artifacts/結果コメント
 
 ## Mermaid 図（全体フロー）
 
@@ -52,7 +62,7 @@ GH3[リポジトリ取得
 GH4[Codex triage 実行]
 GH5[triage結果を解析
 recommended_mode / model / effort]
-GH6{実装に進む？}
+GH6{MODE == discuss?}
 
 GH7[要件整理・質問を
 Issue/PRへ投稿
@@ -121,13 +131,12 @@ GH0 --> GH1 --> GH2 --> GH3 --> GH4 --> CX1 --> GH5 --> GH6
 
 U1 --> U2 --> GH0
 
-GH6 -- いいえ --> GH7 --> U3 --> U2
+GH6 -- はい --> GH7 --> U3 --> U2
 
 U4 --> GH0
-GH6 -- はい --> GH8 --> GH9 --> GH10 --> CX2 --> GH11 --> GH12 --> GH13
+GH6 -- いいえ --> GH8 --> GH9 --> GH10 --> CX2 --> GH11 --> GH12 --> GH13
 
 U5 --> GH0
-GH1 --> GH10
 
 GH13 --> GH14 --> GH15 --> GH16
 
@@ -214,8 +223,8 @@ U7 -- いいえ --> U8
 2. `codex exec` を **read-only sandbox** で実行し、`codex-triage.json` を生成
    - スキーマ: `.github/codex/schemas/triage.schema.json`
    - 出力は JSON 固定（CI 側でパースして分岐）
-3. `MODE == discuss` または `recommended_mode != implement` の場合、`codex-triage.json` を Issue/PR にコメントとして投稿して終了
-4. `recommended_mode == implement` の場合、実装へ進む（`codex-triage.json` は Artifacts に保存され、実装プロンプトにも含まれる）
+3. `MODE == discuss` の場合、`codex-triage.json` を Issue/PR にコメントとして投稿して終了
+4. `MODE != discuss` の場合、`codex-triage.json` は Artifacts に保存され、実装プロンプト/モデル選定に使われた上で実装へ進む
 
 `codex-triage.json` の主な項目:
 
@@ -228,14 +237,14 @@ U7 -- いいえ --> U8
 
 ## PR の作成（Issue 起点のみ）
 
-`MODE != discuss` かつ `recommended_mode == implement` で、`PR_NUMBER` が空の場合:
+`MODE != discuss` で `PR_NUMBER` が空の場合:
 
 - ブランチ `ai/issue-<n>` を作成/checkout し push
 - 既存 PR がなければ PR を作成（あれば再利用）
 
 ## Stage B: 実装（Codex full-auto）
 
-triage が `implement` のとき:
+`MODE != discuss` のとき:
 
 - `.github/codex/runtime_prompt.md` を生成（Issue/PR コンテキスト + 追加指示を含む）
 - `codex exec --full-auto` を **workspace-write sandbox** で実行
@@ -321,6 +330,6 @@ PoC のままだと「コメントできる人なら誰でも」実行できる�
 ## よくある質問 / トラブルシューティング
 
 - 起動しない: 新規コメントで `/codex ...` を送っているか（編集は反応しない）
-- triage の内容を見たい: `discuss` / `recommended_mode != implement` の場合はコメントに JSON が出る。実装まで進んだ場合は Artifacts の `codex-triage.json` を参照
-- triage で止まる: `codex-triage.json` の `questions` に回答して再度 `/codex start` / `/codex run`
+- triage の内容を見たい: `discuss` はコメントに JSON が出る。`start/run` は Artifacts の `codex-triage.json` を参照
+- triage で止まる: `discuss` のみ。`start/run` は質問があっても実装に進むため、必要なら回答を追加して再度 `/codex run`
 - 証跡が取れない: `evidence/scenarios.json` の URL が CI から到達可能か、`assertText` が実際の表示に一致しているか

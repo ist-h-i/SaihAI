@@ -1,4 +1,4 @@
-﻿name: Codex ChatOps (Issue/PR comment)
+name: Codex ChatOps (Issue/PR comment)
 
 on:
   issue_comment:
@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   meta:
+    name: Parse Command
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.meta.outputs.should_run }}
@@ -127,22 +128,23 @@ jobs:
             core.setOutput('model_override', userModel ? 'true' : 'false');
             core.setOutput('effort_override', (fast || deep || xhigh || userEffort) ? 'true' : 'false');
 
-  run:
+  triage:
+    name: Triage
     needs: meta
     if: needs.meta.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      recommended_mode: ${{ steps.triage_decision.outputs.recommended_mode }}
+      recommended_model: ${{ steps.triage_decision.outputs.recommended_model }}
+      recommended_effort: ${{ steps.triage_decision.outputs.recommended_effort }}
     env:
       MODE: ${{ needs.meta.outputs.mode }}
       COMMAND_LINE: ${{ needs.meta.outputs.command_line }}
       EXTRA_INSTRUCTIONS: ${{ needs.meta.outputs.extra_instructions }}
       PR_NUMBER: ${{ needs.meta.outputs.pr_number }}
       ROOT_ISSUE_NUMBER: ${{ needs.meta.outputs.root_issue_number }}
-      BRANCH: ${{ needs.meta.outputs.branch }}
-      BASE: ${{ needs.meta.outputs.base }}
       SELECTED_MODEL: ${{ needs.meta.outputs.model }}
       SELECTED_EFFORT: ${{ needs.meta.outputs.effort }}
-      MODEL_OVERRIDE: ${{ needs.meta.outputs.model_override }}
-      EFFORT_OVERRIDE: ${{ needs.meta.outputs.effort_override }}
     steps:
       - name: Checkout repository (default branch)
         uses: actions/checkout@v5
@@ -247,35 +249,7 @@ jobs:
           print(f"Wrote {path} from {source}.")
           PY
 
-      - name: Ensure working branch exists (Issue flow)
-        if: env.MODE != 'discuss' && env.PR_NUMBER == ''
-        run: |
-          set -euxo pipefail
-          if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
-            git checkout "${BRANCH}"
-          else
-            git checkout -b "${BRANCH}" "origin/${BASE}"
-          fi
-          git push -u origin "${BRANCH}"
-
-      - name: Fetch and checkout PR head branch (PR flow)
-        if: env.MODE != 'discuss' && env.PR_NUMBER != ''
-        run: |
-          set -euxo pipefail
-          git fetch --no-tags origin "${BRANCH}:${BRANCH}" || true
-          git checkout "${BRANCH}"
-
-      - name: Install dependencies
-        if: env.MODE != 'discuss'
-        run: npm install
-
-      - name: Install Playwright browsers (system deps)
-        if: env.MODE != 'discuss'
-        run: npx playwright install --with-deps
-
-      # ---------- Stage A: Triage ----------
       - name: Generate triage prompt
-        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -312,7 +286,6 @@ jobs:
             fs.writeFileSync('.github/codex/triage_prompt.md', prompt, 'utf8');
 
       - name: Run Codex triage (non-interactive, schema enforced)
-        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
         run: |
           set -euxo pipefail
           MODEL_ARGS=()
@@ -328,7 +301,6 @@ jobs:
             < .github/codex/triage_prompt.md
 
       - name: Decide next action from triage JSON
-        if: env.MODE == 'discuss' || env.MODE == 'start' || env.MODE == 'run'
         id: triage_decision
         uses: actions/github-script@v7
         with:
@@ -336,12 +308,25 @@ jobs:
           script: |
             const fs = require('fs');
             const triage = JSON.parse(fs.readFileSync('codex-triage.json', 'utf8'));
-            core.setOutput('recommended_mode', (triage.recommended_mode || '').trim());
-            core.setOutput('recommended_model', (triage.recommended_model || '').trim());
-            core.setOutput('recommended_effort', (triage.recommended_effort || '').trim());
+            const recommendedMode = String(triage.recommended_mode || '').trim().toLowerCase();
+            const recommendedModel = String(triage.recommended_model || '').trim();
+            const recommendedEffort = String(triage.recommended_effort || '').trim().toLowerCase();
+            core.setOutput('recommended_mode', recommendedMode);
+            core.setOutput('recommended_model', recommendedModel);
+            core.setOutput('recommended_effort', recommendedEffort);
 
-      - name: Post triage / questions (Issue or PR)
-        if: env.MODE == 'discuss' || steps.triage_decision.outputs.recommended_mode != 'implement'
+      - name: Upload triage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-triage-${{ github.run_id }}
+          path: |
+            codex-triage.json
+            .github/codex/triage_prompt.md
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Post triage / questions (discuss only)
+        if: env.MODE == 'discuss'
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -351,21 +336,65 @@ jobs:
             const repo = context.repo.repo;
 
             const triageJson = fs.readFileSync('codex-triage.json', 'utf8');
+            let triage = null;
+            let triagePretty = triageJson;
+            try {
+              triage = JSON.parse(triageJson);
+              triagePretty = JSON.stringify(triage, null, 2);
+            } catch (e) {
+              // Keep raw JSON if parsing fails.
+            }
             const rootIssueNo = Number(process.env.ROOT_ISSUE_NUMBER);
             const prNo = process.env.PR_NUMBER ? Number(process.env.PR_NUMBER) : null;
 
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-            const title = process.env.MODE === 'discuss'
-              ? '## Codex 要件壁打ち (discuss)'
-              : '## Codex ヒアリング結果（追加質問あり）';
+            const title = '## Codex 要件壁打ち (discuss)';
 
-            const body = [
+            const listOrNone = (items) =>
+              Array.isArray(items) && items.length ? items.map((item) => `- ${item}`).join('\n') : '- (なし)';
+            const valueOrNone = (value) => (value && String(value).trim() ? String(value).trim() : '(なし)');
+
+            const body = triage ? [
+              title,
+              '',
+              `- Workflow run: ${runUrl}`,
+              '',
+              '### 要件定義のリライト',
+              '```text',
+              valueOrNone(triage.rewrite),
+              '```',
+              '',
+              '### 不明点のヒアリング',
+              listOrNone(triage.questions),
+              '',
+              '### 推測 (assumptions)',
+              listOrNone(triage.assumptions),
+              '',
+              '### 実装方針',
+              `- recommended_mode: ${valueOrNone(triage.recommended_mode)}`,
+              `- recommended_model: ${valueOrNone(triage.recommended_model)}`,
+              `- recommended_effort: ${valueOrNone(triage.recommended_effort)}`,
+              '',
+              '### Suggested evidence',
+              listOrNone(triage.suggested_evidence),
+              '',
+              '<details>',
+              '<summary>Raw JSON</summary>',
+              '',
+              '```json',
+              triagePretty,
+              '```',
+              '</details>',
+              '',
+              '---',
+              '続ける場合は、このIssue/PRに追加情報をコメントして `/codex start` または `/codex run` を実行してください。'
+            ].join('\n') : [
               title,
               '',
               `- Workflow run: ${runUrl}`,
               '',
               '```json',
-              triageJson,
+              triagePretty,
               '```',
               '',
               '---',
@@ -375,20 +404,52 @@ jobs:
             const target = prNo ?? rootIssueNo;
             await github.rest.issues.createComment({ owner, repo, issue_number: target, body });
 
-      - name: Stop if not implementing
-        if: env.MODE == 'discuss' || steps.triage_decision.outputs.recommended_mode != 'implement'
-        run: echo "Not implementing in this run."
+  prepare:
+    name: Prepare Branch/PR
+    needs: [meta, triage]
+    if: needs.meta.outputs.should_run == 'true' && needs.meta.outputs.mode != 'discuss'
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.resolve_pr.outputs.pr_number }}
+    env:
+      MODE: ${{ needs.meta.outputs.mode }}
+      PR_NUMBER: ${{ needs.meta.outputs.pr_number }}
+      ROOT_ISSUE_NUMBER: ${{ needs.meta.outputs.root_issue_number }}
+      BRANCH: ${{ needs.meta.outputs.branch }}
+      BASE: ${{ needs.meta.outputs.base }}
+    steps:
+      - name: Checkout repository (default branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      # ---------- Ensure PR exists (Issue flow) ----------
-      - name: Ensure PR exists (create if needed)
-        if: env.MODE != 'discuss' && env.PR_NUMBER == '' && steps.triage_decision.outputs.recommended_mode == 'implement'
-        id: ensure_pr
+      - name: Ensure working branch exists (Issue flow)
+        if: env.PR_NUMBER == ''
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
+            git fetch --no-tags origin "${BRANCH}"
+            git checkout -B "${BRANCH}" "origin/${BRANCH}"
+          else
+            git checkout -b "${BRANCH}" "origin/${BASE}"
+            git push -u origin "${BRANCH}"
+          fi
+
+      - name: Resolve PR number (create if needed)
+        id: resolve_pr
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const prNumber = process.env.PR_NUMBER;
+
+            if (prNumber) {
+              core.setOutput('pr_number', String(prNumber));
+              return;
+            }
+
             const issueNo = Number(process.env.ROOT_ISSUE_NUMBER);
             const branch = process.env.BRANCH;
             const head = `${owner}:${branch}`;
@@ -415,17 +476,152 @@ jobs:
 
             core.setOutput('pr_number', String(pr.data.number));
 
-      - name: Set effective PR number
-        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
+  implement:
+    name: Implement
+    needs: [meta, triage, prepare]
+    if: needs.meta.outputs.should_run == 'true' && needs.meta.outputs.mode != 'discuss'
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.commit_changes.outputs.has_changes }}
+      commit_sha: ${{ steps.commit_changes.outputs.commit_sha }}
+    env:
+      MODE: ${{ needs.meta.outputs.mode }}
+      COMMAND_LINE: ${{ needs.meta.outputs.command_line }}
+      EXTRA_INSTRUCTIONS: ${{ needs.meta.outputs.extra_instructions }}
+      PR_NUMBER: ${{ needs.meta.outputs.pr_number }}
+      ROOT_ISSUE_NUMBER: ${{ needs.meta.outputs.root_issue_number }}
+      BRANCH: ${{ needs.meta.outputs.branch }}
+      BASE: ${{ needs.meta.outputs.base }}
+      SELECTED_MODEL: ${{ needs.meta.outputs.model }}
+      SELECTED_EFFORT: ${{ needs.meta.outputs.effort }}
+      MODEL_OVERRIDE: ${{ needs.meta.outputs.model_override }}
+      EFFORT_OVERRIDE: ${{ needs.meta.outputs.effort_override }}
+      REC_MODEL: ${{ needs.triage.outputs.recommended_model }}
+      REC_EFFORT: ${{ needs.triage.outputs.recommended_effort }}
+      PRN: ${{ needs.prepare.outputs.pr_number }}
+    steps:
+      - name: Checkout repository (default branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+
+      - name: Install Codex CLI
+        run: npm i -g @openai/codex
+
+      - name: Inject Codex auth.json (ChatGPT login)
+        env:
+          CODEX_AUTH_JSON_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
+          # Optional fallback: allow storing raw JSON without base64 encoding.
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
         run: |
           set -euo pipefail
-          PRN="${PR_NUMBER}"
-          if [ -z "$PRN" ]; then PRN="${{ steps.ensure_pr.outputs.pr_number }}"; fi
-          echo "PRN=$PRN" >> "$GITHUB_ENV"
+          umask 077
+          mkdir -p ~/.codex
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import sys
 
-      # ---------- Stage B: Implementation ----------
+          raw_json = os.environ.get("CODEX_AUTH_JSON", "")
+          raw_b64 = os.environ.get("CODEX_AUTH_JSON_B64", "")
+
+          if raw_json.strip():
+            source = "CODEX_AUTH_JSON"
+            value = raw_json.strip()
+          elif raw_b64.strip():
+            source = "CODEX_AUTH_JSON_B64"
+            value = raw_b64.strip()
+          else:
+            sys.stderr.write(
+              "Missing GitHub Secret for Codex auth. Set either CODEX_AUTH_JSON (raw auth.json) "
+              "or CODEX_AUTH_JSON_B64 (base64-encoded auth.json).\n"
+            )
+            sys.exit(1)
+
+          value = value.lstrip("\ufeff").strip()
+
+          def _is_json(text: str) -> bool:
+            try:
+              json.loads(text)
+              return True
+            except Exception:  # noqa: BLE001
+              return False
+
+          if _is_json(value):
+            auth_text = value
+          else:
+            compact = re.sub(r"\s+", "", value)
+            if (compact.startswith('"') and compact.endswith('"')) or (
+              compact.startswith("'") and compact.endswith("'")
+            ):
+              compact = compact[1:-1]
+            compact = compact.strip()
+
+            def _pad(s: str) -> str:
+              return s + ("=" * (-len(s) % 4))
+
+            kinds = ["standard", "urlsafe"]
+            if "-" in compact or "_" in compact:
+              kinds = ["urlsafe", "standard"]
+
+            errors = []
+            auth_text = ""
+            for kind in kinds:
+              try:
+                s = _pad(compact)
+                if kind == "standard":
+                  decoded = base64.b64decode(s, validate=True)
+                else:
+                  decoded = base64.urlsafe_b64decode(s)
+                text = decoded.decode("utf-8").lstrip("\ufeff").strip()
+                json.loads(text)
+                auth_text = text
+                break
+              except Exception as e:  # noqa: BLE001
+                errors.append(f"{kind}: {e}")
+
+            if not auth_text:
+              sys.stderr.write(
+                f"Failed to restore ~/.codex/auth.json from {source}. "
+                "Provide raw auth.json in CODEX_AUTH_JSON, or base64(auth.json) in CODEX_AUTH_JSON_B64. "
+                f"Errors: {', '.join(errors)}\n"
+              )
+              sys.exit(1)
+
+          path = os.path.expanduser("~/.codex/auth.json")
+          with open(path, "w", encoding="utf-8") as f:
+            f.write(auth_text)
+            if not auth_text.endswith("\n"):
+              f.write("\n")
+          print(f"Wrote {path} from {source}.")
+          PY
+
+      - name: Download triage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-triage-${{ github.run_id }}
+          path: .
+
+      - name: Checkout target branch
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${BRANCH}"
+          git checkout -B "${BRANCH}" "origin/${BRANCH}"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers (system deps)
+        run: npx playwright install --with-deps
+
       - name: Generate implementation prompt
-        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -491,11 +687,10 @@ jobs:
             fs.writeFileSync('.github/codex/runtime_prompt.md', prompt, 'utf8');
 
       - name: Run Codex implementation (full-auto)
-        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
         run: |
           set -euxo pipefail
-          REC_MODEL="${{ steps.triage_decision.outputs.recommended_model }}"
-          REC_EFFORT="${{ steps.triage_decision.outputs.recommended_effort }}"
+          REC_MODEL="${REC_MODEL}"
+          REC_EFFORT="${REC_EFFORT}"
           MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
           EFFORT="${REC_EFFORT:-${SELECTED_EFFORT}}"
           if [ "${MODEL_OVERRIDE}" = "true" ] && [ -n "${SELECTED_MODEL}" ]; then
@@ -523,14 +718,222 @@ jobs:
             "${EFFORT_ARG[@]}" \
             < .github/codex/runtime_prompt.md
 
-      - name: CI auto-fix loop (max 5, 5th = gpt-5.2-codex xhigh)
-        if: env.MODE != 'discuss' && steps.triage_decision.outputs.recommended_mode == 'implement'
-        id: ci_loop
-        env:
-          REC_MODEL: ${{ steps.triage_decision.outputs.recommended_model }}
-          REC_EFFORT: ${{ steps.triage_decision.outputs.recommended_effort }}
+      - name: Commit and push changes (if any)
+        id: commit_changes
         run: |
           set -euo pipefail
+          EXCLUDE_PATHS=(
+            "codex-output.md"
+            "codex-triage.json"
+            ".github/codex/triage_prompt.md"
+            ".github/codex/runtime_prompt.md"
+            ".github/codex/ci_failure_summary.md"
+            ".github/codex/fix_prompt.md"
+            "ci-logs"
+            "playwright-report"
+            "test-results"
+          )
+
+          git add -A
+          git reset -- "${EXCLUDE_PATHS[@]}" >/dev/null 2>&1 || true
+
+          if git diff --cached --quiet; then
+            echo "No substantive changes to commit."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@users.noreply.github.com"
+          git commit -m "AI: implement"
+          git push -u origin "${BRANCH}"
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload implementation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-implementation-${{ github.run_id }}
+          path: |
+            codex-output.md
+            .github/codex/runtime_prompt.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  verify:
+    name: Verify & Report
+    needs: [meta, triage, prepare, implement]
+    if: needs.meta.outputs.should_run == 'true' && needs.meta.outputs.mode != 'discuss'
+    runs-on: ubuntu-latest
+    outputs:
+      ci_success: ${{ steps.ci_loop.outputs.success }}
+      ci_attempts: ${{ steps.ci_loop.outputs.attempts }}
+    env:
+      MODE: ${{ needs.meta.outputs.mode }}
+      PR_NUMBER: ${{ needs.meta.outputs.pr_number }}
+      ROOT_ISSUE_NUMBER: ${{ needs.meta.outputs.root_issue_number }}
+      BRANCH: ${{ needs.meta.outputs.branch }}
+      BASE: ${{ needs.meta.outputs.base }}
+      SELECTED_MODEL: ${{ needs.meta.outputs.model }}
+      SELECTED_EFFORT: ${{ needs.meta.outputs.effort }}
+      MODEL_OVERRIDE: ${{ needs.meta.outputs.model_override }}
+      EFFORT_OVERRIDE: ${{ needs.meta.outputs.effort_override }}
+      REC_MODEL: ${{ needs.triage.outputs.recommended_model }}
+      REC_EFFORT: ${{ needs.triage.outputs.recommended_effort }}
+      PRN: ${{ needs.prepare.outputs.pr_number }}
+      HAS_CHANGES: ${{ needs.implement.outputs.has_changes || 'false' }}
+      IMPLEMENT_RESULT: ${{ needs.implement.result }}
+    steps:
+      - name: Checkout repository (default branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+
+      - name: Install Codex CLI
+        run: npm i -g @openai/codex
+
+      - name: Inject Codex auth.json (ChatGPT login)
+        env:
+          CODEX_AUTH_JSON_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
+          # Optional fallback: allow storing raw JSON without base64 encoding.
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.codex
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import sys
+
+          raw_json = os.environ.get("CODEX_AUTH_JSON", "")
+          raw_b64 = os.environ.get("CODEX_AUTH_JSON_B64", "")
+
+          if raw_json.strip():
+            source = "CODEX_AUTH_JSON"
+            value = raw_json.strip()
+          elif raw_b64.strip():
+            source = "CODEX_AUTH_JSON_B64"
+            value = raw_b64.strip()
+          else:
+            sys.stderr.write(
+              "Missing GitHub Secret for Codex auth. Set either CODEX_AUTH_JSON (raw auth.json) "
+              "or CODEX_AUTH_JSON_B64 (base64-encoded auth.json).\n"
+            )
+            sys.exit(1)
+
+          value = value.lstrip("\ufeff").strip()
+
+          def _is_json(text: str) -> bool:
+            try:
+              json.loads(text)
+              return True
+            except Exception:  # noqa: BLE001
+              return False
+
+          if _is_json(value):
+            auth_text = value
+          else:
+            compact = re.sub(r"\s+", "", value)
+            if (compact.startswith('"') and compact.endswith('"')) or (
+              compact.startswith("'") and compact.endswith("'")
+            ):
+              compact = compact[1:-1]
+            compact = compact.strip()
+
+            def _pad(s: str) -> str:
+              return s + ("=" * (-len(s) % 4))
+
+            kinds = ["standard", "urlsafe"]
+            if "-" in compact or "_" in compact:
+              kinds = ["urlsafe", "standard"]
+
+            errors = []
+            auth_text = ""
+            for kind in kinds:
+              try:
+                s = _pad(compact)
+                if kind == "standard":
+                  decoded = base64.b64decode(s, validate=True)
+                else:
+                  decoded = base64.urlsafe_b64decode(s)
+                text = decoded.decode("utf-8").lstrip("\ufeff").strip()
+                json.loads(text)
+                auth_text = text
+                break
+              except Exception as e:  # noqa: BLE001
+                errors.append(f"{kind}: {e}")
+
+            if not auth_text:
+              sys.stderr.write(
+                f"Failed to restore ~/.codex/auth.json from {source}. "
+                "Provide raw auth.json in CODEX_AUTH_JSON, or base64(auth.json) in CODEX_AUTH_JSON_B64. "
+                f"Errors: {', '.join(errors)}\n"
+              )
+              sys.exit(1)
+
+          path = os.path.expanduser("~/.codex/auth.json")
+          with open(path, "w", encoding="utf-8") as f:
+            f.write(auth_text)
+            if not auth_text.endswith("\n"):
+              f.write("\n")
+          print(f"Wrote {path} from {source}.")
+          PY
+
+      - name: Download triage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-triage-${{ github.run_id }}
+          path: .
+
+      - name: Download implementation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-implementation-${{ github.run_id }}
+          path: .
+
+      - name: Checkout target branch
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${BRANCH}"
+          git checkout -B "${BRANCH}" "origin/${BRANCH}"
+
+      - name: Install dependencies
+        if: env.HAS_CHANGES == 'true'
+        run: npm install
+
+      - name: Install Playwright browsers (system deps)
+        if: env.HAS_CHANGES == 'true'
+        run: npx playwright install --with-deps
+
+      - name: CI auto-fix loop (max 5, 5th = gpt-5.2-codex xhigh)
+        id: ci_loop
+        run: |
+          set -euo pipefail
+
+          if [ "${IMPLEMENT_RESULT}" != "success" ]; then
+            echo "Implementation did not complete; skipping CI."
+            echo "success=skipped" >> "$GITHUB_OUTPUT"
+            echo "attempts=0" >> "$GITHUB_OUTPUT"
+            echo "nodiff_escalated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${HAS_CHANGES}" != "true" ]; then
+            echo "No changes to verify; skipping CI."
+            echo "success=skipped" >> "$GITHUB_OUTPUT"
+            echo "attempts=0" >> "$GITHUB_OUTPUT"
+            echo "nodiff_escalated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # Resolve base model/effort for fix attempts (triage recommendation first)
           BASE_MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
@@ -543,6 +946,23 @@ jobs:
           fi
 
           mkdir -p .github/codex ci-logs
+
+          EXCLUDE_PATHS=(
+            "codex-output.md"
+            "codex-triage.json"
+            ".github/codex/triage_prompt.md"
+            ".github/codex/runtime_prompt.md"
+            ".github/codex/ci_failure_summary.md"
+            ".github/codex/fix_prompt.md"
+            "ci-logs"
+            "playwright-report"
+            "test-results"
+          )
+
+          stage_changes() {
+            git add -A
+            git reset -- "${EXCLUDE_PATHS[@]}" >/dev/null 2>&1 || true
+          }
 
           success="false"
           attempts=0
@@ -644,10 +1064,9 @@ jobs:
               "${EFFORT_ARG[@]}" \
               < "${fix_prompt}"
 
-            git config user.name "codex-bot"
-            git config user.email "codex-bot@users.noreply.github.com"
+            stage_changes
 
-            if [ -z "$(git status --porcelain)" ]; then
+            if git diff --cached --quiet; then
               # No diff: do ONE escalation, then if still no diff afterwards, stop (human handoff).
               if [ "${nodiff_escalated}" = "false" ]; then
                 echo "No changes produced. Escalating ONE time: model=gpt-5.2-codex, effort=xhigh, and increasing log context."
@@ -694,7 +1113,9 @@ jobs:
                   "${EFFORT_ARG[@]}" \
                   < "${fix_prompt}"
 
-                if [ -z "$(git status --porcelain)" ]; then
+                stage_changes
+
+                if git diff --cached --quiet; then
                   echo "Still no changes after escalation. Stopping loop for human handoff."
                   break
                 fi
@@ -705,7 +1126,8 @@ jobs:
             fi
 
             # Commit & push changes, then loop to re-run CI.
-            git add -A
+            git config user.name "codex-bot"
+            git config user.email "codex-bot@users.noreply.github.com"
             git commit -m "AI: fix CI (attempt ${attempts}/5)"
             git push -u origin "${BRANCH}"
           done
@@ -713,11 +1135,6 @@ jobs:
           echo "success=${success}" >> "$GITHUB_OUTPUT"
           echo "attempts=${attempts}" >> "$GITHUB_OUTPUT"
           echo "nodiff_escalated=${nodiff_escalated}" >> "$GITHUB_OUTPUT"
-
-          if [ "${success}" != "true" ]; then
-            echo "CI did not reach success after ${attempts} attempt(s)."
-            exit 1
-          fi
 
       - name: Upload evidence artifact
         uses: actions/upload-artifact@v4
@@ -734,6 +1151,7 @@ jobs:
             .github/codex/ci_failure_summary.md
             ci-logs/
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Post results to Issue/PR
         uses: actions/github-script@v7
@@ -760,8 +1178,16 @@ jobs:
             let summary = '_No summary available._';
             if (fs.existsSync('codex-output.md')) summary = fs.readFileSync('codex-output.md', 'utf8');
 
-            const attempts = `${{ steps.ci_loop.outputs.attempts || '0' }}`;
-            const success = `${{ steps.ci_loop.outputs.success || 'false' }}`;
+            const attempts = String(process.env.CI_ATTEMPTS || '0');
+            const successRaw = String(process.env.CI_SUCCESS || 'unknown');
+            const ciStatus = successRaw === 'true' ? 'success' : successRaw === 'skipped' ? 'skipped' : 'failed';
+
+            const implResult = String(process.env.IMPLEMENT_RESULT || 'unknown');
+            const hasChanges = String(process.env.HAS_CHANGES || 'false');
+            let implStatus = `failed (${implResult})`;
+            if (implResult === 'success') {
+              implStatus = hasChanges === 'true' ? 'changes committed' : 'no changes';
+            }
 
             const body = [
               '## Codex 実行結果',
@@ -770,7 +1196,8 @@ jobs:
               `- Branch: \`${process.env.BRANCH}\``,
               `- Workflow run: ${runUrl}`,
               `- Evidence artifact: **${evidenceName}**（RunページのArtifactsからダウンロード）`,
-              `- CI auto-fix: success=\`${success}\`, attempts=\`${attempts}\``,
+              `- Implementation: ${implStatus}`,
+              `- CI auto-fix: status=\`${ciStatus}\`, attempts=\`${attempts}\``,
               '',
               '### 確認ポイント（レビュー用）',
               '- 変更差分がIssueの意図に合っているか',
@@ -785,3 +1212,10 @@ jobs:
             ].join('\n');
 
             await github.rest.issues.createComment({ owner, repo, issue_number: targetNo, body });
+        env:
+          CI_SUCCESS: ${{ steps.ci_loop.outputs.success }}
+          CI_ATTEMPTS: ${{ steps.ci_loop.outputs.attempts }}
+
+      - name: Fail job if CI failed
+        if: steps.ci_loop.outputs.success == 'false'
+        run: exit 1

@@ -70,8 +70,8 @@ GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で�
 flowchart TD
 U[Issue/PR コメント] --> C[/codex ... を検知/]
 C --> T[Triage: 要件リライト + 質問 + 推奨 model/effort]
-T -->|needs_info| Q[コメントで質問を返す]
-T -->|implement| I[実装 + lint/build/test]
+T -->|discuss| Q[コメントで質問を返す]
+T -->|start/run| I[実装 + lint/build/test]
 I --> E[Playwright 証跡を Artifacts に保存]
 E --> R[PR に結果をコメント]
 ```
