@@ -156,3 +156,4 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - 配置: `docs/setup.md`（本ファイル）
 - 参照: リポジトリの `README.md` からリンク（下部の「Setup / 外部サービス」セクション）
 - 関連: `docs/slack-app.md`（Slack App 設計）
+- 関連: `docs/aws-setup.md`（staging の AWS リソース構築手順）
