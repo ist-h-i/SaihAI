@@ -100,7 +100,7 @@ AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
 参考
 - `STRANDS_BEDROCK.md` 内「トラブルシュート」を参照（リージョン誤り・トークン無効など）
 
-## DB: AWS PostgreSQL + pgvector（必須）
+## DB: PostgreSQL + pgvector のセットアップ（AWS / 必須）
 
 PoC の機能要件として、AWS 上の PostgreSQL + pgvector を利用します（ALB/CloudFront は不要）。
 
