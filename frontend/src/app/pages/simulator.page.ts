@@ -587,6 +587,7 @@ interface ChatEntry {
           </div>
         </div>
       </div>
+      </div>
     }
   `,
 })
