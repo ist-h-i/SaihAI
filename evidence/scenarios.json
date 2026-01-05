@@ -15,6 +15,26 @@
     "assertText": "UI/UX 大規模改善計画"
   },
   {
+    "name": "ui_login_default",
+    "url": "/login",
+    "assertText": "ログイン"
+  },
+  {
+    "name": "ui_dashboard_focus",
+    "url": "/dashboard",
+    "assertText": "経営ダッシュボード"
+  },
+  {
+    "name": "ui_simulator_demo_alert",
+    "url": "/simulator?demo=alert",
+    "assertText": "介入チェックポイント"
+  },
+  {
+    "name": "ui_genome_overview",
+    "url": "/genome",
+    "assertText": "人材データベース"
+  },
+  {
     "name": "api error toast presence",
     "inlineHtml": "<html><body><div role='status'>APIエラー</div><p>APIエラー (500): boom</p></body></html>",
     "assertText": "APIエラー"

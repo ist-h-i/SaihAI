@@ -1,39 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
-export type HaisaSpeechTone = 'neutral' | 'info' | 'success' | 'warning' | 'error';
-
-export type HaisaEmotion =
-  | 'standard'
-  | 'hope'
-  | 'joy'
-  | 'relief'
-  | 'anxiety'
-  | 'energy'
-  | 'effort'
-  | 'haste'
-  | 'explosion';
-
-const HAISA_ASSET_DIR = '/assets/haisaikun';
-
-const HAISA_IMAGE_BY_EMOTION: Record<HaisaEmotion, string> = {
-  standard: 'standard.png',
-  hope: 'hope.png',
-  joy: 'joy.png',
-  relief: 'relief.png',
-  anxiety: 'anxiety.png',
-  energy: 'energy.png',
-  effort: 'effort.png',
-  haste: 'haste.png',
-  explosion: 'explosion.png',
-};
-
-const DEFAULT_EMOTION_BY_TONE: Record<HaisaSpeechTone, HaisaEmotion> = {
-  neutral: 'standard',
-  info: 'hope',
-  success: 'relief',
-  warning: 'haste',
-  error: 'anxiety',
-};
+import { HaisaEmotion, HaisaSpeechTone, haisaAvatarSrc, resolveHaisaEmotion } from '../core/haisa-emotion';
 
 @Component({
   selector: 'app-haisa-speech',
@@ -131,9 +98,8 @@ export class HaisaSpeechComponent {
   @Output() dismissed = new EventEmitter<void>();
 
   protected avatarSrc(): string {
-    const emotion = this.emotion ?? DEFAULT_EMOTION_BY_TONE[this.tone] ?? 'standard';
-    const file = HAISA_IMAGE_BY_EMOTION[emotion] ?? HAISA_IMAGE_BY_EMOTION.standard;
-    return `${HAISA_ASSET_DIR}/${file}`;
+    const emotion = resolveHaisaEmotion(this.tone, this.emotion);
+    return haisaAvatarSrc(emotion);
   }
 
   protected avatarSizePx(): number {
