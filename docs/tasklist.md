@@ -183,7 +183,7 @@
 | Done | ID | P | Size | MS | Depends | 概要 | 完了条件（成果物/確認方法） |
 |---:|---|---|---|---|---|---|---|
 | [x] | AWS-001 | P0 | M | M0 |  | AWSデプロイ形態の確定（整合性確認） | `requirement-docs/app-guideline.md`（ECS/Fargate, Aurora, EventBridge, S3/CloudFront）に沿って採用を固定 |
-| [x] | AWS-002 | P0 | M | M0 | AWS-001 | IaC方式の決定（CDK採用） | IaC は **AWS CDK (TypeScript)** を採用し、`infra/` 配下に構成を置く方針が固定 |
+| [x] | AWS-002 | P0 | M | M0 | AWS-001 | 構築方式の決定（コンソール運用） | IaC は採用せず、AWS コンソールで手動構築する方針が固定 |
 | [ ] | AWS-003 | P0 | L | M1 | AWS-002 | ネットワーク基盤（VPC/SG/サブネット） | ECS/Aurora/（必要なら）NAT を含む最小構成が作れる |
 | [ ] | AWS-004 | P0 | L | M1 | AWS-002,AWS-003 | Aurora PostgreSQL (pgvector) 構築 | 接続情報がSecrets Manager等で管理され、ローカル以外でも疎通できる |
 | [ ] | AWS-005 | P0 | L | M1 | AWS-002 | ECS(Fargate) にBackendをデプロイ | `GET /api/health` がALB経由で応答し、環境変数/Secretsが注入される |
@@ -354,8 +354,8 @@
 
 ### 7.9 AWS（AWS-003〜AWS-009）
 
-- [ ] AWS-002-01 `infra/`（CDK）初期セットアップ + `cdk synth`（完了条件: synth が通る / 検証: CI）
-- [ ] AWS-003-01 VPC/SG などネットワークを CDK で定義（完了条件: 最小NWが定義 / 検証: synth diff）
+- [ ] AWS-002-01 AWS コンソールでのセットアップ手順を docs 化（完了条件: `docs/aws-setup.md` が再現可能 / 検証: CI）
+- [ ] AWS-003-01 VPC/SG などネットワークをコンソールで構築（完了条件: 最小NWが作れる / 検証: staging）
 - [x] AWS-004-01 Aurora(pgvector) + Secrets Manager（完了条件: 秘密情報が外に出ない / 検証: review）
 - [ ] AWS-005-01 ECS(Fargate)+ALB で Backend を公開（完了条件: `/api/health` / 検証: staging）
 - [ ] AWS-006-01 S3+CloudFront で Frontend を公開（完了条件: SPAが動く / 検証: staging）

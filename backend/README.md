@@ -30,14 +30,14 @@ Migrations and seed:
 
 ```powershell
 cd backend
-python scripts/db_tool.py up
-python scripts/db_tool.py seed --force
+uv run python scripts/db_tool.py up
+uv run python scripts/db_tool.py seed --force
 ```
 
 Rollback the latest migration:
 
 ```powershell
-python scripts/db_tool.py down
+uv run python scripts/db_tool.py down
 ```
 
 ## Endpoints

@@ -6,9 +6,9 @@ GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で�
 
 ## Setup / 外部サービス
 
-本プロジェクトで必要な外部サービス（AWS Bedrock / PostgreSQL+pgvector / Slack）と、環境変数・ローカル確認手順は `docs/setup.md` を参照してください。
+ローカル起動手順（PoC / ALB・CloudFront なし）と、必須の AWS サービス（AWS Bedrock / AWS PostgreSQL+pgvector）を接続する手順は `docs/setup.md` を参照してください。
 
-staging 向けの AWS リソース構築手順（CDK 中心、取得すべき Outputs と GitHub Secrets の対応表つき）は `docs/aws-setup.md` を参照してください。
+AWS リソース構築手順（PoC 最小: Bedrock + pgvector DB / AWS コンソール中心。ALB/CloudFront なし）は `docs/aws-setup.md` を参照してください。
 
 ## できること
 

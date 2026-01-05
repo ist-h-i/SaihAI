@@ -8,6 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
+from app.env import load_env  # noqa: E402
+
+load_env()
+
 from app.db import db_connection  # noqa: E402
 from app.domain.watchdog import enqueue_watchdog_job  # noqa: E402
 

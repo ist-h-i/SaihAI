@@ -86,11 +86,14 @@ if [ ! -d "$ROOT/frontend" ]; then
   pause_on_error
 fi
 
+DEFAULT_API_BASE_URL="http://localhost:$BACKEND_PORT/api/v1"
+FRONTEND_API_BASE_URL="${SAIHAI_API_BASE_URL:-$DEFAULT_API_BASE_URL}"
+
 if [ "${NO_NEW_WINDOW:-}" = "1" ]; then
-  (cd "$ROOT/frontend" && npm run start -- --port "$FRONTEND_PORT") &
+  (cd "$ROOT/frontend" && SAIHAI_API_BASE_URL="$FRONTEND_API_BASE_URL" npm run start -- --port "$FRONTEND_PORT") &
   disown -a 2>/dev/null || true
 else
-  run_in_terminal "$ROOT/frontend" "npm run start -- --port $FRONTEND_PORT"
+  run_in_terminal "$ROOT/frontend" "SAIHAI_API_BASE_URL=\"$FRONTEND_API_BASE_URL\" npm run start -- --port $FRONTEND_PORT"
 fi
 
 echo

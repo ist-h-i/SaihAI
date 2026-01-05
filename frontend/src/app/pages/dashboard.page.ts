@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
@@ -67,7 +68,7 @@ interface ClusterAccumulator {
 }
 
 @Component({
-  imports: [NeuralOrbComponent],
+  imports: [NeuralOrbComponent, HaisaSpeechComponent],
   template: `
     <div class="flex items-start justify-between gap-6">
       <div class="min-w-0">
@@ -157,25 +158,26 @@ interface ClusterAccumulator {
         <div class="text-sm font-semibold text-slate-200">AI 提案（松竹梅）</div>
         @if (dashboard.proposals().length) {
           <div class="mt-3 space-y-3">
-            @for (p of dashboard.proposals(); track p.id) {
-              <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="text-sm font-semibold">
-                    {{ p.planType }}
-                    @if (p.isRecommended) {
-                      <span class="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200">
-                        推奨
-                      </span>
-                    }
-                  </div>
-                  <div class="text-xs text-slate-400">score {{ p.recommendationScore }}</div>
-                </div>
-                <div class="mt-2 text-xs text-slate-300">{{ p.description }}</div>
-              </div>
+            @for (p of dashboard.proposals(); track p.id; let i = $index) {
+              <app-haisa-speech
+                [tone]="p.isRecommended ? 'success' : 'info'"
+                [title]="p.planType + (p.isRecommended ? '（推奨）' : '')"
+                [meta]="'score ' + p.recommendationScore"
+                [message]="p.description"
+                [compact]="true"
+                [showAvatar]="i === 0"
+              />
             }
           </div>
         } @else {
-          <div class="mt-3 text-xs text-slate-500">提案を準備中です。</div>
+          <div class="mt-3">
+            <app-haisa-speech
+              [tone]="'info'"
+              [message]="'提案を準備中です。'"
+              [compact]="true"
+              [showAvatar]="true"
+            />
+          </div>
         }
       </div>
 
@@ -194,7 +196,14 @@ interface ClusterAccumulator {
             }
           </div>
         } @else {
-          <div class="mt-3 text-xs text-slate-500">承認待ちはありません。</div>
+          <div class="mt-3">
+            <app-haisa-speech
+              [tone]="'neutral'"
+              [message]="'承認待ちはありません。'"
+              [compact]="true"
+              [showAvatar]="false"
+            />
+          </div>
         }
       </div>
     </div>

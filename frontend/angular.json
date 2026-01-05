@@ -20,7 +20,12 @@
               "input": "public",
               "output": "."
             },
-            "src/assets/*"
+            {
+              "glob": "favicon.svg",
+              "input": "public",
+              "output": "."
+            },
+            "src/assets"
           ],
             "styles": ["src/styles.css"]
           },

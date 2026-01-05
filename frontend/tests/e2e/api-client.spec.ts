@@ -85,5 +85,5 @@ test('shows toast when api returns error', async ({ page }) => {
 
   await page.goto('/simulator');
 
-  await expect(page.getByText('APIエラー')).toBeVisible();
+  await expect(page.getByText('APIエラー', { exact: true })).toBeVisible();
 });

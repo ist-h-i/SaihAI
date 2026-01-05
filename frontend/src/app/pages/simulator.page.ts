@@ -2,6 +2,7 @@
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
+import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { SimulatorStore } from '../core/simulator-store';
 import { SimulationResult } from '../core/types';
@@ -18,7 +19,7 @@ type HaisaEmotion =
   | 'hopeful'
   | 'curious';
 
-const HAISA_ASSET_DIR = '../../assets/haisaikun';
+const HAISA_ASSET_DIR = '/assets/haisaikun';
 const HAISA_IMAGE_BY_EMOTION: Record<HaisaEmotion, string> = {
   standard: 'standard.png',
   panic: 'anxiety.png',
@@ -53,14 +54,21 @@ interface ChatEntry {
 }
 
 @Component({
-  imports: [NeuralOrbComponent],
+  imports: [NeuralOrbComponent, HaisaSpeechComponent],
   template: `
     <h2 class="text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
     <p class="mt-1 text-sm text-slate-300">
       案件と候補者を選び、AIの「未来予測」と介入プランを確認します。
     </p>
     @if (store.error(); as err) {
-      <div class="text-sm text-rose-300 mb-3">{{ err }}</div>
+      <div class="mb-3">
+        <app-haisa-speech
+          [tone]="'error'"
+          [message]="err"
+          [compact]="true"
+          [showAvatar]="false"
+        />
+      </div>
     }
 
     <div class="grid gap-4 lg:grid-cols-2">
@@ -507,6 +515,29 @@ interface ChatEntry {
                 </div>
 
                 <div class="flex-1 overflow-hidden flex flex-col">
+                  <div class="px-5 py-3 border-b border-slate-800/80 flex items-center gap-3">
+                    <div
+                      class="haisa-avatar"
+                      [attr.data-emotion]="haisaEmotionLabel(overlayHaisaEmotion())"
+                      [style.width.px]="56"
+                      [style.height.px]="56"
+                      [style.border-radius.px]="18"
+                      aria-hidden="true"
+                    >
+                      <img
+                        [src]="haisaAvatarSrc(overlayHaisaEmotion())"
+                        alt=""
+                        class="haisa-avatar-image"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div class="min-w-0">
+                      <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                        ハイサイくん
+                      </div>
+                      <div class="text-xs text-slate-300">AIの判断を共有します。</div>
+                    </div>
+                  </div>
                   <div class="flex-1 overflow-auto p-5 space-y-3">
                     @for (m of overlayChat(); track $index) {
                       <div
@@ -514,14 +545,6 @@ interface ChatEntry {
                         [class.justify-end]="m.from === 'user'"
                         [class.justify-start]="m.from !== 'user'"
                       >
-                        @if (m.from !== 'user') {
-                          <div
-                            class="haisa-avatar"
-                            [style.background-image]="haisaAvatarImage(m.emotion ?? 'standard')"
-                            [attr.data-emotion]="haisaEmotionLabel(m.emotion)"
-                            aria-hidden="true"
-                          ></div>
-                        }
                         <div
                           class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble"
                           [class.bg-indigo-600]="m.from === 'user'"
@@ -530,7 +553,7 @@ interface ChatEntry {
                           [class.bg-slate-900/40]="m.from !== 'user'"
                           [class.text-slate-100]="m.from !== 'user'"
                           [class.border-slate-800]="m.from !== 'user'"
-                          [class.haisa-bubble-ai]="m.from !== 'user'"
+                          [class.ai]="m.from !== 'user'"
                         >
                           {{ m.text }}
                         </div>
@@ -772,9 +795,18 @@ export class SimulatorPage implements OnDestroy {
     return HAISA_LABELS[emotion ?? 'standard'];
   }
 
-  protected haisaAvatarImage(emotion: HaisaEmotion = 'standard'): string {
+  protected overlayHaisaEmotion(): HaisaEmotion {
+    const chat = this.overlayChat();
+    for (let i = chat.length - 1; i >= 0; i -= 1) {
+      const entry = chat[i];
+      if (entry?.from !== 'user') return entry.emotion ?? 'standard';
+    }
+    return 'standard';
+  }
+
+  protected haisaAvatarSrc(emotion: HaisaEmotion = 'standard'): string {
     const file = HAISA_IMAGE_BY_EMOTION[emotion] ?? HAISA_DEFAULT_IMAGE;
-    return `url('${HAISA_ASSET_DIR}/${file}')`;
+    return `${HAISA_ASSET_DIR}/${file}`;
   }
 
   private emotionForOverlay(

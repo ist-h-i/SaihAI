@@ -178,7 +178,7 @@ test('login -> dashboard -> simulator evaluate -> generate', async ({ page }) =>
   await page.getByRole('combobox').selectOption('alpha');
   await page.getByText('Aki').click();
   await page.getByText('Rin').click();
-  await page.getByRole('button', { name: 'AI自動編成' }).click();
+  await page.getByRole('main').getByRole('button', { name: 'AI自動編成', exact: true }).click();
 
   await expect(page.getByText('3プラン（A/B/C）')).toBeVisible();
   await expect(page.getByText('要件カバー率')).toBeVisible();

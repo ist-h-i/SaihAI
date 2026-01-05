@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from typing import Literal
 from uuid import uuid4
@@ -29,6 +30,15 @@ from app.domain.input_sources import fetch_ingestion_runs, ingest_weekly_reports
 router = APIRouter(prefix="/v1")
 
 DEV_LOGIN_PASSWORD = os.getenv("DEV_LOGIN_PASSWORD", "saihai")
+auth_logger = logging.getLogger("saihai.auth")
+
+
+def _edge_hint(value: str, size: int = 3) -> tuple[str, str]:
+    if not value:
+        return ("", "")
+    if len(value) <= size:
+        return (value, value)
+    return (value[:size], value[-size:])
 
 
 class LoginRequest(BaseModel):
@@ -269,14 +279,28 @@ _plans: dict[str, dict] = {}
 @router.post("/auth/login", response_model=LoginResponse)
 def login(req: LoginRequest, conn: Connection = Depends(get_db)) -> LoginResponse:
     if req.password != DEV_LOGIN_PASSWORD:
+        expected_head, expected_tail = _edge_hint(DEV_LOGIN_PASSWORD)
+        provided_head, provided_tail = _edge_hint(req.password)
+        auth_logger.warning(
+            "login failed: invalid password user_id=%s expected_len=%d provided_len=%d expected_head=%s expected_tail=%s provided_head=%s provided_tail=%s",
+            req.userId,
+            len(DEV_LOGIN_PASSWORD),
+            len(req.password),
+            expected_head,
+            expected_tail,
+            provided_head,
+            provided_tail,
+        )
         raise HTTPException(status_code=401, detail="invalid credentials")
     user = conn.execute(
         text("SELECT user_id, name, role FROM users WHERE user_id = :user_id"),
         {"user_id": req.userId},
     ).mappings().first()
     if not user:
+        auth_logger.warning("login failed: user not found user_id=%s", req.userId)
         raise HTTPException(status_code=401, detail="invalid credentials")
     token = issue_token(user)
+    auth_logger.info("login success user_id=%s", req.userId)
     return LoginResponse(access_token=token)
 
 

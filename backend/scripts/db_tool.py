@@ -10,6 +10,10 @@ from typing import Any, Iterable
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
+from app.env import load_env  # noqa: E402
+
+load_env()
+
 from sqlalchemy import text  # noqa: E402
 
 from app.data.seed import load_seed  # noqa: E402

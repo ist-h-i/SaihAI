@@ -12,7 +12,7 @@ test.describe('Docs: aws-setup.md (staging)', () => {
       'Goals（この手順書で到達する状態）',
       '前提',
       'Bedrock（モデル有効化）',
-      'CDK（staging）デプロイ手順',
+      'コンソール（staging）セットアップ手順（全体の流れ）',
       'サービス別手順（構築 → 取得値 → 設定 → 動作確認）',
       'GitHub Secrets（staging）登録一覧',
       '構築後チェックリスト（staging）'
@@ -21,8 +21,8 @@ test.describe('Docs: aws-setup.md (staging)', () => {
       expect(doc).toContain(h);
     }
 
-    // Key mapping: outputs -> secrets/env vars
-    expect(doc).toContain('Outputs');
+    // Key mapping: values to capture -> secrets/env vars
+    expect(doc).toContain('取得値（URL/ARN/ID/Endpoint）の控え方');
     expect(doc).toContain('AWS_REGION');
     expect(doc).toContain('DATABASE_URL');
     expect(doc).toContain('SAIHAI_API_BASE_URL');
@@ -32,4 +32,3 @@ test.describe('Docs: aws-setup.md (staging)', () => {
     expect(setup).toMatch(/docs\/aws-setup\.md/);
   });
 });
-

@@ -49,6 +49,8 @@ if "%FRONTEND_PORT_IN_USE%"=="1" if "%FRONTEND_PORT%"=="4200" if "%FRONTEND_PORT
 )
 set "FRONTEND_PORT_IN_USE="
 
+if "%SAIHAI_API_BASE_URL%"=="" set "SAIHAI_API_BASE_URL=http://localhost:%BACKEND_PORT%/api/v1"
+
 if not exist "%ROOT%\frontend\node_modules" (
   echo [WARN] frontend\\node_modules not found. Run dev-setup.bat first.
 )

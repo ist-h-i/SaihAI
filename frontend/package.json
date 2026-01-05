@@ -8,6 +8,7 @@
     "start": "ng serve",
     "prebuild": "node ./scripts/write-runtime-config.cjs",
     "build": "ng build",
+    "favicon:generate": "node ./scripts/generate-favicon.cjs",
     "watch": "ng build --watch --configuration development",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
