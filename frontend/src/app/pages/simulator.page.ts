@@ -412,9 +412,9 @@ interface ChatEntry {
 
           <div class="relative h-full flex flex-col">
             <div
-              class="h-12 sm:h-14 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-4 sm:px-5 flex items-center justify-between gap-3"
+              class="min-h-12 sm:min-h-14 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-4 sm:px-5 py-2 sm:py-3 flex items-start sm:items-center justify-between gap-3"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
                 <div
                   class="px-3 py-1 rounded-full text-xs font-extrabold tracking-wide text-white status-indicator"
                   [class.bg-rose-500]="overlayMode() === 'alert'"
@@ -424,11 +424,11 @@ interface ChatEntry {
                 >
                   {{ overlayMode() === 'alert' ? 'ALERT ACTIVE' : 'MANUAL MODE' }}
                 </div>
-                <div class="font-bold text-slate-100">介入チェックポイント</div>
+                <div class="font-bold text-slate-100 leading-tight">介入チェックポイント</div>
               </div>
               <button
                 type="button"
-                class="text-slate-300 hover:text-white text-2xl leading-none"
+                class="text-slate-300 hover:text-white text-2xl leading-none shrink-0"
                 (click)="closeOverlay()"
               >
                 ×
@@ -468,7 +468,7 @@ interface ChatEntry {
                       >
                         {{ l.agent }}
                       </span>
-                      <span class="text-slate-200">{{ l.text }}</span>
+                      <span class="text-slate-200 flex-1 min-w-0 break-words">{{ l.text }}</span>
                     </div>
                   }
                 </div>
@@ -478,7 +478,7 @@ interface ChatEntry {
                 <div class="p-4 sm:p-5 border-b border-slate-800/80">
                   <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
                   @if (store.simulationResult(); as r) {
-                    <div class="mt-3 grid gap-3 md:grid-cols-3">
+                    <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                       @for (p of r.plans; track p.id) {
                         <button
                           type="button"
@@ -495,7 +495,7 @@ interface ChatEntry {
                               AI推奨
                             </div>
                           }
-                          <div class="font-extrabold text-slate-100">
+                          <div class="font-extrabold text-slate-100 break-words">
                             Plan {{ p.planType }}: {{ p.summary }}
                           </div>
                           <div class="mt-2 text-xs text-slate-300">
@@ -546,7 +546,7 @@ interface ChatEntry {
                         [class.justify-start]="m.from !== 'user'"
                       >
                         <div
-                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble"
+                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble break-words"
                           [class.bg-indigo-600]="m.from === 'user'"
                           [class.text-white]="m.from === 'user'"
                           [class.border-indigo-500/40]="m.from === 'user'"

@@ -228,6 +228,12 @@ test('mobile flow supports input and approval', async ({ page }) => {
   await expect(page.getByText('3プラン（A/B/C）')).toBeVisible();
   await page.getByRole('button', { name: '介入（HITL）を開く' }).click();
   await expect(page.getByText('介入チェックポイント')).toBeVisible();
+  const overlay = page.locator('.surface-overlay');
+  const { scrollWidth, clientWidth } = await overlay.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+  }));
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2);
 
   await page.getByRole('button', { name: '実行' }).click();
   await expect(page.getByText('承認されました。実行します。')).toBeVisible();
