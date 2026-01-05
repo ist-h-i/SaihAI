@@ -521,7 +521,7 @@ interface ChatEntry {
                   <div class="px-4 sm:px-5 py-3 border-b border-slate-800/80 flex items-center gap-3">
                     <div
                       class="haisa-avatar"
-                      [attr.data-emotion]="haisaEmotionLabel(overlayHaisaEmotion())"
+                      [attr.title]="haisaEmotionLabel(overlayHaisaEmotion())"
                       [style.width.px]="56"
                       [style.height.px]="56"
                       [style.border-radius.px]="18"
@@ -549,7 +549,7 @@ interface ChatEntry {
                         [class.justify-start]="m.from !== 'user'"
                       >
                         <div
-                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble break-words"
+                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble haisa-bubble--tail break-words"
                           [class.bg-indigo-600]="m.from === 'user'"
                           [class.text-white]="m.from === 'user'"
                           [class.border-indigo-500/40]="m.from === 'user'"
@@ -557,6 +557,7 @@ interface ChatEntry {
                           [class.text-slate-100]="m.from !== 'user'"
                           [class.border-slate-800]="m.from !== 'user'"
                           [class.ai]="m.from !== 'user'"
+                          [class.user]="m.from === 'user'"
                         >
                           {{ m.text }}
                         </div>

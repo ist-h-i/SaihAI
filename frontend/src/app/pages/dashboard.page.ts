@@ -161,11 +161,14 @@ interface ClusterAccumulator {
             @for (p of dashboard.proposals(); track p.id; let i = $index) {
               <app-haisa-speech
                 [tone]="p.isRecommended ? 'success' : 'info'"
-                [title]="p.planType + (p.isRecommended ? '（推奨）' : '')"
+                [title]="p.planType"
+                [tag]="p.isRecommended ? '推奨' : ''"
                 [meta]="'score ' + p.recommendationScore"
                 [message]="p.description"
                 [compact]="true"
                 [showAvatar]="i === 0"
+                [reserveAvatarSpace]="true"
+                [highlight]="p.isRecommended"
               />
             }
           </div>

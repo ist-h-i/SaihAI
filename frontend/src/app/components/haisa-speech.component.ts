@@ -39,7 +39,8 @@ const DEFAULT_EMOTION_BY_TONE: Record<HaisaSpeechTone, HaisaEmotion> = {
   selector: 'app-haisa-speech',
   template: `
     <div
-      class="haisa-chat-line haisa-speech-line pointer-events-auto"
+      class="haisa-chat-line haisa-chat-line--speech haisa-speech-line pointer-events-auto"
+      [class.haisa-chat-line--inline]="!showAvatar && !reserveAvatarSpace"
       [style.gap.rem]="lineGapRem()"
     >
       @if (showAvatar) {
@@ -52,42 +53,61 @@ const DEFAULT_EMOTION_BY_TONE: Record<HaisaSpeechTone, HaisaEmotion> = {
         >
           <img [src]="avatarSrc()" alt="" class="haisa-avatar-image" aria-hidden="true" />
         </div>
+      } @else if (reserveAvatarSpace) {
+        <div
+          class="haisa-avatar haisa-avatar--placeholder"
+          [style.width.px]="avatarSizePx()"
+          [style.height.px]="avatarSizePx()"
+          [style.border-radius.px]="avatarRadiusPx()"
+          aria-hidden="true"
+        ></div>
       }
 
       <div
-        class="haisa-bubble ai border shadow-lg backdrop-blur"
+        class="haisa-bubble ai haisa-speech-bubble border shadow-lg backdrop-blur"
+        [class.haisa-bubble--compact]="compact"
+        [class.haisa-bubble--tail]="showAvatar"
+        [class.haisa-speech-bubble--highlight]="highlight"
+        [class.haisa-tone-neutral]="tone === 'neutral'"
+        [class.haisa-tone-info]="tone === 'info'"
+        [class.haisa-tone-success]="tone === 'success'"
+        [class.haisa-tone-warning]="tone === 'warning'"
+        [class.haisa-tone-error]="tone === 'error'"
         [style.padding]="bubblePadding()"
-        [class.border-slate-700/60]="tone === 'neutral'"
-        [class.border-sky-500/40]="tone === 'info'"
-        [class.border-emerald-500/40]="tone === 'success'"
-        [class.border-amber-500/40]="tone === 'warning'"
-        [class.border-rose-500/40]="tone === 'error'"
       >
-        <div class="flex items-start gap-3">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-3">
-              <div class="text-[10px] text-slate-400 font-semibold tracking-wider">
-                {{ speaker }}
-              </div>
-              @if (meta) {
-                <div class="text-[10px] text-slate-400 font-semibold">{{ meta }}</div>
-              }
+        <div class="haisa-bubble-header">
+          @if (showAvatar || !reserveAvatarSpace) {
+            <div class="haisa-speaker text-[10px] font-semibold tracking-wider">
+              {{ speaker }}
             </div>
-            @if (title) {
-              <div class="mt-1 text-sm font-semibold text-slate-100">{{ title }}</div>
-            }
-            <div class="mt-1 text-xs text-slate-200 whitespace-pre-line">{{ message }}</div>
-          </div>
-          @if (dismissible) {
-            <button
-              type="button"
-              class="text-xs text-slate-200/70 hover:text-slate-100"
-              (click)="dismissed.emit()"
-              [attr.aria-label]="dismissLabel"
-            >
-              ×
-            </button>
           }
+          <div class="haisa-bubble-header-actions">
+            @if (meta) {
+              <div class="haisa-meta text-[10px] font-semibold">{{ meta }}</div>
+            }
+            @if (dismissible) {
+              <button
+                type="button"
+                class="haisa-dismiss text-xs text-slate-200/70 hover:text-slate-100"
+                (click)="dismissed.emit()"
+                [attr.aria-label]="dismissLabel"
+              >
+                ×
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (title) {
+          <div class="haisa-title-row">
+            <div class="haisa-title text-sm font-semibold text-slate-100">{{ title }}</div>
+            @if (tag) {
+              <div class="haisa-tag text-[10px] font-semibold tracking-wider">{{ tag }}</div>
+            }
+          </div>
+        }
+        <div class="haisa-message mt-1 text-xs text-slate-200 whitespace-pre-line">
+          {{ message }}
         </div>
       </div>
     </div>
@@ -96,11 +116,14 @@ const DEFAULT_EMOTION_BY_TONE: Record<HaisaSpeechTone, HaisaEmotion> = {
 export class HaisaSpeechComponent {
   @Input({ required: true }) message = '';
   @Input() title?: string;
+  @Input() tag?: string;
   @Input() meta?: string;
   @Input() tone: HaisaSpeechTone = 'neutral';
   @Input() emotion?: HaisaEmotion;
   @Input() compact = false;
   @Input() showAvatar = true;
+  @Input() reserveAvatarSpace = false;
+  @Input() highlight = false;
   @Input() dismissible = false;
   @Input() dismissLabel = '閉じる';
   @Input() speaker = 'ハイサイくん';
@@ -122,7 +145,7 @@ export class HaisaSpeechComponent {
   }
 
   protected lineGapRem(): number {
-    if (!this.showAvatar) return 0;
+    if (!this.showAvatar && !this.reserveAvatarSpace) return 0;
     return this.compact ? 0.5 : 0.75;
   }
 
