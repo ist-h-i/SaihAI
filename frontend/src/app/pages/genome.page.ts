@@ -21,14 +21,11 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
       <div class="min-w-0">
         <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Genome DB</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">人材データベース</h2>
-        <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          スキル・稼働・リスク兆候を「一目で」把握できるように、人材情報を再構成します（カードは3Dフリップで詳細表示）。
-        </p>
       </div>
 
       <div class="hidden xl:block w-[360px] shrink-0">
         <div
-          class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
+          class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
         >
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">

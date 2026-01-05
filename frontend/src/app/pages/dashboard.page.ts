@@ -84,7 +84,7 @@ interface ClusterAccumulator {
 
       <div class="hidden xl:block w-[360px] shrink-0">
         <div
-          class="relative h-[160px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
+          class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
         >
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
