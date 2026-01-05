@@ -229,13 +229,39 @@ test('mobile flow supports input and approval', async ({ page }) => {
   await page.getByRole('button', { name: '介入（HITL）を開く' }).click();
   await expect(page.getByText('介入チェックポイント')).toBeVisible();
   const overlay = page.locator('.surface-overlay');
+  const scrollArea = overlay.locator('[data-overlay-scroll]');
+  await expect(scrollArea).toBeVisible();
   const { scrollWidth, clientWidth } = await overlay.evaluate((el) => ({
     scrollWidth: el.scrollWidth,
     clientWidth: el.clientWidth,
   }));
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2);
 
-  await page.getByRole('button', { name: '実行' }).click();
+  const planHeading = overlay.getByText('戦略プランの選択');
+  await planHeading.scrollIntoViewIfNeeded();
+  const planInView = await planHeading.evaluate((el) => {
+    const container = el.closest('[data-overlay-scroll]');
+    if (!container) return false;
+    const elRect = el.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    return elRect.top >= containerRect.top - 1 && elRect.bottom <= containerRect.bottom + 1;
+  });
+  expect(planInView).toBe(true);
+
+  const chatInput = overlay.getByPlaceholder('指示を入力（空欄で承認）');
+  await chatInput.scrollIntoViewIfNeeded();
+  const inputInView = await chatInput.evaluate((el) => {
+    const container = el.closest('[data-overlay-scroll]');
+    if (!container) return false;
+    const elRect = el.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    return elRect.top >= containerRect.top - 1 && elRect.bottom <= containerRect.bottom + 1;
+  });
+  expect(inputInView).toBe(true);
+
+  const executeButton = overlay.getByRole('button', { name: '実行' });
+  await executeButton.scrollIntoViewIfNeeded();
+  await executeButton.click();
   await expect(page.getByText('承認されました。実行します。')).toBeVisible();
   await expect(page.getByText('介入チェックポイント')).toBeHidden();
 });

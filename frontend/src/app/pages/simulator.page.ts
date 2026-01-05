@@ -435,8 +435,11 @@ interface ChatEntry {
               </button>
             </div>
 
-            <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-y-auto lg:overflow-hidden">
-              <div class="border-b lg:border-b-0 lg:border-r border-slate-800/80 overflow-hidden flex flex-col">
+            <div class="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden" data-overlay-scroll>
+              <div class="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-0 min-h-full">
+                <div
+                  class="border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col min-h-0 overflow-visible lg:overflow-hidden"
+                >
                 <div class="p-4 sm:p-5 border-b border-slate-800/80 bg-white/5">
                   <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                     {{ overlayKpiLabel() }}
@@ -456,7 +459,7 @@ interface ChatEntry {
                 >
                   Agent Log
                 </div>
-                <div class="flex-1 overflow-auto p-4 sm:p-5 space-y-2 font-mono text-xs">
+                <div class="p-4 sm:p-5 space-y-2 font-mono text-xs min-h-0 lg:flex-1 lg:overflow-auto">
                   @for (l of overlayLog(); track $index) {
                     <div class="flex items-start gap-3">
                       <span
@@ -474,7 +477,7 @@ interface ChatEntry {
                 </div>
               </div>
 
-              <div class="overflow-hidden flex flex-col">
+              <div class="flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
                 <div class="p-4 sm:p-5 border-b border-slate-800/80">
                   <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
                   @if (store.simulationResult(); as r) {
@@ -514,7 +517,7 @@ interface ChatEntry {
                   }
                 </div>
 
-                <div class="flex-1 overflow-hidden flex flex-col">
+                <div class="flex flex-col min-h-0 lg:flex-1 lg:overflow-hidden">
                   <div class="px-4 sm:px-5 py-3 border-b border-slate-800/80 flex items-center gap-3">
                     <div
                       class="haisa-avatar"
@@ -538,7 +541,7 @@ interface ChatEntry {
                       <div class="text-xs text-slate-300">AIの判断を共有します。</div>
                     </div>
                   </div>
-                  <div class="flex-1 overflow-auto p-4 sm:p-5 space-y-3">
+                  <div class="p-4 sm:p-5 space-y-3 min-h-0 lg:flex-1 lg:overflow-auto">
                     @for (m of overlayChat(); track $index) {
                       <div
                         class="haisa-chat-line"
