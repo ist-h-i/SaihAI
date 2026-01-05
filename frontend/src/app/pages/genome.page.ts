@@ -17,7 +17,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
 @Component({
   imports: [NeuralOrbComponent],
   template: `
-    <div class="flex items-start justify-between gap-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Genome DB</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">人材データベース</h2>
@@ -44,7 +44,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
 
     <div class="mt-6 grid gap-4 lg:grid-cols-3">
       <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="text-sm font-bold text-slate-100">Skill Genome Matrix</div>
           <div class="text-xs text-slate-400">スキルをクリックでフィルタ</div>
         </div>
@@ -130,7 +130,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
     </div>
 
     <div class="mt-6">
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="text-sm font-bold text-slate-100">Member Cards</div>
         <div class="text-xs text-slate-400">表示: {{ filteredMembers().length }} 件</div>
       </div>

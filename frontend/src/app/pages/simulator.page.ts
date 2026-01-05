@@ -56,7 +56,7 @@ interface ChatEntry {
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent],
   template: `
-    <h2 class="text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
+    <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
     <p class="mt-1 text-sm text-slate-300">
       案件と候補者を選び、AIの「未来予測」と介入プランを確認します。
     </p>
@@ -98,7 +98,7 @@ interface ChatEntry {
           </button>
         </div>
 
-        <div class="mt-2 grid gap-2">
+        <div class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
           @for (m of store.members(); track m.id) {
             <label
               class="flex items-start gap-3 rounded border border-slate-800 bg-slate-900/40 px-3 py-2"
@@ -406,15 +406,15 @@ interface ChatEntry {
       <div class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/70" (click)="closeOverlay()"></div>
         <div
-          class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(1100px,calc(100vw-3rem))] h-[min(760px,calc(100vh-3rem))] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
+          class="absolute inset-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full h-full sm:w-[min(1100px,calc(100vw-3rem))] sm:h-[min(760px,calc(100vh-3rem))] rounded-none sm:rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
         >
           <app-neural-orb class="absolute inset-0 opacity-30"></app-neural-orb>
 
           <div class="relative h-full flex flex-col">
             <div
-              class="h-14 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-5 flex items-center justify-between"
+              class="min-h-12 sm:min-h-14 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-4 sm:px-5 py-2 sm:py-3 flex items-start sm:items-center justify-between gap-3"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
                 <div
                   class="px-3 py-1 rounded-full text-xs font-extrabold tracking-wide text-white status-indicator"
                   [class.bg-rose-500]="overlayMode() === 'alert'"
@@ -424,25 +424,28 @@ interface ChatEntry {
                 >
                   {{ overlayMode() === 'alert' ? 'ALERT ACTIVE' : 'MANUAL MODE' }}
                 </div>
-                <div class="font-bold text-slate-100">介入チェックポイント</div>
+                <div class="font-bold text-slate-100 leading-tight">介入チェックポイント</div>
               </div>
               <button
                 type="button"
-                class="text-slate-300 hover:text-white text-2xl leading-none"
+                class="text-slate-300 hover:text-white text-2xl leading-none shrink-0"
                 (click)="closeOverlay()"
               >
                 ×
               </button>
             </div>
 
-            <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
-              <div class="border-r border-slate-800/80 overflow-hidden flex flex-col">
-                <div class="p-5 border-b border-slate-800/80 bg-white/5">
+            <div class="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden" data-overlay-scroll>
+              <div class="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-0 min-h-full">
+                <div
+                  class="border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col min-h-0 overflow-visible lg:overflow-hidden"
+                >
+                <div class="p-4 sm:p-5 border-b border-slate-800/80 bg-white/5">
                   <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                     {{ overlayKpiLabel() }}
                   </div>
                   <div
-                    class="mt-1 text-4xl font-extrabold tracking-tight"
+                    class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight"
                     [class.text-rose-200]="overlayMode() === 'alert'"
                     [class.text-emerald-200]="overlayMode() !== 'alert'"
                   >
@@ -452,11 +455,11 @@ interface ChatEntry {
                 </div>
 
                 <div
-                  class="px-5 py-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800/80"
+                  class="px-4 sm:px-5 py-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800/80"
                 >
                   Agent Log
                 </div>
-                <div class="flex-1 overflow-auto p-5 space-y-2 font-mono text-xs">
+                <div class="p-4 sm:p-5 space-y-2 font-mono text-xs min-h-0 lg:flex-1 lg:overflow-auto">
                   @for (l of overlayLog(); track $index) {
                     <div class="flex items-start gap-3">
                       <span
@@ -468,17 +471,17 @@ interface ChatEntry {
                       >
                         {{ l.agent }}
                       </span>
-                      <span class="text-slate-200">{{ l.text }}</span>
+                      <span class="text-slate-200 flex-1 min-w-0 break-words">{{ l.text }}</span>
                     </div>
                   }
                 </div>
               </div>
 
-              <div class="overflow-hidden flex flex-col">
-                <div class="p-5 border-b border-slate-800/80">
+              <div class="flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-800/80">
                   <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
                   @if (store.simulationResult(); as r) {
-                    <div class="mt-3 grid gap-3 md:grid-cols-3">
+                    <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                       @for (p of r.plans; track p.id) {
                         <button
                           type="button"
@@ -495,7 +498,7 @@ interface ChatEntry {
                               AI推奨
                             </div>
                           }
-                          <div class="font-extrabold text-slate-100">
+                          <div class="font-extrabold text-slate-100 break-words">
                             Plan {{ p.planType }}: {{ p.summary }}
                           </div>
                           <div class="mt-2 text-xs text-slate-300">
@@ -514,8 +517,8 @@ interface ChatEntry {
                   }
                 </div>
 
-                <div class="flex-1 overflow-hidden flex flex-col">
-                  <div class="px-5 py-3 border-b border-slate-800/80 flex items-center gap-3">
+                <div class="flex flex-col min-h-0 lg:flex-1 lg:overflow-hidden">
+                  <div class="px-4 sm:px-5 py-3 border-b border-slate-800/80 flex items-center gap-3">
                     <div
                       class="haisa-avatar"
                       [attr.data-emotion]="haisaEmotionLabel(overlayHaisaEmotion())"
@@ -538,7 +541,7 @@ interface ChatEntry {
                       <div class="text-xs text-slate-300">AIの判断を共有します。</div>
                     </div>
                   </div>
-                  <div class="flex-1 overflow-auto p-5 space-y-3">
+                  <div class="p-4 sm:p-5 space-y-3 min-h-0 lg:flex-1 lg:overflow-auto">
                     @for (m of overlayChat(); track $index) {
                       <div
                         class="haisa-chat-line"
@@ -546,7 +549,7 @@ interface ChatEntry {
                         [class.justify-start]="m.from !== 'user'"
                       >
                         <div
-                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble"
+                          class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble break-words"
                           [class.bg-indigo-600]="m.from === 'user'"
                           [class.text-white]="m.from === 'user'"
                           [class.border-indigo-500/40]="m.from === 'user'"
@@ -561,18 +564,18 @@ interface ChatEntry {
                     }
                   </div>
 
-                  <div class="p-5 border-t border-slate-800/80 flex gap-3 items-center">
+                  <div class="p-4 sm:p-5 border-t border-slate-800/80 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                     <input
                       #chatInput
                       type="text"
-                      class="flex-1 bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-indigo-500/60"
+                      class="w-full sm:flex-1 bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-indigo-500/60"
                       placeholder="指示を入力（空欄で承認）"
                       (keydown.enter)="sendChat(chatInput.value); chatInput.value = ''"
                       autocomplete="off"
                     />
                     <button
                       type="button"
-                      class="px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm"
+                      class="w-full sm:w-auto px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm"
                       (click)="sendChat(chatInput.value); chatInput.value = ''"
                     >
                       実行
@@ -583,6 +586,7 @@ interface ChatEntry {
             </div>
           </div>
         </div>
+      </div>
       </div>
     }
   `,
