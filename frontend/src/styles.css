@@ -959,6 +959,10 @@ app-root {
   align-items: flex-start;
 }
 
+.haisa-speech-line {
+  padding: 0.3rem 0.35rem;
+}
+
 .haisa-avatar {
   width: 80px;
   height: 80px;

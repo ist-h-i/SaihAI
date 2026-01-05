@@ -38,7 +38,10 @@ const DEFAULT_EMOTION_BY_TONE: Record<HaisaSpeechTone, HaisaEmotion> = {
 @Component({
   selector: 'app-haisa-speech',
   template: `
-    <div class="haisa-chat-line pointer-events-auto" [style.gap.rem]="lineGapRem()">
+    <div
+      class="haisa-chat-line haisa-speech-line pointer-events-auto"
+      [style.gap.rem]="lineGapRem()"
+    >
       @if (showAvatar) {
         <div
           class="haisa-avatar"
