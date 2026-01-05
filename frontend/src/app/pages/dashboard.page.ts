@@ -70,7 +70,7 @@ interface ClusterAccumulator {
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent],
   template: `
-    <div class="flex items-start justify-between gap-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
           Shadow Dashboard
@@ -133,7 +133,7 @@ interface ClusterAccumulator {
         <div class="text-sm font-semibold text-slate-200">アクティブなアラート</div>
         <button
           type="button"
-          class="mt-2 w-full text-left rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 p-4 flex items-center gap-4"
+          class="mt-2 w-full text-left rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 p-4 flex flex-col sm:flex-row sm:items-center gap-4"
           (click)="goSimulator('alert')"
         >
           <div
@@ -145,7 +145,7 @@ interface ClusterAccumulator {
             <div class="text-base font-bold truncate">{{ alert.title }}</div>
             <div class="text-sm text-slate-300 truncate">{{ alert.subtitle }}</div>
           </div>
-          <div class="ml-auto text-right">
+          <div class="sm:ml-auto text-left sm:text-right">
             <div class="text-xs text-slate-400 font-semibold">RISK</div>
             <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
           </div>

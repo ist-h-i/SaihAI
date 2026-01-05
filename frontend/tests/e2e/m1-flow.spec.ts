@@ -184,3 +184,52 @@ test('login -> dashboard -> simulator evaluate -> generate', async ({ page }) =>
   await expect(page.getByText('要件カバー率')).toBeVisible();
   await expect(page.getByText('Plan A')).toBeVisible();
 });
+
+test('mobile flow supports input and approval', async ({ page }) => {
+  await routeConfig(page);
+
+  await page.route('**/mock-api/auth/login', (route) => {
+    route.fulfill({ json: { access_token: 'token-123', token_type: 'bearer' } });
+  });
+  await page.route('**/mock-api/dashboard/initial', (route) => {
+    route.fulfill({ json: dashboardPayload });
+  });
+  await page.route('**/mock-api/projects', (route) => {
+    route.fulfill({ json: sampleProjects });
+  });
+  await page.route('**/mock-api/members', (route) => {
+    route.fulfill({ json: sampleMembers });
+  });
+  await page.route('**/mock-api/simulations/evaluate', (route) => {
+    route.fulfill({ json: evaluationPayload });
+  });
+  await page.route('**/mock-api/simulations/**/plans/generate', (route) => {
+    route.fulfill({ json: plansPayload });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto('/login');
+  await page.getByPlaceholder('例: tanaka').fill('m1');
+  await page.getByPlaceholder('dev password').fill('saihai');
+  await page.getByRole('button', { name: 'ログイン' }).click();
+
+  await expect(page.getByRole('button', { name: 'メニュー' })).toBeVisible();
+  await page.getByRole('button', { name: 'メニュー' }).click();
+  await expect(page.getByRole('dialog', { name: 'ナビゲーション' })).toBeVisible();
+  await page.getByRole('link', { name: '戦術シミュレーター' }).click();
+
+  await expect(page).toHaveURL(/simulator/);
+  await page.getByRole('combobox').selectOption('alpha');
+  await page.getByText('Aki').click();
+  await page.getByText('Rin').click();
+  await page.getByRole('main').getByRole('button', { name: 'AI自動編成', exact: true }).click();
+
+  await expect(page.getByText('3プラン（A/B/C）')).toBeVisible();
+  await page.getByRole('button', { name: '介入（HITL）を開く' }).click();
+  await expect(page.getByText('介入チェックポイント')).toBeVisible();
+
+  await page.getByRole('button', { name: '実行' }).click();
+  await expect(page.getByText('承認されました。実行します。')).toBeVisible();
+  await expect(page.getByText('介入チェックポイント')).toBeHidden();
+});
