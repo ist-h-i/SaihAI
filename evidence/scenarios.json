@@ -10,6 +10,11 @@
     "assertText": "タスクリスト"
   },
   {
+    "name": "uiux improvement plan doc presence",
+    "inlineHtml": "<html><body><h1>Docs Link Check</h1><a href='docs/uiux-improvement-plan.md'>docs/uiux-improvement-plan.md</a><p>UI/UX 大規模改善計画</p></body></html>",
+    "assertText": "UI/UX 大規模改善計画"
+  },
+  {
     "name": "api error toast presence",
     "inlineHtml": "<html><body><div role='status'>APIエラー</div><p>APIエラー (500): boom</p></body></html>",
     "assertText": "APIエラー"
