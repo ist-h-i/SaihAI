@@ -8,13 +8,10 @@ export class NeuralOrbComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) private readonly canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private rafId: number | null = null;
-  private pointer = { x: 0, y: 0 };
-  private onPointerMove: ((e: PointerEvent) => void) | null = null;
   private gl: WebGLRenderingContext | WebGL2RenderingContext | null = null;
   private program: WebGLProgram | null = null;
   private uTime: WebGLUniformLocation | null = null;
   private uRes: WebGLUniformLocation | null = null;
-  private uPtr: WebGLUniformLocation | null = null;
 
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;
@@ -34,56 +31,87 @@ export class NeuralOrbComponent implements AfterViewInit, OnDestroy {
       precision highp float;
       uniform vec2 u_res;
       uniform float u_time;
-      uniform vec2 u_ptr;
 
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); }
-      float noise(vec2 p){
-        vec2 i = floor(p), f = fract(p);
-        float a = hash(i);
-        float b = hash(i + vec2(1.0, 0.0));
-        float c = hash(i + vec2(0.0, 1.0));
-        float d = hash(i + vec2(1.0, 1.0));
-        vec2 u = f*f*(3.0-2.0*f);
-        return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+      vec2 hash2(vec2 p){
+        return fract(sin(vec2(dot(p, vec2(127.1,311.7)), dot(p, vec2(269.5,183.3)))) * 43758.5453123);
       }
 
-      mat2 rot(float a){ float s=sin(a), c=cos(a); return mat2(c,-s,s,c); }
+      vec2 starPos(vec2 cell){
+        vec2 rnd = hash2(cell);
+        return cell + rnd * 0.75 + 0.125;
+      }
 
-      void main(){
-        vec2 frag = gl_FragCoord.xy;
-        vec2 uv = (frag - 0.5*u_res) / u_res.y;
+      float lineDist(vec2 p, vec2 a, vec2 b){
+        vec2 ba = b - a;
+        float h = clamp(dot(p - a, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
+        return length((p - a) - ba * h);
+      }
 
-        float t = u_time;
-        float px = (u_ptr.x*0.5 + 0.5);
-        float py = (u_ptr.y*0.5 + 0.5);
-        uv *= rot((px-0.5)*0.35);
-        uv.y += (py-0.5)*0.18;
+      vec2 starLayer(vec2 uv, float scale, float time){
+        vec2 p = uv * scale;
+        vec2 cell = floor(p);
+        float stars = 0.0;
+        float lines = 0.0;
 
-        float r = length(uv);
-        vec3 col = mix(vec3(0.03,0.06,0.15), vec3(0.06,0.02,0.14), smoothstep(-0.2, 1.2, r));
-
-        float radius = 0.62;
-        float inside = smoothstep(radius, radius-0.01, r);
-        if(inside > 0.0){
-          float z = sqrt(max(0.0, radius*radius - r*r));
-          vec3 n = normalize(vec3(uv, z));
-
-          float swirl = noise(n.xy*6.0 + vec2(t*0.25, -t*0.2));
-          float bands = abs(sin((n.x*3.0 + n.y*4.0 + swirl*2.0 + t*0.8) * 3.1415));
-          float wires = smoothstep(0.85, 1.0, bands);
-
-          vec3 lightDir = normalize(vec3(0.2, 0.4, 1.0));
-          float diff = max(0.0, dot(n, lightDir));
-          float rim = pow(1.0 - max(0.0, dot(n, vec3(0.0,0.0,1.0))), 2.2);
-
-          vec3 base = vec3(0.15, 0.35, 0.95) * diff + vec3(0.85, 0.2, 0.95) * (0.25 + 0.75*wires);
-          col = mix(col, base, inside);
-          col += vec3(0.2,0.6,1.0) * (0.35*rim);
-          col += vec3(1.0,0.4,0.95) * (0.12*wires);
+        for (int y = -1; y <= 1; y++) {
+          for (int x = -1; x <= 1; x++) {
+            vec2 id = cell + vec2(float(x), float(y));
+            vec2 sp = starPos(id);
+            float d = length(p - sp);
+            float strength = 0.35 + 0.65 * hash(id + 2.7);
+            float twinkle = 0.95 + 0.05 * sin(time * 0.25 + hash(id) * 6.2831);
+            float spark = 1.0 - smoothstep(0.0, 0.08, d);
+            stars += pow(spark, 1.6) * strength * twinkle;
+          }
         }
 
-        float glow = exp(-2.2 * r) * 0.55;
-        col += vec3(0.35, 0.7, 1.0) * glow;
+        vec2 s0 = starPos(cell);
+        vec2 s1 = starPos(cell + vec2(1.0, 0.0));
+        vec2 s2 = starPos(cell + vec2(0.0, 1.0));
+        vec2 s3 = starPos(cell + vec2(1.0, 1.0));
+        vec2 s4 = starPos(cell + vec2(-1.0, 1.0));
+
+        float l1 = 1.0 - smoothstep(0.7, 1.4, length(s1 - s0));
+        float l2 = 1.0 - smoothstep(0.7, 1.4, length(s2 - s0));
+        float l3 = 1.0 - smoothstep(0.7, 1.4, length(s3 - s0));
+        float l4 = 1.0 - smoothstep(0.7, 1.4, length(s4 - s0));
+
+        float d1 = 1.0 - smoothstep(0.0, 0.05, lineDist(p, s0, s1));
+        float d2 = 1.0 - smoothstep(0.0, 0.05, lineDist(p, s0, s2));
+        float d3 = 1.0 - smoothstep(0.0, 0.05, lineDist(p, s0, s3));
+        float d4 = 1.0 - smoothstep(0.0, 0.05, lineDist(p, s0, s4));
+
+        lines += l1 * d1;
+        lines += l2 * d2;
+        lines += l3 * d3;
+        lines += l4 * d4;
+
+        return vec2(stars, lines);
+      }
+
+      void main(){
+        vec2 uv = gl_FragCoord.xy / u_res.xy;
+        vec2 p = uv - 0.5;
+        p.x *= u_res.x / u_res.y;
+
+        float vignette = smoothstep(1.2, 0.2, length(p));
+        vec3 base = vec3(0.02, 0.03, 0.06) + vec3(0.04, 0.06, 0.1) * vignette;
+        base += vec3(0.015, 0.025, 0.05) * (1.0 - uv.y);
+
+        float driftT = u_time * 0.06;
+        vec2 drift1 = vec2(sin(driftT), cos(driftT * 0.8)) * 0.035;
+        vec2 drift2 = vec2(sin(driftT * 0.7 + 1.3), cos(driftT * 0.6 + 0.7)) * 0.05;
+
+        vec2 layer1 = starLayer(p + drift1, 5.0, u_time);
+        vec2 layer2 = starLayer(p + vec2(0.21, 0.15) + drift2, 9.0, u_time * 0.7);
+
+        float stars = layer1.x * 0.55 + layer2.x * 0.25;
+        float lines = layer1.y * 0.35 + layer2.y * 0.2;
+
+        vec3 col = base;
+        col += vec3(0.35, 0.55, 0.85) * lines * 0.35;
+        col += vec3(0.8, 0.9, 1.0) * stars * 0.5;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -102,25 +130,11 @@ export class NeuralOrbComponent implements AfterViewInit, OnDestroy {
 
     this.uTime = gl.getUniformLocation(program, 'u_time');
     this.uRes = gl.getUniformLocation(program, 'u_res');
-    this.uPtr = gl.getUniformLocation(program, 'u_ptr');
-
-    const onPointerMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / Math.max(1, rect.width);
-      const y = (e.clientY - rect.top) / Math.max(1, rect.height);
-      this.pointer = { x: x * 2 - 1, y: (1 - y) * 2 - 1 };
-    };
-    this.onPointerMove = onPointerMove;
-    canvas.addEventListener('pointermove', onPointerMove);
 
     this.rafId = requestAnimationFrame((ts) => this.render(ts));
   }
 
   ngOnDestroy(): void {
-    if (this.onPointerMove) {
-      this.canvasRef.nativeElement.removeEventListener('pointermove', this.onPointerMove);
-      this.onPointerMove = null;
-    }
     if (this.rafId != null) cancelAnimationFrame(this.rafId);
     this.rafId = null;
     this.gl = null;
@@ -145,7 +159,6 @@ export class NeuralOrbComponent implements AfterViewInit, OnDestroy {
     gl.useProgram(program);
     gl.uniform1f(this.uTime, ts / 1000);
     gl.uniform2f(this.uRes, canvas.width, canvas.height);
-    gl.uniform2f(this.uPtr, this.pointer.x, this.pointer.y);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     this.rafId = requestAnimationFrame((t) => this.render(t));

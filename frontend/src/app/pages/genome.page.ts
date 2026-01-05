@@ -140,11 +140,16 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
 
       <div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (m of filteredMembers(); track m.id) {
-          <div class="group perspective-1000">
+          <div
+            class="group perspective-1000 rounded-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950/70"
+            tabindex="0"
+          >
             <div
-              class="relative preserve-3d transition-transform duration-700 group-hover:[transform:rotateY(180deg)]"
+              class="relative preserve-3d transition-transform duration-700 group-hover:[transform:rotateY(180deg)] group-focus-within:[transform:rotateY(180deg)]"
             >
-              <div class="backface-hidden rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+              <div
+                class="backface-hidden rounded-xl border border-slate-800 bg-slate-950/40 p-4 min-h-[260px] flex flex-col"
+              >
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <div class="font-extrabold text-slate-100 truncate">{{ m.name }}</div>
@@ -161,13 +166,13 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                 <div class="mt-3 flex flex-wrap gap-2">
                   @for (s of previewSkills(m); track s) {
                     <span
-                      class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200"
+                      class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200 max-w-full break-words"
                       >{{ s }}</span
                     >
                   }
                 </div>
 
-                <div class="mt-4 flex items-center justify-between">
+                <div class="mt-auto flex items-center justify-between">
                   <div
                     class="text-[11px] px-2 py-1 rounded-full border font-bold"
                     [class.border-rose-500/40]="isRisky(m)"
@@ -184,16 +189,18 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               </div>
 
               <div
-                class="backface-hidden absolute inset-0 rounded-xl border border-slate-800 bg-slate-950/60 p-4 [transform:rotateY(180deg)]"
+                class="backface-hidden absolute inset-0 rounded-xl border border-slate-800 bg-slate-950/60 p-4 pr-3 [transform:rotateY(180deg)] overflow-y-auto overflow-x-hidden"
               >
                 <div class="text-sm font-extrabold text-slate-100">Notes</div>
-                <div class="mt-2 text-xs text-slate-300 leading-relaxed">{{ m.notes }}</div>
+                <div class="mt-2 text-xs text-slate-300 leading-relaxed break-words">
+                  {{ m.notes }}
+                </div>
                 <div class="mt-4">
                   <div class="text-xs text-slate-400 font-semibold">Skills</div>
                   <div class="mt-2 flex flex-wrap gap-2">
                     @for (s of m.skills; track s) {
                       <span
-                        class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200"
+                        class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200 max-w-full break-words"
                         >{{ s }}</span
                       >
                     }
