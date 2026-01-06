@@ -18,7 +18,7 @@ test.describe('Docs: uiux-improvement-plan.md', () => {
       '影響',
       '根拠',
       '文字情報削減',
-      'ハイサイくん',
+      'サイハイくん',
       'emotion',
       'トーン&マナー',
       'ロードマップ',
@@ -31,4 +31,3 @@ test.describe('Docs: uiux-improvement-plan.md', () => {
     expect(doc).not.toContain('TBD');
   });
 });
-
