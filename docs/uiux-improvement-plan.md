@@ -27,8 +27,8 @@
 - サイハイくんの発話 UI は `app-haisa-speech`（`frontend/src/app/components/haisa-speech.component.ts`）。
   - `tone`（`neutral|info|success|warning|error`）→デフォルト `emotion` の割当あり。
 - `frontend/src/app/pages/simulator.page.ts` には別の `HaisaEmotion` 定義と画像マッピングがあり、表情体系が重複。
-- 画像アセットが `frontend/src/assets/haisaikun` と `frontend/public/haisaikun` に分散し、命名揺れ（例: `exprosion.png`）が存在。
-  - 現状の Angular `assets` 設定では `public/` は favicon のみコピーしており、`public/haisaikun` は配信対象外（`frontend/angular.json`）。
+- 画像アセットが `frontend/src/assets/saihaikun` と `frontend/public/saihaikun` に分散し、命名揺れ（例: `exprosion.png`）が存在。
+  - 現状の Angular `assets` 設定では `public/` は favicon のみコピーしており、`public/saihaikun` は配信対象外（`frontend/angular.json`）。
 - Tailwind のテーマ拡張は未整備（`frontend/tailwind.config.js` の `extend` が空）。一方で `frontend/src/styles.css` には CSS 変数（`--surface-*`）など独自トークンが存在。
 
 ---
@@ -76,7 +76,7 @@
 - 影響: 違和感、信頼感の低下、キャラクター活用が逆効果になる。
 - 根拠:
   - `frontend/src/app/components/haisa-speech.component.ts` と `frontend/src/app/pages/simulator.page.ts` の定義重複。
-  - `frontend/src/assets/haisaikun` と `frontend/public/haisaikun` の分散。
+  - `frontend/src/assets/saihaikun` と `frontend/public/saihaikun` の分散。
 
 ---
 
@@ -200,7 +200,7 @@
 - 根拠:
   - `frontend/src/app/components/haisa-speech.component.ts`
   - `frontend/src/app/pages/simulator.page.ts`
-  - `frontend/src/assets/haisaikun/*`, `frontend/public/haisaikun/*`
+  - `frontend/src/assets/saihaikun/*`, `frontend/public/saihaikun/*`
 
 ### 目標（Haisa UX 原則）
 
@@ -210,7 +210,7 @@
 
 ### emotion 体系（提案）
 
-まずは既に UI 上で使われている画像（`frontend/src/assets/haisaikun`）を正とし、そこに統一します。
+まずは既に UI 上で使われている画像（`frontend/src/assets/saihaikun`）を正とし、そこに統一します。
 
 | emotion | ラベル（表示名） | 想定シーン | 既存画像 |
 |---|---|---|---|
@@ -224,7 +224,7 @@
 | `haste` | 焦り | 緊急対応/期限 | `haste.png` |
 | `explosion` | 爆発 | 重大アラート/危機 | `explosion.png` |
 
-> `frontend/public/haisaikun/*` にある追加画像（`excited.png`, `trouble.png` 等）は、配信対象外かつ用途が未定義のため、まずは整理対象として棚卸し（後述）。
+> `frontend/public/saihaikun/*` にある追加画像（`excited.png`, `trouble.png` 等）は、配信対象外かつ用途が未定義のため、まずは整理対象として棚卸し（後述）。
 
 ### 割当ルール（tone/状態/イベント → emotion）
 
@@ -246,7 +246,7 @@
   - `HaisaEmotion` の型、ラベル、画像マッピング、デフォルト割当を `frontend/src/app/core/haisa-emotion.ts` に集約。
   - `HaisaSpeechComponent` と `/simulator` のオーバーレイが同じ定義を参照。
 - アセット整理:
-  - `frontend/src/assets/haisaikun/` に統一し、`public/haisaikun/` は棚卸し後に削除/移動。
+  - `frontend/src/assets/saihaikun/` に統一し、`public/saihaikun/` は棚卸し後に削除/移動。
   - 命名は `kebab` ではなく現行（`standard.png` 等）を維持し、`exprosion.png` は `explosion.png` に正規化（参照箇所も修正）。
 
 ---
@@ -324,7 +324,7 @@ Tailwind の `theme.extend` を使い、色/余白/影/角丸/フォーカスを
 - `/simulator`: Stepper 追加、実行状態の段階化、介入オーバーレイを「見る→選ぶ→指示→承認」に分割。
 - `/genome`: Hover 依存を廃止し、クリックで詳細パネルを開く UI に変更。
 - `/login`: コピー量を圧縮し、フォーム内に “この環境でできること” を集約。
-- サイハイくん: emotion 定義を `frontend/src/app/core/haisa-emotion.ts` に集約し、アセットを `frontend/src/assets/haisaikun` に統一。
+- サイハイくん: emotion 定義を `frontend/src/app/core/haisa-emotion.ts` に集約し、アセットを `frontend/src/assets/saihaikun` に統一。
 - Tailwind トークン（色/影/角丸/余白/フォーカス）を `frontend/tailwind.config.js` と CSS 変数で整備。
 - Playwright 証跡シナリオに UI 主要導線を追加（`evidence/scenarios.json`）。
 
