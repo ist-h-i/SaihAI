@@ -165,6 +165,7 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - AWS_BEDROCK_MODEL_ID: 利用モデル ID（例は `STRANDS_BEDROCK.md` を参照）
 - SAIHAI_API_BASE_URL: Frontend が参照する API base URL（`npm start`/`npm run build` で `src/assets/runtime-config.json` に反映）
 - SAIHAI_AUTH_TOKEN: Frontend が付与する開発用 Bearer トークン（任意）
+- SAIHAI_LOGIN_TIMEOUT_MS: ログインのタイムアウト時間（ミリ秒、任意）
 - SAIHAI_LOG_LEVEL / SAIHAI_LOG_TO_SERVER / SAIHAI_SERVER_LOG_LEVEL: フロントのログ設定（任意）
 - DATABASE_URL: AWS PostgreSQL + pgvector の接続文字列
 - LOG_LEVEL / LOG_FILE / LOG_HTTP_REQUESTS: Backend のログ設定（任意）

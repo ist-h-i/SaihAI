@@ -40,6 +40,7 @@ const DEFAULT_API_BASE_URL = 'http://localhost:8000/api/v1';
 
 const apiBaseUrl = (process.env.SAIHAI_API_BASE_URL || '').trim() || DEFAULT_API_BASE_URL;
 const authToken = (process.env.SAIHAI_AUTH_TOKEN || '').trim();
+const loginTimeoutMs = Number.parseInt((process.env.SAIHAI_LOGIN_TIMEOUT_MS || '').trim(), 10);
 const logLevel = (process.env.SAIHAI_LOG_LEVEL || '').trim().toLowerCase();
 const logToServer = (process.env.SAIHAI_LOG_TO_SERVER || '').trim().toLowerCase();
 const serverLogLevel = (process.env.SAIHAI_SERVER_LOG_LEVEL || '').trim().toLowerCase();
@@ -47,6 +48,7 @@ const serverLogLevel = (process.env.SAIHAI_SERVER_LOG_LEVEL || '').trim().toLowe
 const config = {
   apiBaseUrl,
   authToken,
+  loginTimeoutMs: Number.isFinite(loginTimeoutMs) ? loginTimeoutMs : undefined,
   logLevel: logLevel || undefined,
   logToServer: logToServer || undefined,
   serverLogLevel: serverLogLevel || undefined,
