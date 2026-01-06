@@ -93,7 +93,7 @@ export class HaisaSpeechComponent {
   @Input() highlight = false;
   @Input() dismissible = false;
   @Input() dismissLabel = '閉じる';
-  @Input() speaker = 'ハイサイくん';
+  @Input() speaker = 'サイハイくん';
 
   @Output() dismissed = new EventEmitter<void>();
 

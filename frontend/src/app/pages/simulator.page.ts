@@ -686,7 +686,7 @@ interface ChatEntry {
                         </div>
                         <div class="min-w-0">
                           <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                            ハイサイくん
+                            サイハイくん
                           </div>
                           <div class="text-xs text-slate-300">指示をまとめて共有します。</div>
                         </div>
