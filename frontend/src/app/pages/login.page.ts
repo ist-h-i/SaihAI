@@ -61,8 +61,16 @@ import { AuthTokenStore } from '../core/auth-token.store';
               意思決定の余白を、AIが守る
             </h1>
             <p class="mt-3 text-sm text-slate-300 max-w-lg">
-              兆候だけを拾い、介入のカードを静かに並べます。あなたは最後の直感で合図を選ぶだけ。
+              兆候だけを拾い、介入のカードを静かに並べます。
             </p>
+            <details class="mt-2 text-xs text-slate-400">
+              <summary class="cursor-pointer list-none font-semibold text-slate-300">
+                さらに詳しく
+              </summary>
+              <div class="mt-2">
+                あなたは最後の直感で合図を選ぶだけ。決裁までの時間を短くします。
+              </div>
+            </details>
           </div>
 
           <div class="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 overflow-hidden">
@@ -159,12 +167,6 @@ import { AuthTokenStore } from '../core/auth-token.store';
             </div>
           </div>
 
-          <app-haisa-speech
-            [tone]="'info'"
-            [emotion]="'hope'"
-            [message]="'今日も静かに見守っています。'"
-            [compact]="true"
-          />
         </div>
 
         <div class="order-1 w-full max-w-md lg:order-2">
@@ -185,10 +187,25 @@ import { AuthTokenStore } from '../core/auth-token.store';
             <div class="mt-3">
               <app-haisa-speech
                 [tone]="'info'"
-                [message]="'開発用アカウントでログインして、シャドー・ダッシュボードを開始します。'"
+                [message]="'入力したらログインを押してください。'"
                 [compact]="true"
                 [showAvatar]="false"
               />
+            </div>
+
+            <div class="mt-4 grid gap-2 text-xs text-slate-400">
+              <div class="flex items-center gap-2">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                Watchdog が異常兆候を監視
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>
+                介入プランを即時提示
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="h-1.5 w-1.5 rounded-full bg-indigo-400"></span>
+                1クリックで承認フローへ
+              </div>
             </div>
 
             <div class="mt-6 space-y-4">
@@ -197,7 +214,7 @@ import { AuthTokenStore } from '../core/auth-token.store';
                   User ID
                 </label>
                 <input
-                  class="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                  class="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-400/20"
                   placeholder="例: tanaka"
                   [value]="userId()"
                   (input)="onUserInput($event)"
@@ -210,7 +227,7 @@ import { AuthTokenStore } from '../core/auth-token.store';
                 </label>
                 <input
                   type="password"
-                  class="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                  class="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-400/20"
                   placeholder="dev password"
                   [value]="password()"
                   (input)="onPasswordInput($event)"

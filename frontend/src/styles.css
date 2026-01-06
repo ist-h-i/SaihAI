@@ -4,10 +4,19 @@
 
 :root {
   color-scheme: dark;
+  --brand-primary: #4f46e5;
+  --brand-accent: #22d3ee;
+  --brand-ember: #fbbf24;
+  --brand-success: #10b981;
+  --brand-warning: #f59e0b;
+  --brand-danger: #f43f5e;
+  --focus-ring: rgba(99, 102, 241, 0.45);
   --surface-panel: rgba(15, 23, 42, 0.94);
   --surface-muted: rgba(15, 23, 42, 0.82);
   --surface-border: rgba(94, 106, 210, 0.55);
   --surface-overlay: rgba(2, 6, 23, 0.92);
+  --shadow-panel: 0 25px 45px rgba(2, 6, 23, 0.55);
+  --shadow-panel-hover: 0 35px 60px rgba(2, 6, 23, 0.55);
 }
 
 html,
@@ -42,19 +51,76 @@ app-root {
 .surface-panel {
   background: var(--surface-panel);
   border-color: var(--surface-border);
-  box-shadow: 0 25px 45px rgba(2, 6, 23, 0.55);
+  box-shadow: var(--shadow-panel);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .surface-panel:hover {
   transform: translateY(-2px);
-  box-shadow: 0 35px 60px rgba(2, 6, 23, 0.55);
+  box-shadow: var(--shadow-panel-hover);
 }
 
 .surface-overlay {
   background: var(--surface-overlay);
   border-color: rgba(148, 163, 184, 0.4);
   box-shadow: 0 35px 60px rgba(2, 6, 23, 0.6);
+}
+
+@layer components {
+  .ui-panel {
+    @apply rounded-xl border border-slate-800 bg-slate-950/40 p-4;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .ui-panel-muted {
+    @apply rounded-xl border border-slate-800 bg-slate-950/25 p-4;
+  }
+
+  .ui-panel-interactive {
+    @apply rounded-xl border border-slate-800 bg-slate-950/40 p-4 transition;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .ui-panel-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-panel-hover);
+  }
+
+  .ui-kicker {
+    @apply text-[11px] text-slate-400 font-bold uppercase tracking-wider;
+  }
+
+  .ui-section-title {
+    @apply text-sm font-semibold text-slate-200;
+  }
+
+  .ui-section-subtitle {
+    @apply text-xs text-slate-400;
+  }
+
+  .ui-button-primary {
+    @apply inline-flex items-center justify-center px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm;
+  }
+
+  .ui-button-secondary {
+    @apply inline-flex items-center justify-center px-3 py-2 rounded-lg border border-slate-800 bg-white/5 text-slate-200 hover:bg-white/10 text-sm font-semibold;
+  }
+
+  .ui-button-ghost {
+    @apply inline-flex items-center justify-center px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 text-sm font-semibold;
+  }
+
+  .ui-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950/70;
+  }
+
+  .ui-empty {
+    @apply rounded-xl border border-dashed border-slate-800 bg-slate-950/30 p-4;
+  }
+
+  .ui-pill {
+    @apply text-[10px] font-semibold uppercase tracking-wider rounded-full border px-2 py-1;
+  }
 }
 
 .timeline-list {

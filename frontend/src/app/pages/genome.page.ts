@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
+import { EmptyStateComponent } from '../components/empty-state.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { SimulatorStore } from '../core/simulator-store';
 import { Member } from '../core/types';
@@ -15,18 +16,19 @@ function hasAny(haystack: string, words: readonly string[]): boolean {
 const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '噂', '炎上'] as const;
 
 @Component({
-  imports: [NeuralOrbComponent],
+  imports: [NeuralOrbComponent, EmptyStateComponent],
   template: `
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
-        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Genome DB</div>
+        <div class="ui-kicker">Genome DB</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">人材データベース</h2>
+        <p class="mt-2 text-sm text-slate-300 max-w-2xl">
+          スキル・メモ・リスク兆候を横断して、介入すべき候補を見つけます。
+        </p>
       </div>
 
-      <div class="hidden xl:block w-[360px] shrink-0">
-        <div
-          class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
-        >
+      <div class="w-full lg:w-[360px] shrink-0">
+        <div class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
             <div class="text-xs text-slate-200 font-bold">Genome Scan</div>
@@ -37,13 +39,16 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               MEMBERS:
               <span class="font-extrabold text-slate-100">{{ store.members().length }}</span>
             </div>
+            <div class="mt-2 text-xs text-slate-400">
+              フィルタ中: {{ activeFilterLabel() }}
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-3">
-      <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+    <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div class="ui-panel">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="text-sm font-bold text-slate-100">Skill Genome Matrix</div>
           <div class="text-xs text-slate-400">スキルをクリックでフィルタ</div>
@@ -55,7 +60,11 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                 <th class="text-left font-semibold pr-4 py-2">Member</th>
                 @for (s of topSkills(); track s) {
                   <th class="text-left font-semibold pr-4 py-2">
-                    <button type="button" class="hover:text-white" (click)="toggleSkill(s)">
+                    <button
+                      type="button"
+                      class="hover:text-white ui-focus-ring"
+                      (click)="toggleSkill(s)"
+                    >
                       {{ s }}
                     </button>
                   </th>
@@ -87,13 +96,13 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
         </div>
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      <div class="ui-panel">
         <div class="text-sm font-bold text-slate-100">Filter</div>
         <div class="mt-3">
           <div class="text-xs text-slate-400 font-semibold">検索</div>
           <input
             type="text"
-            class="mt-2 w-full bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-indigo-500/60"
+            class="mt-2 w-full bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 ui-focus-ring"
             placeholder="例: tanaka / angular / testing"
             [value]="query()"
             (input)="onQueryInput($event)"
@@ -105,7 +114,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
             @for (s of topSkills(); track s) {
               <button
                 type="button"
-                class="px-3 py-2 rounded-full border text-xs font-bold"
+                class="px-3 py-2 rounded-full border text-xs font-bold ui-focus-ring"
                 [class.border-indigo-500/50]="skillFilter() === s"
                 [class.bg-indigo-500/15]="skillFilter() === s"
                 [class.text-indigo-100]="skillFilter() === s"
@@ -120,7 +129,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
           </div>
           <button
             type="button"
-            class="mt-3 text-xs text-slate-400 hover:text-white"
+            class="mt-3 text-xs text-slate-400 hover:text-white ui-focus-ring"
             (click)="clearFilters()"
           >
             Clear
@@ -129,23 +138,22 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
       </div>
     </div>
 
-    <div class="mt-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div class="text-sm font-bold text-slate-100">Member Cards</div>
-        <div class="text-xs text-slate-400">表示: {{ filteredMembers().length }} 件</div>
-      </div>
+    <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div class="text-sm font-bold text-slate-100">Member Cards</div>
+          <div class="text-xs text-slate-400">表示: {{ filteredMembers().length }} 件</div>
+        </div>
 
-      <div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @for (m of filteredMembers(); track m.id) {
-          <div
-            class="group perspective-1000 rounded-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950/70"
-            tabindex="0"
-          >
-            <div
-              class="relative preserve-3d transition-transform duration-700 group-hover:[transform:rotateY(180deg)] group-focus-within:[transform:rotateY(180deg)]"
-            >
-              <div
-                class="backface-hidden rounded-xl border border-slate-800 bg-slate-950/40 p-4 min-h-[260px] flex flex-col"
+        @if (filteredMembers().length) {
+          <div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            @for (m of filteredMembers(); track m.id) {
+              <button
+                type="button"
+                class="text-left ui-panel-interactive min-h-[240px] flex flex-col"
+                [class.border-indigo-500/60]="selectedMemberId() === m.id"
+                [class.bg-indigo-500/10]="selectedMemberId() === m.id"
+                (click)="selectMember(m)"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
@@ -181,53 +189,81 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                   >
                     {{ isRisky(m) ? 'RISK' : 'STABLE' }}
                   </div>
-                  <div class="text-xs text-slate-400">Hover で詳細</div>
-                </div>
-              </div>
-
-              <div
-                class="backface-hidden absolute inset-0 rounded-xl border border-slate-800 bg-slate-950/60 p-4 pr-3 [transform:rotateY(180deg)] overflow-y-auto overflow-x-hidden"
-              >
-                <div class="text-sm font-extrabold text-slate-100">Notes</div>
-                <div class="mt-2 text-xs text-slate-300 leading-relaxed break-words">
-                  {{ m.notes }}
-                </div>
-                <div class="mt-4">
-                  <div class="text-xs text-slate-400 font-semibold">Skills</div>
-                  <div class="mt-2 flex flex-wrap gap-2">
-                    @for (s of m.skills; track s) {
-                      <span
-                        class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200 max-w-full break-words"
-                        >{{ s }}</span
-                      >
-                    }
+                  <div class="text-xs text-slate-400">
+                    {{ selectedMemberId() === m.id ? '選択中' : '詳細を見る' }}
                   </div>
                 </div>
-                <div class="mt-4">
-                  <div class="text-xs text-slate-400 font-semibold">Profile</div>
-                  <div class="mt-2 text-xs text-slate-300">
-                    Role: {{ m.role ?? 'N/A' }} / Level: {{ m.skillLevel ?? '-' }}
-                  </div>
-                  @if (m.careerAspiration) {
-                    <div class="mt-1 text-xs text-slate-400">{{ m.careerAspiration }}</div>
-                  }
-                  @if (m.analysis) {
-                    <div class="mt-2 text-xs text-slate-300">
-                      Pattern: {{ m.analysis.patternName ?? m.analysis.patternId }}
-                    </div>
-                    <div class="text-xs text-slate-400">
-                      Decision: {{ m.analysis.finalDecision ?? 'N/A' }}
-                    </div>
-                  }
-                </div>
-                <div class="mt-4 text-[11px] text-slate-400">
-                  Tip: skills をクリックでフィルタできます。
-                </div>
-              </div>
-            </div>
+              </button>
+            }
           </div>
+        } @else {
+          <app-empty-state
+            kicker="Empty"
+            title="該当するメンバーがいません"
+            description="検索条件やフィルタを調整してください。"
+            primaryLabel="フィルタをクリア"
+            (primary)="clearFilters()"
+          />
         }
       </div>
+
+      <aside class="ui-panel">
+        @if (selectedMember(); as m) {
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="ui-kicker">Selected</div>
+              <div class="text-base font-semibold text-slate-100">{{ m.name }}</div>
+            </div>
+            <button
+              type="button"
+              class="text-xs text-slate-400 hover:text-white ui-focus-ring"
+              (click)="clearSelection()"
+            >
+              クリア
+            </button>
+          </div>
+          <div class="mt-3">
+            <div class="text-xs text-slate-400 font-semibold">Notes</div>
+            <div class="mt-2 text-sm text-slate-200 leading-relaxed break-words">
+              {{ m.notes }}
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="text-xs text-slate-400 font-semibold">Skills</div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              @for (s of m.skills; track s) {
+                <span
+                  class="text-[11px] px-2 py-1 rounded-full border border-slate-800 bg-white/5 text-slate-200 max-w-full break-words"
+                  >{{ s }}</span
+                >
+              }
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="text-xs text-slate-400 font-semibold">Profile</div>
+            <div class="mt-2 text-xs text-slate-300">
+              Role: {{ m.role ?? 'N/A' }} / Level: {{ m.skillLevel ?? '-' }}
+            </div>
+            @if (m.careerAspiration) {
+              <div class="mt-1 text-xs text-slate-400">{{ m.careerAspiration }}</div>
+            }
+            @if (m.analysis) {
+              <div class="mt-2 text-xs text-slate-300">
+                Pattern: {{ m.analysis.patternName ?? m.analysis.patternId }}
+              </div>
+              <div class="text-xs text-slate-400">
+                Decision: {{ m.analysis.finalDecision ?? 'N/A' }}
+              </div>
+            }
+          </div>
+        } @else {
+          <app-empty-state
+            kicker="Select"
+            title="詳細を見るメンバーを選択"
+            description="カードをクリックすると詳細がここに表示されます。"
+          />
+        }
+      </aside>
     </div>
   `,
 })
@@ -236,6 +272,7 @@ export class GenomePage {
 
   protected readonly query = signal('');
   protected readonly skillFilter = signal<string | null>(null);
+  protected readonly selectedMemberId = signal<string | null>(null);
 
   protected readonly allSkills = computed(() => {
     const set = new Set<string>();
@@ -267,6 +304,24 @@ export class GenomePage {
     });
   });
 
+  protected readonly selectedMember = computed(() => {
+    const id = this.selectedMemberId();
+    if (!id) return null;
+    const member = this.store.members().find((m) => m.id === id);
+    if (!member) return null;
+    const visible = this.filteredMembers().some((m) => m.id === id);
+    return visible ? member : null;
+  });
+
+  protected readonly activeFilterLabel = computed(() => {
+    const q = this.query().trim();
+    const skill = this.skillFilter();
+    if (q && skill) return `${skill} + keyword`;
+    if (skill) return skill;
+    if (q) return 'keyword';
+    return 'なし';
+  });
+
   constructor() {
     void this.store.loadOnce();
   }
@@ -284,6 +339,14 @@ export class GenomePage {
   protected clearFilters(): void {
     this.query.set('');
     this.skillFilter.set(null);
+  }
+
+  protected selectMember(member: Member): void {
+    this.selectedMemberId.set(this.selectedMemberId() === member.id ? null : member.id);
+  }
+
+  protected clearSelection(): void {
+    this.selectedMemberId.set(null);
   }
 
   protected isRisky(m: Member): boolean {

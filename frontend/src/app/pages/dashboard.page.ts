@@ -1,11 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { EmptyStateComponent } from '../components/empty-state.component';
 import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
-import { Member } from '../core/types';
+import { DashboardProposal, Member } from '../core/types';
 
 const BURNOUT_WORDS = ['疲労', '飽き', '燃え尽き', '限界'] as const;
 const RISK_WORDS = ['対人トラブル', '噂', '炎上', '不満'] as const;
@@ -68,44 +69,69 @@ interface ClusterAccumulator {
 }
 
 @Component({
-  imports: [NeuralOrbComponent, HaisaSpeechComponent],
+  imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
-        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-          Shadow Dashboard
-        </div>
+        <div class="ui-kicker">Shadow Dashboard</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">経営ダッシュボード</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          影で回るAIが「予兆検知 →
-          根回し準備」まで済ませます。あなたは最後の「直感」で介入し、ワンクリックで決裁します。
+          影で回るAIが「予兆検知 → 根回し準備」まで済ませます。あなたは最後の直感で介入し、
+          1クリックで決裁します。
         </p>
       </div>
 
-      <div class="hidden xl:block w-[360px] shrink-0">
-        <div
-          class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40"
-        >
+      <div class="w-full lg:w-[360px] shrink-0">
+        <div class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
-            <div class="text-xs text-slate-200 font-bold">24/7 Shadow Monitoring</div>
-            <div class="mt-1 text-sm text-slate-300">兆候を検知したら即、介入プランへ。</div>
-            <div class="mt-4 flex gap-2">
-              <button
-                type="button"
-                class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm"
-                (click)="goSimulator()"
-              >
-                介入へ
-              </button>
-              <button
-                type="button"
-                class="px-3 py-2 rounded-lg border border-slate-800 bg-white/5 hover:bg-white/10 text-slate-200 font-semibold text-sm"
-                (click)="goSimulator('alert')"
-              >
-                デモ
-              </button>
-            </div>
+            <div class="ui-kicker">Next Action</div>
+            @if (activeAlert(); as alert) {
+              <div class="mt-2 text-sm font-semibold text-rose-200">緊急アラート</div>
+              <div class="mt-1 text-xs text-slate-300">{{ alert.title }}</div>
+              <div class="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                <span class="ui-pill border-rose-500/40 bg-rose-500/15 text-rose-200">RISK</span>
+                <span class="text-rose-100 font-semibold">{{ alert.risk }}%</span>
+              </div>
+              <div class="mt-3 flex gap-2">
+                <button type="button" class="ui-button-primary" (click)="goSimulator('alert')">
+                  介入へ
+                </button>
+                <button type="button" class="ui-button-secondary" (click)="goSimulator()">
+                  シミュレーター
+                </button>
+              </div>
+            } @else if (primaryProposal(); as proposal) {
+              <div class="mt-2 text-sm font-semibold text-slate-100">推奨提案を確認</div>
+              <div class="mt-1 text-xs text-slate-300">Plan {{ proposal.planType }} を起点に介入</div>
+              <div class="mt-3 flex gap-2">
+                <button type="button" class="ui-button-primary" (click)="goSimulator()">
+                  介入へ
+                </button>
+                <button type="button" class="ui-button-secondary" (click)="goSimulator('manual')">
+                  デモ
+                </button>
+              </div>
+            } @else if (dashboard.pendingActions().length) {
+              <div class="mt-2 text-sm font-semibold text-slate-100">承認待ちを確認</div>
+              <div class="mt-1 text-xs text-slate-300">{{ dashboard.pendingActions().length }} 件の承認待ち</div>
+              <div class="mt-3">
+                <button type="button" class="ui-button-primary" (click)="goSimulator()">
+                  承認フローへ
+                </button>
+              </div>
+            } @else {
+              <div class="mt-2 text-sm font-semibold text-slate-100">状況を確認</div>
+              <div class="mt-1 text-xs text-slate-300">最新状況を更新して判断材料を補強します。</div>
+              <div class="mt-3 flex gap-2">
+                <button type="button" class="ui-button-primary" (click)="reload()">
+                  再読み込み
+                </button>
+                <button type="button" class="ui-button-secondary" (click)="goSimulator()">
+                  シミュレーターへ
+                </button>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -113,10 +139,8 @@ interface ClusterAccumulator {
 
     <div class="mt-6 grid gap-4 grid-cols-1 md:grid-cols-4">
       @for (k of kpis(); track k.label) {
-        <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-          <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-            {{ k.label }}
-          </div>
+        <div class="ui-panel-muted">
+          <div class="ui-kicker">{{ k.label }}</div>
           <div class="mt-2 flex items-end gap-2">
             <div class="text-3xl font-extrabold tracking-tight" [style.color]="k.color">
               {{ k.value }}
@@ -128,96 +152,192 @@ interface ClusterAccumulator {
       }
     </div>
 
-    @if (activeAlert(); as alert) {
-      <div class="mt-4">
-        <div class="text-sm font-semibold text-slate-200">アクティブなアラート</div>
+    <div class="mt-6">
+      <div class="ui-kicker">Today Focus</div>
+      @if (activeAlert(); as alert) {
         <button
           type="button"
-          class="mt-2 w-full text-left rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+          class="mt-2 w-full text-left ui-panel-interactive border-rose-500/30 bg-rose-500/10"
           (click)="goSimulator('alert')"
         >
-          <div
-            class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
-          >
-            !
-          </div>
-          <div class="min-w-0">
-            <div class="text-base font-bold truncate">{{ alert.title }}</div>
-            <div class="text-sm text-slate-300 truncate">{{ alert.subtitle }}</div>
-          </div>
-          <div class="sm:ml-auto text-left sm:text-right">
-            <div class="text-xs text-slate-400 font-semibold">RISK</div>
-            <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div
+              class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
+            >
+              !
+            </div>
+            <div class="min-w-0">
+              <div class="text-base font-bold truncate">{{ alert.title }}</div>
+              <div class="text-sm text-slate-300 truncate">{{ alert.subtitle }}</div>
+            </div>
+            <div class="sm:ml-auto text-left sm:text-right">
+              <div class="text-xs text-slate-400 font-semibold">RISK</div>
+              <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
+            </div>
           </div>
         </button>
-      </div>
-    }
+      } @else if (primaryProposal(); as proposal) {
+        <div class="mt-2 ui-panel">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="ui-kicker">AI Recommendation</div>
+              <div class="text-base font-semibold text-slate-100">Plan {{ proposal.planType }}</div>
+              <div class="mt-2 text-sm text-slate-300 whitespace-pre-line">
+                {{ proposalSummary(proposal) }}
+              </div>
+            </div>
+            <button type="button" class="ui-button-primary" (click)="goSimulator()">
+              介入へ
+            </button>
+          </div>
+          @if (proposalDetail(proposal); as detail) {
+            <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                詳細
+              </summary>
+              <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
+            </details>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          kicker="Empty"
+          title="意思決定ポイントはありません"
+          description="新しいアラートや提案が届いたらここに集約されます。"
+          primaryLabel="再読み込み"
+          secondaryLabel="シミュレーターへ"
+          (primary)="reload()"
+          (secondary)="goSimulator()"
+        />
+      }
+    </div>
 
     <div class="mt-6 grid gap-4 lg:grid-cols-2">
-      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-        <div class="text-sm font-semibold text-slate-200">AI 提案（松竹梅）</div>
+      <div class="ui-panel">
+        <div class="flex items-center justify-between gap-3">
+          <div class="ui-section-title">AI 提案</div>
+          <button type="button" class="ui-button-ghost text-xs" (click)="goSimulator()">
+            シミュレーターへ
+          </button>
+        </div>
         @if (dashboard.proposals().length) {
           <div class="mt-3 space-y-3">
-            @for (p of dashboard.proposals(); track p.id; let i = $index) {
+            @if (primaryProposal(); as p) {
               <app-haisa-speech
-                [tone]="p.isRecommended ? 'success' : 'info'"
-                [title]="p.planType"
-                [tag]="p.isRecommended ? '推奨' : ''"
+                [tone]="'success'"
+                [title]="'Plan ' + p.planType"
+                [tag]="'推奨'"
                 [meta]="'score ' + p.recommendationScore"
-                [message]="p.description"
+                [message]="proposalSummary(p)"
                 [compact]="true"
-                [showAvatar]="i === 0"
+                [showAvatar]="true"
                 [reserveAvatarSpace]="true"
-                [highlight]="p.isRecommended"
+                [highlight]="true"
               />
+              @if (proposalDetail(p); as detail) {
+                <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+                  <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                    詳細
+                  </summary>
+                  <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
+                </details>
+              }
+            }
+
+            @if (secondaryProposals().length) {
+              <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+                <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                  他の提案（{{ secondaryProposals().length }}）
+                </summary>
+                <div class="mt-3 space-y-3">
+                  @for (p of secondaryProposals(); track p.id) {
+                    <app-haisa-speech
+                      [tone]="'info'"
+                      [title]="'Plan ' + p.planType"
+                      [meta]="'score ' + p.recommendationScore"
+                      [message]="proposalSummary(p)"
+                      [compact]="true"
+                      [showAvatar]="false"
+                      [reserveAvatarSpace]="true"
+                    />
+                    @if (proposalDetail(p); as detail) {
+                      <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+                        <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                          詳細
+                        </summary>
+                        <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
+                      </details>
+                    }
+                  }
+                </div>
+              </details>
             }
           </div>
         } @else {
-          <div class="mt-3">
-            <app-haisa-speech
-              [tone]="'info'"
-              [message]="'提案を準備中です。'"
-              [compact]="true"
-              [showAvatar]="true"
-            />
-          </div>
+          <app-empty-state
+            kicker="Empty"
+            title="提案を準備中"
+            description="新しい提案が届いたらここに表示します。"
+            primaryLabel="再読み込み"
+            secondaryLabel="シミュレーターへ"
+            (primary)="reload()"
+            (secondary)="goSimulator()"
+          />
         }
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-        <div class="text-sm font-semibold text-slate-200">承認待ち</div>
+      <div class="ui-panel">
+        <div class="flex items-center justify-between gap-3">
+          <div class="ui-section-title">承認待ち</div>
+          <span
+            class="ui-pill"
+            [class.border-emerald-500/40]="dashboard.pendingActions().length === 0"
+            [class.bg-emerald-500/10]="dashboard.pendingActions().length === 0"
+            [class.text-emerald-200]="dashboard.pendingActions().length === 0"
+            [class.border-amber-500/40]="dashboard.pendingActions().length > 0"
+            [class.bg-amber-500/10]="dashboard.pendingActions().length > 0"
+            [class.text-amber-200]="dashboard.pendingActions().length > 0"
+          >
+            {{ pendingLabel() }}
+          </span>
+        </div>
         @if (dashboard.pendingActions().length) {
-          <div class="mt-3 space-y-2">
-            @for (action of dashboard.pendingActions(); track action.id) {
-              <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="text-sm font-semibold">{{ action.title }}</div>
-                  <div class="text-[11px] text-slate-400">{{ action.actionType }}</div>
-                </div>
-                <div class="mt-1 text-xs text-slate-400">status: {{ action.status }}</div>
+          <div class="mt-3">
+            <div class="text-sm text-slate-300">要対応 {{ dashboard.pendingActions().length }} 件</div>
+            <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                詳細を開く
+              </summary>
+              <div class="mt-3 space-y-2">
+                @for (action of dashboard.pendingActions(); track action.id) {
+                  <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="text-sm font-semibold">{{ action.title }}</div>
+                      <div class="text-[11px] text-slate-400">{{ action.actionType }}</div>
+                    </div>
+                    <div class="mt-1 text-xs text-slate-400">status: {{ action.status }}</div>
+                  </div>
+                }
               </div>
-            }
+            </details>
           </div>
         } @else {
-          <div class="mt-3">
-            <app-haisa-speech
-              [tone]="'neutral'"
-              [message]="'承認待ちはありません。'"
-              [compact]="true"
-              [showAvatar]="false"
-            />
-          </div>
+          <app-empty-state
+            kicker="Empty"
+            title="承認待ちはありません"
+            description="新しい承認が発生したら通知します。"
+            primaryLabel="シミュレーターへ"
+            (primary)="goSimulator()"
+          />
         }
       </div>
     </div>
 
     <div class="mt-6 grid gap-4 lg:grid-cols-3">
-      <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      <div class="lg:col-span-2 ui-panel">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-              Talent Matrix
-            </div>
+            <div class="ui-kicker">Talent Matrix</div>
             <div class="text-sm text-slate-200 font-semibold mt-1">組織人材マップ</div>
           </div>
           <div class="text-xs text-slate-400">MOTIVATION → / PERFORMANCE ↑</div>
@@ -292,21 +412,32 @@ interface ClusterAccumulator {
         </div>
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-          AI Watchdog Log
-        </div>
-        <div class="mt-3 space-y-3 text-sm">
-          @for (row of watchdog(); track row.t) {
-            <div class="flex items-start gap-3">
-              <span class="mt-1 h-2 w-2 rounded-full" [style.background]="row.dot"></span>
-              <div class="min-w-0">
-                <div class="text-xs text-slate-500 font-semibold">{{ row.t }}</div>
-                <div class="text-sm text-slate-200">{{ row.text }}</div>
-              </div>
+      <div class="ui-panel">
+        <div class="ui-kicker">AI Watchdog</div>
+        @if (watchdog().length) {
+          <div class="mt-3">
+            <div class="text-xs text-slate-400">最新</div>
+            <div class="mt-1 text-sm text-slate-200">{{ watchdog()[0].text }}</div>
+          </div>
+          <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+            <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+              ログを開く
+            </summary>
+            <div class="mt-3 space-y-3 text-sm">
+              @for (row of watchdog(); track row.t) {
+                <div class="flex items-start gap-3">
+                  <span class="mt-1 h-2 w-2 rounded-full" [style.background]="row.dot"></span>
+                  <div class="min-w-0">
+                    <div class="text-xs text-slate-500 font-semibold">{{ row.t }}</div>
+                    <div class="text-sm text-slate-200">{{ row.text }}</div>
+                  </div>
+                </div>
+              }
             </div>
-          }
-        </div>
+          </details>
+        } @else {
+          <div class="mt-3 text-xs text-slate-500">ログはまだありません。</div>
+        }
 
         @if (store.simulationResult(); as r) {
           <div class="mt-4 rounded-lg border border-slate-800 bg-white/5 p-3">
@@ -331,6 +462,22 @@ export class DashboardPage {
   protected readonly activeAlert = computed(() => {
     const alerts = [...this.dashboard.alerts()].sort((a, b) => b.risk - a.risk);
     return alerts[0] ?? null;
+  });
+
+  protected readonly primaryProposal = computed(() => {
+    const proposals = this.dashboard.proposals();
+    if (!proposals.length) return null;
+    return proposals.find((p) => p.isRecommended) ?? proposals[0] ?? null;
+  });
+
+  protected readonly secondaryProposals = computed(() => {
+    const primary = this.primaryProposal();
+    return this.dashboard.proposals().filter((p) => p !== primary);
+  });
+
+  protected readonly pendingLabel = computed(() => {
+    const count = this.dashboard.pendingActions().length;
+    return count ? `${count}件` : '0件';
   });
 
   protected readonly matrixPoints = computed(() => {
@@ -409,6 +556,27 @@ export class DashboardPage {
     return this.dashboard.watchdog();
   });
 
+  protected proposalSummary(p: DashboardProposal): string {
+    const { summary } = this.splitProposal(p.description);
+    const nextAction = '次: 介入プランを確認';
+    return `理由: ${summary}\n${nextAction}`;
+  }
+
+  protected proposalDetail(p: DashboardProposal): string | null {
+    return this.splitProposal(p.description).detail;
+  }
+
+  private splitProposal(description: string): { summary: string; detail: string | null } {
+    const normalized = description.replace(/\s+/g, ' ').trim();
+    if (!normalized) return { summary: '状況を確認中です。', detail: null };
+    const parts = normalized.split('。').map((s) => s.trim()).filter(Boolean);
+    const summaryParts = parts.slice(0, 2);
+    const summary = summaryParts.join(' / ');
+    if (parts.length <= 2) return { summary, detail: null };
+    const detail = parts.slice(2).join('。') + '。';
+    return { summary, detail };
+  }
+
   private clusterKey(x: number, yTop: number, cellSize: number): string {
     const col = Math.round(x / cellSize);
     const row = Math.round(yTop / cellSize);
@@ -439,6 +607,10 @@ export class DashboardPage {
   }
 
   constructor() {
+    void this.dashboard.load();
+  }
+
+  protected reload(): void {
     void this.dashboard.load();
   }
 
