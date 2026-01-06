@@ -1,11 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { TimeoutError, firstValueFrom, timeout } from 'rxjs';
 
 import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { AuthClient } from '../core/auth-client';
+import { AppConfigService } from '../core/config/app-config.service';
 import { AuthTokenStore } from '../core/auth-token.store';
+
+const LOGIN_FAILURE_MESSAGE = 'ログインに失敗しました。入力内容を確認してください。';
+const LOGIN_TIMEOUT_MESSAGE = '認証がタイムアウトしました。時間をおいて再度お試しください。';
 
 @Component({
   imports: [HaisaSpeechComponent],
@@ -269,6 +273,7 @@ export class LoginPage {
   private readonly authClient = inject(AuthClient);
   private readonly tokenStore = inject(AuthTokenStore);
   private readonly router = inject(Router);
+  private readonly config = inject(AppConfigService);
 
   protected readonly userId = signal('');
   protected readonly password = signal('');
@@ -288,6 +293,7 @@ export class LoginPage {
   }
 
   protected async submit(): Promise<void> {
+    if (this.loading()) return;
     if (!this.userId().trim() || !this.password().trim()) {
       this.error.set('ユーザーIDとパスワードを入力してください');
       return;
@@ -296,23 +302,20 @@ export class LoginPage {
     this.error.set(null);
     try {
       const response = await firstValueFrom(
-        this.authClient.login({ userId: this.userId().trim(), password: this.password().trim() })
+        this.authClient
+          .login({ userId: this.userId().trim(), password: this.password().trim() })
+          .pipe(timeout(this.config.loginTimeoutMs))
       );
       this.tokenStore.setToken(response.access_token);
       const redirect = this.router.parseUrl(this.router.url).queryParams['redirect'] || '/dashboard';
       await this.router.navigateByUrl(redirect);
     } catch (e) {
-      if (e instanceof HttpErrorResponse) {
-        const detail =
-          typeof e.error === 'string'
-            ? e.error
-            : e.error && typeof e.error === 'object' && 'detail' in e.error
-              ? String((e.error as { detail?: string }).detail)
-              : null;
-        this.error.set(detail || 'ログインに失敗しました');
+      if (e instanceof TimeoutError) {
+        this.error.set(LOGIN_TIMEOUT_MESSAGE);
+      } else if (e instanceof HttpErrorResponse) {
+        this.error.set(LOGIN_FAILURE_MESSAGE);
       } else {
-        const message = e instanceof Error ? e.message : 'ログインに失敗しました';
-        this.error.set(message);
+        this.error.set(LOGIN_FAILURE_MESSAGE);
       }
     } finally {
       this.loading.set(false);

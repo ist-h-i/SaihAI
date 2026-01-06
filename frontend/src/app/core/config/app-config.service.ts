@@ -5,17 +5,23 @@ import type { LogLevel } from '../logger.service';
 export interface AppConfig {
   apiBaseUrl: string;
   authToken?: string | null;
+  loginTimeoutMs?: number;
   logLevel?: LogLevel;
   logToServer?: boolean;
   serverLogLevel?: LogLevel;
 }
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8000/api/v1';
+const DEFAULT_LOGIN_TIMEOUT_MS = 60_000;
 const RUNTIME_CONFIG_PATH = '/assets/runtime-config.json';
 
 @Injectable({ providedIn: 'root' })
 export class AppConfigService {
-  private config: AppConfig = { apiBaseUrl: DEFAULT_API_BASE_URL, authToken: null };
+  private config: AppConfig = {
+    apiBaseUrl: DEFAULT_API_BASE_URL,
+    authToken: null,
+    loginTimeoutMs: DEFAULT_LOGIN_TIMEOUT_MS,
+  };
 
   get apiBaseUrl(): string {
     return this.config.apiBaseUrl;
@@ -23,6 +29,10 @@ export class AppConfigService {
 
   get authToken(): string | null {
     return this.config.authToken ?? null;
+  }
+
+  get loginTimeoutMs(): number {
+    return this.config.loginTimeoutMs ?? DEFAULT_LOGIN_TIMEOUT_MS;
   }
 
   get logLevel(): LogLevel | undefined {
@@ -69,12 +79,14 @@ export class AppConfigService {
 const normalizeConfig = (config: AppConfig): AppConfig => {
   const apiBaseUrl = normalizeString(config.apiBaseUrl) ?? DEFAULT_API_BASE_URL;
   const authToken = normalizeString(config.authToken ?? undefined) ?? null;
+  const loginTimeoutMs = normalizeNumber(config.loginTimeoutMs) ?? DEFAULT_LOGIN_TIMEOUT_MS;
   const logLevel = normalizeLogLevel(config.logLevel);
   const serverLogLevel = normalizeLogLevel(config.serverLogLevel);
   const logToServer = normalizeBoolean(config.logToServer);
   return {
     apiBaseUrl: apiBaseUrl.replace(/\/+$/, ''),
     authToken,
+    loginTimeoutMs,
     logLevel,
     serverLogLevel,
     logToServer,
@@ -85,6 +97,17 @@ const normalizeString = (value?: string | null): string | undefined => {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
+};
+
+const normalizeNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return undefined;
 };
 
 const normalizeLogLevel = (value: unknown): LogLevel | undefined => {

@@ -21,6 +21,7 @@ regenerate it from environment variables.
 
 - `SAIHAI_API_BASE_URL` (default: `http://localhost:8000/api/v1`)
 - `SAIHAI_AUTH_TOKEN` (optional Bearer token)
+- `SAIHAI_LOGIN_TIMEOUT_MS` (optional: login timeout in milliseconds, default `60000`)
 - `SAIHAI_LOG_LEVEL` (optional: `debug` | `info` | `warn` | `error`)
 - `SAIHAI_LOG_TO_SERVER` (optional: `true` to POST logs to backend)
 - `SAIHAI_SERVER_LOG_LEVEL` (optional: minimum level for server logs)

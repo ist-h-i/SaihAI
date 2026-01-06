@@ -1,6 +1,7 @@
 {
   "apiBaseUrl": "https://<API_DOMAIN>/api/v1",
   "authToken": "SAIHAI_AUTH_TOKEN",
+  "loginTimeoutMs": 60000,
   "logLevel": "info",
   "logToServer": "false",
   "serverLogLevel": "warn"
