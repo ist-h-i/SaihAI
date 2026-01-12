@@ -37,7 +37,12 @@
       ]
     },
     "recommended_model": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "gpt-5.2-codex",
+        "gpt-5.2"
+      ],
+      "description": "Model name for the next step (must be a supported model)."
     },
     "suggested_evidence": {
       "type": "array",

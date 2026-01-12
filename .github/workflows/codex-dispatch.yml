@@ -98,21 +98,16 @@ jobs:
             }
 
             // Reasoning effort mapped to Codex config key model_reasoning_effort.
-            const issueBody = context.payload.issue.body || '';
-            const size = issueBody.length + body.length;
             let effort = 'medium';
-            if (mode === 'discuss') effort = 'low';
 
-            // Heuristic complexity-based default (user can override):
-            // - xhigh: explicitly requested
-            // - high: long issues/comments or --deep
-            // - low/minimal: --fast or discuss mode
-            if (deep || size > 2000) effort = 'high';
+            // User can override via flags.
+            if (deep) effort = 'high';
             if (fast) effort = 'low';
             if (xhigh) effort = 'xhigh';
             if (userEffort) effort = userEffort;
 
-            const model = (userModel || '').trim();
+            const defaultModel = mode === 'discuss' ? 'gpt-5.2' : 'gpt-5.2-codex';
+            const model = (userModel || defaultModel).trim();
             const extra = body.replace(cmdLine, '').trim();
 
             core.setOutput('should_run', 'true');
@@ -337,6 +332,7 @@ jobs:
               '- 不明点がある場合は `recommended_mode` を `needs_info` にし、`questions` に最小限の質問を列挙してください。',
               '- 実装開始可能な場合は `recommended_mode` を `implement` にし、**実装の推奨モデル/推論 effort (`recommended_model` / `recommended_effort`)** を返してください。',
               '- `recommended_effort` は複雑さに応じて選んでください（minimal/low/medium/high/xhigh）。',
+              '- `recommended_mode` が `implement` のときは `recommended_model` を `gpt-5.2-codex`、それ以外は `gpt-5.2` にしてください。',
               '',
               '## Issue',
               `Title: ${issue.title}`,
@@ -378,8 +374,16 @@ jobs:
             const fs = require('fs');
             const triage = JSON.parse(fs.readFileSync('codex-triage.json', 'utf8'));
             const recommendedMode = String(triage.recommended_mode || '').trim().toLowerCase();
-            const recommendedModel = String(triage.recommended_model || '').trim();
-            const recommendedEffort = String(triage.recommended_effort || '').trim().toLowerCase();
+            const validEfforts = new Set(['minimal', 'low', 'medium', 'high', 'xhigh']);
+
+            const defaultModel = recommendedMode === 'implement' ? 'gpt-5.2-codex' : 'gpt-5.2';
+            const defaultEffort = 'medium';
+
+            let recommendedModel = String(triage.recommended_model || '').trim();
+            let recommendedEffort = String(triage.recommended_effort || '').trim().toLowerCase();
+
+            if (recommendedModel !== defaultModel) recommendedModel = defaultModel;
+            if (!validEfforts.has(recommendedEffort)) recommendedEffort = defaultEffort;
             core.setOutput('recommended_mode', recommendedMode);
             core.setOutput('recommended_model', recommendedModel);
             core.setOutput('recommended_effort', recommendedEffort);
@@ -424,13 +428,18 @@ jobs:
               Array.isArray(items) && items.length ? items.map((item) => `- ${item}`).join('\n') : '- (なし)';
             const valueOrNone = (value) => (value && String(value).trim() ? String(value).trim() : '(なし)');
             const rawMode = String(triage?.recommended_mode || '').trim().toLowerCase();
+            const validEfforts = new Set(['minimal', 'low', 'medium', 'high', 'xhigh']);
+            const defaultModel = rawMode === 'implement' ? 'gpt-5.2-codex' : 'gpt-5.2';
+            const defaultEffort = 'medium';
             const rawModel = String(triage?.recommended_model || '').trim();
-            const rawEffort = String(triage?.recommended_effort || '').trim();
+            const rawEffort = String(triage?.recommended_effort || '').trim().toLowerCase();
+            const recommendedModel = rawModel === defaultModel ? rawModel : defaultModel;
+            const recommendedEffort = validEfforts.has(rawEffort) ? rawEffort : defaultEffort;
             const baseCommand = prNo ? '/codex run' : '/codex start';
             const suggestedBase = rawMode === 'implement' ? baseCommand : '/codex discuss';
             const commandParts = [suggestedBase];
-            if (rawModel) commandParts.push(`--model=${rawModel}`);
-            if (rawEffort) commandParts.push(`--effort=${rawEffort}`);
+            if (recommendedModel) commandParts.push(`--model=${recommendedModel}`);
+            if (recommendedEffort) commandParts.push(`--effort=${recommendedEffort}`);
             const suggestedCommand = commandParts.join(' ');
 
             const body = triage ? [
@@ -451,8 +460,8 @@ jobs:
               '',
               '### 実装方針',
               `- recommended_mode: ${valueOrNone(triage.recommended_mode)}`,
-              `- recommended_model: ${valueOrNone(triage.recommended_model)}`,
-              `- recommended_effort: ${valueOrNone(triage.recommended_effort)}`,
+              `- recommended_model: ${valueOrNone(recommendedModel)}`,
+              `- recommended_effort: ${valueOrNone(recommendedEffort)}`,
               '',
               '#### 推奨コマンド（コピー用）',
               '```text',
@@ -790,22 +799,8 @@ jobs:
       - name: Run Codex implementation (full-auto)
         run: |
           set -euxo pipefail
-          REC_MODEL="${REC_MODEL}"
-          REC_EFFORT="${REC_EFFORT}"
-          MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
-          EFFORT="${REC_EFFORT:-${SELECTED_EFFORT}}"
-          if [ "${MODEL_OVERRIDE}" = "true" ] && [ -n "${SELECTED_MODEL}" ]; then
-            MODEL="${SELECTED_MODEL}"
-          fi
-          if [ "${EFFORT_OVERRIDE}" = "true" ]; then
-            EFFORT="${SELECTED_EFFORT}"
-          fi
-          if [ -z "${MODEL}" ]; then
-            MODEL="${SELECTED_MODEL}"
-          fi
-          if [ -z "${EFFORT}" ]; then
-            EFFORT="${SELECTED_EFFORT}"
-          fi
+          MODEL="${SELECTED_MODEL}"
+          EFFORT="${SELECTED_EFFORT}"
 
           MODEL_ARGS=()
           if [ -n "${MODEL}" ]; then MODEL_ARGS+=(--model "${MODEL}"); fi
@@ -1087,15 +1082,9 @@ jobs:
             exit 0
           fi
 
-          # Resolve base model/effort for fix attempts (triage recommendation first)
-          BASE_MODEL="${REC_MODEL:-${SELECTED_MODEL}}"
-          BASE_EFFORT="${REC_EFFORT:-${SELECTED_EFFORT}}"
-          if [ "${MODEL_OVERRIDE}" = "true" ] && [ -n "${SELECTED_MODEL}" ]; then
-            BASE_MODEL="${SELECTED_MODEL}"
-          fi
-          if [ "${EFFORT_OVERRIDE}" = "true" ]; then
-            BASE_EFFORT="${SELECTED_EFFORT}"
-          fi
+          # Resolve base model/effort for fix attempts.
+          BASE_MODEL="${SELECTED_MODEL}"
+          BASE_EFFORT="${SELECTED_EFFORT}"
 
           mkdir -p .github/codex ci-logs
 
