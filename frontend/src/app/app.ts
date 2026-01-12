@@ -25,7 +25,7 @@ import { ToastCenterComponent } from './core/toast-center.component';
             </div>
             <div class="leading-tight">
               <div class="text-lg font-extrabold tracking-tight">
-                saih<span class="text-fuchsia-400">AI</span>
+                Saih<span class="text-fuchsia-400">AI</span>
                 <span class="ml-1 text-xs text-slate-500 font-semibold">v2</span>
               </div>
               <div class="text-[11px] text-slate-400">99% autonomy, 1% intuition</div>
@@ -152,7 +152,7 @@ import { ToastCenterComponent } from './core/toast-center.component';
                   </div>
                   <div class="leading-tight">
                     <div class="text-lg font-extrabold tracking-tight">
-                      saih<span class="text-fuchsia-400">AI</span>
+                      Saih<span class="text-fuchsia-400">AI</span>
                       <span class="ml-1 text-xs text-slate-500 font-semibold">v2</span>
                     </div>
                     <div class="text-[11px] text-slate-400">99% autonomy, 1% intuition</div>
