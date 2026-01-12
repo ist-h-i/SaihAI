@@ -11,7 +11,7 @@ export type HaisaEmotion =
   | 'haste'
   | 'explosion';
 
-export const HAISA_ASSET_DIR = '/assets/haisaikun' as const;
+export const HAISA_ASSET_DIR = '/assets/saihaikun' as const;
 
 export const HAISA_EMOTION_LABELS: Record<HaisaEmotion, string> = {
   standard: '通常',
