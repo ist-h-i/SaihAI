@@ -8,6 +8,7 @@
 参照:
 - ローカル起動/環境変数: `docs/setup.md`
 - Bedrock 疎通サンプル: `STRANDS_BEDROCK.md`
+- AWS へ配信（Frontend/Backend）: `docs/aws-deploy.md`
 
 ## Goals（この手順書で到達する状態）
 

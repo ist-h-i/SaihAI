@@ -10,6 +10,8 @@ GitHub の Issue / PR コメントをトリガーに、Codex CLI を CI 上で�
 
 AWS リソース構築手順（PoC 最小: Bedrock + pgvector DB / AWS コンソール中心。ALB/CloudFront なし）は `docs/aws-setup.md` を参照してください。
 
+AWS 上で Frontend/Backend を配信する手順（PoC 推奨: EC2 1台 + Nginx で静的配信 + `/api/*` をBackendへリバプロ、SGで開発メンバーIPのみ許可）は `docs/aws-deploy.md` を参照してください。
+
 ## できること
 
 このテンプレートが提供する価値の概要です。具体的なコマンド例は下の「使い方」を参照してください。
