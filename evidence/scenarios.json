@@ -17,7 +17,7 @@
   {
     "name": "ui_login_default",
     "url": "/login",
-    "assertText": "ログイン"
+    "assertText": "入力したらログインを押してください。"
   },
   {
     "name": "ui_dashboard_focus",
