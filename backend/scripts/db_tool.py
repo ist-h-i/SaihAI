@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -97,21 +98,71 @@ def migrate_down() -> None:
         conn.execute(text("DELETE FROM schema_migrations WHERE version = :version"), {"version": version})
 
 
+def _list_tables(conn) -> list[str]:
+    if is_sqlite_engine(engine):
+        rows = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type = 'table'")
+        ).all()
+        return [row[0] for row in rows]
+    rows = conn.execute(
+        text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+    ).all()
+    return [row[0] for row in rows]
+
+
+def _safe_table_names(tables: Iterable[str]) -> list[str]:
+    safe: list[str] = []
+    for name in tables:
+        if not name:
+            continue
+        if name.startswith("sqlite_"):
+            continue
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            safe.append(name)
+    return safe
+
+
 def _wipe_tables(conn) -> None:
+    existing = _safe_table_names(_list_tables(conn))
+    existing = [name for name in existing if name != "schema_migrations"]
+    if not existing:
+        return
+
+    if not is_sqlite_engine(engine):
+        stmt = f"TRUNCATE TABLE {', '.join(existing)} RESTART IDENTITY CASCADE"
+        conn.execute(text(stmt))
+        return
+
     table_order = [
+        "external_action_runs",
+        "execution_jobs",
+        "hitl_approval_requests",
+        "hitl_audit_logs",
+        "hitl_states",
+        "input_ingestion_runs",
+        "watchdog_alerts",
+        "watchdog_jobs",
+        "user_skills",
+        "user_profiles",
         "langgraph_checkpoints",
+        "project_health_snapshots",
+        "user_motivation_history",
         "autonomous_actions",
         "ai_strategy_proposals",
         "ai_analysis_results",
         "assignment_patterns",
         "weekly_reports",
         "assignments",
-        "project_health_snapshots",
-        "user_motivation_history",
         "projects",
         "users",
     ]
+    remaining = set(existing)
     for table in table_order:
+        if table not in remaining:
+            continue
+        conn.execute(text(f"DELETE FROM {table}"))
+        remaining.remove(table)
+    for table in sorted(remaining):
         conn.execute(text(f"DELETE FROM {table}"))
 
 
