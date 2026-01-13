@@ -11,6 +11,7 @@
       "risk_score": "number (0-100)",
       "risk_reward_ratio": "string",
       "description": "string (具体的なアサイン変更内容)",
+      "predicted_future_impact": "string (将来の影響予測)",
       "final_judgment": {
         "decision": "採用/不採用/条件付",
         "total_score": "number (0-100)",
@@ -30,6 +31,7 @@
       "risk_score": "number (0-100)",
       "risk_reward_ratio": "string",
       "description": "string",
+      "predicted_future_impact": "string",
       "final_judgment": {
         "decision": "採用/不採用/条件付",
         "total_score": "number (0-100)",
@@ -49,6 +51,7 @@
       "risk_score": "number (0-100)",
       "risk_reward_ratio": "string",
       "description": "string",
+      "predicted_future_impact": "string",
       "final_judgment": {
         "decision": "採用/不採用/条件付",
         "total_score": "number (0-100)",
@@ -81,6 +84,7 @@ is_recommended: このプランが「軍師のイチオシ」かどうか（バ�
 recommendation_score / risk_score: 推奨度とリスク度の数値（グラフ用）。
 risk_reward_ratio: 「ハイリスク・ハイリターン」などのラベル。
 description: このアサイン案の具体的な内容。
+predicted_future_impact: 将来の影響予測（短文）。
 final_judgment（軍師の最終判定）:
 decision: 採用 / 不採用 / 条件付。判定結果のメインラベル。
 total_score: 軍師の総合点（数値）。

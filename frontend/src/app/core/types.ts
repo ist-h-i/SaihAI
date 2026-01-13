@@ -164,6 +164,7 @@ export interface DashboardProposal {
   projectId: string;
   planType: string;
   description: string;
+  predictedFutureImpact?: string | null;
   recommendationScore: number;
   isRecommended: boolean;
 }

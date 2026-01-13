@@ -479,15 +479,22 @@ flowchart TD
 - correlation_id: string（approval_request_id / action_id 等）
 - payload_ref: string（必要に応じて詳細への参照; PII を含めない）
 
+補足:
+- 監査ログは **専用テーブルを持たず**、`langgraph_checkpoints.metadata.audit_events` に時系列配列として保存する。
+- 監査イベントの詳細は `metadata` 側で保持し、UI/Slack には要約のみを出す。
+
 ### 5.3 永続化モデル（DBテーブル案）
 
 - `langgraph_checkpoints`（PK: thread_id）
   - checkpoint（バイナリ形式のState）, metadata, updated_at
 - `autonomous_actions`（PK: action_id）
-  - action_type, draft_content, is_approved, approved_at, scheduled_at, status
+  - action_type, draft_content, is_approved, status
   - proposal_id（`ai_strategy_proposals` に紐付け）
 
-テーブル定義書: `requirement-docs/database-schema.md`
+補足:
+- `approval_request_id` / `expires_at` / `approved_by` などは `langgraph_checkpoints.metadata` に格納する。
+
+テーブル定義書: `docs/db-idea.md`
 
 ## 6. 受入条件（Acceptance Criteria / DoD）
 

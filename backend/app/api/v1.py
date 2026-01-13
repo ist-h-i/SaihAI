@@ -192,6 +192,7 @@ class DashboardProposal(BaseModel):
     projectId: str
     planType: str
     description: str
+    predictedFutureImpact: str | None = None
     recommendationScore: int
     isRecommended: bool
 
@@ -336,7 +337,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
     snapshots = conn.execute(
         text(
             """
-            SELECT snapshot_id, project_id, budget_usage_rate, delay_risk_rate, overall_health
+            SELECT snapshot_id, project_id, health_score, risk_level, variance_score, manager_gap_score, calculated_at
             FROM project_health_snapshots
             ORDER BY snapshot_id
             """
@@ -345,17 +346,22 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
 
     alerts = []
     for row in snapshots:
-        risk = max(int(row["budget_usage_rate"] or 0), int(row["delay_risk_rate"] or 0))
-        if risk < 70 and row.get("overall_health") == "safe":
+        health_score = int(row.get("health_score") or 0)
+        risk_level = row.get("risk_level") or "Safe"
+        if risk_level == "Safe":
             continue
         project = projects.get(row["project_id"], {})
+        severity = "high" if risk_level == "Critical" or health_score <= 50 else "medium"
+        subtitle = f"Health {health_score}"
+        if row.get("variance_score") is not None:
+            subtitle = f"{subtitle} / variance {row['variance_score']}"
         alerts.append(
             {
                 "id": f"alert-{row['project_id']}-{row['snapshot_id']}",
                 "title": f"{project.get('name', 'Project')} のリスクが上昇",
-                "subtitle": f"Budget {row['budget_usage_rate']}% / Delay {row['delay_risk_rate']}%",
-                "risk": risk,
-                "severity": "high" if risk >= 85 else "medium",
+                "subtitle": subtitle,
+                "risk": health_score,
+                "severity": severity,
                 "status": "open",
                 "projectId": row["project_id"],
             }
@@ -364,7 +370,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
     proposals = conn.execute(
         text(
             """
-            SELECT proposal_id, project_id, plan_type, description, recommendation_score, is_recommended
+            SELECT proposal_id, project_id, plan_type, description, predicted_future_impact, is_recommended
             FROM ai_strategy_proposals
             ORDER BY proposal_id
             """
@@ -376,7 +382,8 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
             "projectId": row["project_id"],
             "planType": row["plan_type"],
             "description": row["description"],
-            "recommendationScore": row["recommendation_score"],
+            "predictedFutureImpact": row.get("predicted_future_impact"),
+            "recommendationScore": _proposal_score(row["plan_type"], row.get("is_recommended")),
             "isRecommended": bool(row["is_recommended"]),
         }
         for row in proposals
@@ -409,18 +416,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
         conn.execute(text("SELECT 1 FROM langgraph_checkpoints LIMIT 1")).scalar()
     )
 
-    watchdog_alerts = conn.execute(
-        text(
-            """
-            SELECT summary, severity, created_at
-            FROM watchdog_alerts
-            ORDER BY created_at DESC
-            LIMIT 3
-            """
-        )
-    ).mappings().all()
-
-    watchdog = _build_watchdog_timeline(len(members), len(pending_actions), watchdog_alerts)
+    watchdog = _build_watchdog_timeline(len(members), len(pending_actions), alerts)
 
     return {
         "kpis": kpis,
@@ -604,19 +600,18 @@ def create_email_action(
     conn: Connection = Depends(get_db),
 ) -> ActionCreateResponse:
     payload = {"to": req.to, "subject": req.subject, "body": req.body}
-    draft_content = f"Email to {req.to}: {req.subject}"
+    draft_content = f"Email to {req.to}: {req.subject}\n\n{json.dumps(payload, ensure_ascii=False)}"
     conn.execute(
         text(
             """
-            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status, action_payload)
-            VALUES (:proposal_id, :action_type, :draft_content, 'pending', :action_payload)
+            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status)
+            VALUES (:proposal_id, :action_type, :draft_content, 'pending')
             """
         ),
         {
             "proposal_id": req.proposalId,
             "action_type": ACTION_TYPE_EMAIL,
             "draft_content": draft_content,
-            "action_payload": json.dumps(payload),
         },
     )
     action_id = conn.execute(
@@ -653,19 +648,21 @@ def create_calendar_action(
         "timezone": req.timezone,
         "description": req.description,
     }
-    draft_content = f"Calendar booking: {req.title} ({req.startAt} - {req.endAt})"
+    draft_content = (
+        f"Calendar booking: {req.title} ({req.startAt} - {req.endAt})\n\n"
+        f"{json.dumps(payload, ensure_ascii=False)}"
+    )
     conn.execute(
         text(
             """
-            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status, action_payload)
-            VALUES (:proposal_id, :action_type, :draft_content, 'pending', :action_payload)
+            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status)
+            VALUES (:proposal_id, :action_type, :draft_content, 'pending')
             """
         ),
         {
             "proposal_id": req.proposalId,
             "action_type": ACTION_TYPE_CALENDAR,
             "draft_content": draft_content,
-            "action_payload": json.dumps(payload),
         },
     )
     action_id = conn.execute(
@@ -691,38 +688,7 @@ def create_calendar_action(
     dependencies=[Depends(get_current_user)],
 )
 def list_external_action_runs(conn: Connection = Depends(get_db)) -> list[dict]:
-    rows = conn.execute(
-        text(
-            """
-            SELECT run_id, job_id, action_id, action_type, provider, status, executed_at, error
-            FROM external_action_runs
-            ORDER BY executed_at DESC
-            LIMIT 20
-            """
-        )
-    ).mappings().all()
-
-    results: list[dict] = []
-    for row in rows:
-        executed_at = row.get("executed_at")
-        executed_at_str = (
-            executed_at.isoformat() if hasattr(executed_at, "isoformat") else str(executed_at)
-            if executed_at
-            else None
-        )
-        results.append(
-            {
-                "runId": row["run_id"],
-                "jobId": row["job_id"],
-                "actionId": row["action_id"],
-                "actionType": row["action_type"],
-                "provider": row["provider"],
-                "status": row["status"],
-                "executedAt": executed_at_str,
-                "error": row.get("error"),
-            }
-        )
-    return results
+    return []
 
 
 @router.post(
@@ -915,7 +881,7 @@ def _load_latest_analysis(conn: Connection) -> dict[str, dict]:
     rows = conn.execute(
         text(
             """
-            SELECT analysis_id, user_id, pattern_id, pm_risk_score, hr_risk_score, risk_risk_score, final_decision
+            SELECT analysis_id, user_id, pattern_id, final_decision
             FROM ai_analysis_results
             ORDER BY analysis_id
             """
@@ -923,15 +889,30 @@ def _load_latest_analysis(conn: Connection) -> dict[str, dict]:
     ).mappings().all()
     latest: dict[str, dict] = {}
     for row in rows:
+        pm_risk, hr_risk, risk_risk = _risk_scores_from_pattern(row["pattern_id"])
         latest[row["user_id"]] = {
             "patternId": row["pattern_id"],
             "patternName": patterns.get(row["pattern_id"]),
-            "pmRiskScore": row["pm_risk_score"],
-            "hrRiskScore": row["hr_risk_score"],
-            "riskRiskScore": row["risk_risk_score"],
+            "pmRiskScore": pm_risk,
+            "hrRiskScore": hr_risk,
+            "riskRiskScore": risk_risk,
             "finalDecision": row["final_decision"],
         }
     return latest
+
+
+def _risk_scores_from_pattern(pattern_id: str) -> tuple[int, int, int]:
+    if pattern_id == "burnout":
+        return (25, 90, 80)
+    if pattern_id == "toxic":
+        return (20, 85, 90)
+    if pattern_id == "rising_star":
+        return (60, 35, 45)
+    if pattern_id == "luxury":
+        return (85, 30, 40)
+    if pattern_id == "constraint":
+        return (40, 55, 45)
+    return (10, 15, 15)
 
 
 def _build_kpis(members: list[dict], analysis_by_user: dict[str, dict]) -> list[dict]:
@@ -979,6 +960,16 @@ def _build_kpis(members: list[dict], analysis_by_user: dict[str, dict]) -> list[
     ]
 
 
+def _proposal_score(plan_type: str, is_recommended: bool | None) -> int:
+    if is_recommended:
+        return 82
+    if plan_type == "Plan_A":
+        return 65
+    if plan_type == "Plan_C":
+        return 55
+    return 60
+
+
 def _build_watchdog_timeline(
     member_count: int,
     pending_count: int,
@@ -1001,12 +992,13 @@ def _build_watchdog_timeline(
         for alert in alerts:
             severity = alert.get("severity") or "low"
             dot = "#f43f5e" if severity == "high" else ("#f59e0b" if severity == "medium" else "#10b981")
+            text_value = alert.get("title") or "Watchdog alert"
+            if alert.get("subtitle"):
+                text_value = f"{text_value} / {alert['subtitle']}"
             timeline.append(
                 {
-                    "t": (alert.get("created_at") or "auto").strftime("%H:%M")
-                    if hasattr(alert.get("created_at"), "strftime")
-                    else "auto",
-                    "text": alert.get("summary") or "Watchdog alert",
+                    "t": "auto",
+                    "text": text_value,
                     "dot": dot,
                 }
             )
@@ -1026,7 +1018,7 @@ def _load_assignments(conn: Connection, user_id: str) -> list[dict]:
     rows = conn.execute(
         text(
             """
-            SELECT assignment_id, project_id, role_in_pj, start_date, end_date, remarks
+            SELECT assignment_id, project_id, role_in_pj, allocation_rate, start_date, end_date
             FROM assignments
             WHERE user_id = :user_id
             ORDER BY assignment_id
@@ -1041,9 +1033,9 @@ def _load_assignments(conn: Connection, user_id: str) -> list[dict]:
                 "id": row["assignment_id"],
                 "projectId": row["project_id"],
                 "role": row["role_in_pj"],
+                "allocationRate": float(row.get("allocation_rate") or 0),
                 "startDate": row["start_date"].isoformat() if row["start_date"] else None,
                 "endDate": row["end_date"].isoformat() if row["end_date"] else None,
-                "remarks": row["remarks"],
             }
         )
     return assignments

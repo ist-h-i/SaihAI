@@ -99,25 +99,15 @@ def migrate_down() -> None:
 
 def _wipe_tables(conn) -> None:
     table_order = [
-        "external_action_runs",
-        "execution_jobs",
-        "hitl_approval_requests",
-        "hitl_audit_logs",
-        "hitl_states",
-        "input_ingestion_runs",
-        "watchdog_alerts",
-        "watchdog_jobs",
-        "user_skills",
-        "user_profiles",
         "langgraph_checkpoints",
-        "project_health_snapshots",
-        "user_motivation_history",
         "autonomous_actions",
         "ai_strategy_proposals",
         "ai_analysis_results",
         "assignment_patterns",
         "weekly_reports",
         "assignments",
+        "project_health_snapshots",
+        "user_motivation_history",
         "projects",
         "users",
     ]
@@ -187,14 +177,15 @@ def seed_data(force: bool = False) -> None:
             project_rows.append(
                 {
                     "project_id": p.get("id"),
-                    "name": p.get("name"),
-                    "status": "稼働中",
+                    "project_name": p.get("name"),
+                    "manager_id": p.get("managerId"),
+                    "status": p.get("status") or "稼働中",
                     "budget_cap": int(p.get("budget") or 0),
-                    "difficulty_level": "L3",
+                    "difficulty_level": p.get("difficulty") or "L3",
                     "required_skills": json.dumps(p.get("requiredSkills") or [])
                     if is_sqlite_engine(engine)
                     else p.get("requiredSkills"),
-                    "description": p.get("name"),
+                    "description": p.get("description") or p.get("name"),
                 }
             )
         if project_rows:
@@ -202,82 +193,67 @@ def seed_data(force: bool = False) -> None:
                 text(
                     """
                     INSERT INTO projects
-                      (project_id, name, status, budget_cap, difficulty_level, required_skills, description)
+                      (project_id, project_name, manager_id, status, budget_cap, difficulty_level, required_skills, description)
                     VALUES
-                      (:project_id, :name, :status, :budget_cap, :difficulty_level, :required_skills, :description)
+                      (:project_id, :project_name, :manager_id, :status, :budget_cap, :difficulty_level, :required_skills, :description)
                     """
                 ),
                 project_rows,
             )
 
         user_rows = []
-        profile_rows = []
-        skill_rows = []
         report_rows = []
         for m in members:
             notes = m.get("notes") or ""
-            role = (m.get("skills") or [None])[0] or "Engineer"
+            role = m.get("role") or (m.get("skills") or [None])[0] or "Engineer"
+            cost = int(m.get("cost") or 0)
+            can_overtime = m.get("canOvertime")
+            if can_overtime is None:
+                can_overtime = bool((m.get("availability") or 0) >= 80)
             user_rows.append(
                 {
                     "user_id": m.get("id"),
                     "name": m.get("name"),
                     "role": role,
-                    "skill_level": _skill_level_from_cost(int(m.get("cost") or 0)),
-                    "unit_price": int(m.get("cost") or 0),
-                    "can_overtime": bool((m.get("availability") or 0) >= 80),
-                    "career_aspiration": notes,
+                    "skill_level": int(m.get("skillLevel") or _skill_level_from_cost(cost)),
+                    "unit_id": m.get("unitId"),
+                    "cost_per_month": cost,
+                    "can_overtime": bool(can_overtime),
+                    "career_aspiration": m.get("careerAspiration") or notes,
                 }
             )
-            profile_rows.append(
-                {
-                    "user_id": m.get("id"),
-                    "availability_pct": int(m.get("availability") or 0),
-                    "notes": notes,
-                }
-            )
-            for skill in m.get("skills", []):
-                skill_rows.append({"user_id": m.get("id"), "skill": skill})
-            report_rows.append(
-                {
-                    "user_id": m.get("id"),
-                    "posted_at": "2026-01-01 09:00:00",
-                    "content": notes or "週報なし",
-                }
-            )
+            project_id = m.get("projectId") or (projects[0].get("id") if projects else None)
+            if project_id:
+                report_rows.append(
+                    {
+                        "user_id": m.get("id"),
+                        "project_id": project_id,
+                        "reporting_date": m.get("reportingDate") or date.today().isoformat(),
+                        "content_text": notes or "Weekly report: steady progress.",
+                        "reported_at": m.get("reportedAt") or "2026-01-01 09:00:00",
+                    }
+                )
 
         if user_rows:
             conn.execute(
                 text(
                     """
                     INSERT INTO users
-                      (user_id, name, role, skill_level, unit_price, can_overtime, career_aspiration)
+                      (user_id, name, role, skill_level, unit_id, cost_per_month, can_overtime, career_aspiration)
                     VALUES
-                      (:user_id, :name, :role, :skill_level, :unit_price, :can_overtime, :career_aspiration)
+                      (:user_id, :name, :role, :skill_level, :unit_id, :cost_per_month, :can_overtime, :career_aspiration)
                     """
                 ),
                 user_rows,
-            )
-        if profile_rows:
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO user_profiles (user_id, availability_pct, notes)
-                    VALUES (:user_id, :availability_pct, :notes)
-                    """
-                ),
-                profile_rows,
-            )
-        if skill_rows:
-            conn.execute(
-                text("INSERT INTO user_skills (user_id, skill) VALUES (:user_id, :skill)"),
-                skill_rows,
             )
         if report_rows:
             conn.execute(
                 text(
                     """
-                    INSERT INTO weekly_reports (user_id, posted_at, content)
-                    VALUES (:user_id, :posted_at, :content)
+                    INSERT INTO weekly_reports
+                      (user_id, project_id, reporting_date, content_text, reported_at)
+                    VALUES
+                      (:user_id, :project_id, :reporting_date, :content_text, :reported_at)
                     """
                 ),
                 report_rows,
@@ -291,18 +267,20 @@ def seed_data(force: bool = False) -> None:
                     {
                         "project_id": primary_project,
                         "user_id": member.get("id"),
-                        "role_in_pj": "Dev",
+                        "role_in_pj": member.get("role") or "Dev",
+                        "allocation_rate": float(member.get("allocationRate") or 0.6),
                         "start_date": "2025-12-01",
                         "end_date": None,
-                        "remarks": "Seed assignment",
                     }
                 )
         if assignment_rows:
             conn.execute(
                 text(
                     """
-                    INSERT INTO assignments (project_id, user_id, role_in_pj, start_date, end_date, remarks)
-                    VALUES (:project_id, :user_id, :role_in_pj, :start_date, :end_date, :remarks)
+                    INSERT INTO assignments
+                      (project_id, user_id, role_in_pj, allocation_rate, start_date, end_date)
+                    VALUES
+                      (:project_id, :user_id, :role_in_pj, :allocation_rate, :start_date, :end_date)
                     """
                 ),
                 assignment_rows,
@@ -331,7 +309,6 @@ def seed_data(force: bool = False) -> None:
             for member in members:
                 notes = member.get("notes") or ""
                 pattern_id = _determine_pattern(notes)
-                pm_risk, hr_risk, risk_risk = _risk_scores(pattern_id)
                 debate_log = json.dumps(
                     {
                         "PM": "予算とスキルの観点で評価",
@@ -345,9 +322,6 @@ def seed_data(force: bool = False) -> None:
                         "user_id": member.get("id"),
                         "project_id": project.get("id"),
                         "pattern_id": pattern_id,
-                        "pm_risk_score": pm_risk,
-                        "hr_risk_score": hr_risk,
-                        "risk_risk_score": risk_risk,
                         "debate_log": debate_log,
                         "final_decision": _decision_from_pattern(pattern_id),
                     }
@@ -357,9 +331,9 @@ def seed_data(force: bool = False) -> None:
                 text(
                     """
                     INSERT INTO ai_analysis_results
-                      (user_id, project_id, pattern_id, pm_risk_score, hr_risk_score, risk_risk_score, debate_log, final_decision)
+                      (user_id, project_id, pattern_id, debate_log, final_decision)
                     VALUES
-                      (:user_id, :project_id, :pattern_id, :pm_risk_score, :hr_risk_score, :risk_risk_score, :debate_log, :final_decision)
+                      (:user_id, :project_id, :pattern_id, :debate_log, :final_decision)
                     """
                 ),
                 analysis_rows,
@@ -367,34 +341,27 @@ def seed_data(force: bool = False) -> None:
 
         proposal_rows = []
         for project in projects:
-            base_cost = int(project.get("budget") or 0)
             proposal_rows.extend(
                 [
                     {
                         "project_id": project.get("id"),
                         "plan_type": "Plan_A",
                         "is_recommended": False,
-                        "recommendation_score": 62,
                         "description": "既存体制を維持して短期安定を狙う",
-                        "total_cost": base_cost,
                         "predicted_future_impact": "短期安定",
                     },
                     {
                         "project_id": project.get("id"),
                         "plan_type": "Plan_B",
                         "is_recommended": True,
-                        "recommendation_score": 82,
                         "description": "成長枠を織り込んだ未来投資プラン",
-                        "total_cost": base_cost + 20,
                         "predicted_future_impact": "中期成長",
                     },
                     {
                         "project_id": project.get("id"),
                         "plan_type": "Plan_C",
                         "is_recommended": False,
-                        "recommendation_score": 55,
                         "description": "コスト重視で短期収益を最大化",
-                        "total_cost": max(0, base_cost - 15),
                         "predicted_future_impact": "短期利益",
                     },
                 ]
@@ -404,9 +371,9 @@ def seed_data(force: bool = False) -> None:
                 text(
                     """
                     INSERT INTO ai_strategy_proposals
-                      (project_id, plan_type, is_recommended, recommendation_score, description, total_cost, predicted_future_impact)
+                      (project_id, plan_type, is_recommended, description, predicted_future_impact)
                     VALUES
-                      (:project_id, :plan_type, :is_recommended, :recommendation_score, :description, :total_cost, :predicted_future_impact)
+                      (:project_id, :plan_type, :is_recommended, :description, :predicted_future_impact)
                     """
                 ),
                 proposal_rows,
@@ -441,10 +408,12 @@ def seed_data(force: bool = False) -> None:
             snapshot_rows.append(
                 {
                     "project_id": project.get("id"),
-                    "measured_date": date.today().isoformat(),
-                    "budget_usage_rate": 70 + idx * 10,
-                    "delay_risk_rate": 50 + idx * 15,
-                    "overall_health": "warning" if idx % 2 else "safe",
+                    "health_score": max(40, 85 - idx * 10),
+                    "risk_level": "Warning" if idx % 2 else "Safe",
+                    "variance_score": round(0.35 + idx * 0.1, 2),
+                    "manager_gap_score": round(0.2 + idx * 0.05, 2),
+                    "aggregate_vector": None,
+                    "calculated_at": date.today().isoformat(),
                 }
             )
         if snapshot_rows:
@@ -452,9 +421,9 @@ def seed_data(force: bool = False) -> None:
                 text(
                     """
                     INSERT INTO project_health_snapshots
-                      (project_id, measured_date, budget_usage_rate, delay_risk_rate, overall_health)
+                      (project_id, health_score, risk_level, variance_score, manager_gap_score, aggregate_vector, calculated_at)
                     VALUES
-                      (:project_id, :measured_date, :budget_usage_rate, :delay_risk_rate, :overall_health)
+                      (:project_id, :health_score, :risk_level, :variance_score, :manager_gap_score, :aggregate_vector, :calculated_at)
                     """
                 ),
                 snapshot_rows,

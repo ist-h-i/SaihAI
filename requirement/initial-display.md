@@ -34,7 +34,7 @@ sequenceDiagram
   Frontend->>Backend: 初期データ要求（例: GET /api/v1/dashboard/initial）
   Backend->>DB: project_health_snapshots（最新）取得
   Backend->>DB: ai_analysis_results × users（診断/スコア）取得
-  Backend->>DB: ai_strategy_proposals（松竹梅 + 議論ログ）取得
+  Backend->>DB: ai_strategy_proposals（松竹梅 + 影響予測）取得
   Backend->>DB: autonomous_actions（Pending）取得
   Backend->>DB: langgraph_checkpoints（Interrupt 待機）有無を確認
   DB-->>Backend: 集約データ
@@ -52,8 +52,8 @@ sequenceDiagram
 2. **ダッシュボードアクセス（初期表示）**
    - マネージャーがダッシュボードを開くと、フロントエンドは初期表示に必要なデータを一括取得する（または BFF で集約する）。
 3. **データ集約（Backend）**
-   - `project_health_snapshots` からプロジェクト健全性（予算/納期）を取得する。
-   - `ai_analysis_results × users` から診断パターン（燃え尽き等）とリスクスコア、根拠ログを取得する。
+   - `project_health_snapshots` からプロジェクト健全性（health_score / risk_level / variance_score 等）を取得する。
+   - `ai_analysis_results × users` から診断パターン（燃え尽き等）と根拠ログ（debate_log）を取得する。
    - `autonomous_actions` から AI が下書きを終えている「承認待ちタスク」を取得する。
    - `langgraph_checkpoints` から Interrupt により待機しているスレッドの有無をチェックする。
 4. **レンダリング（Frontend）**
@@ -69,9 +69,9 @@ sequenceDiagram
 
 ### 3.1 バックエンドが一括取得する想定データ
 
-- **プロジェクトの「今」**: `project_health_snapshots`（最新の予算消化率/納期遅延リスク/総合ヘルス）
-- **メンバーの「状態」**: `ai_analysis_results × users`（診断パターン + 各エージェントのリスクスコア + 根拠ログ）
-- **AI が準備した「策」**: `ai_strategy_proposals`（松竹梅 3 プラン + 議論ログ）
+- **プロジェクトの「今」**: `project_health_snapshots`（health_score / risk_level / variance_score / manager_gap_score）
+- **メンバーの「状態」**: `ai_analysis_results × users`（診断パターン + debate_log）
+- **AI が準備した「策」**: `ai_strategy_proposals`（松竹梅 3 プラン + predicted_future_impact）
 - **今すぐ承認すべきアクション**: `autonomous_actions`（Pending の根回しタスク）
 - **停止中の LangGraph**: `langgraph_checkpoints`（Interrupt 待機スレッドの存在確認）
 
@@ -79,8 +79,8 @@ sequenceDiagram
 
 | UIコンポーネント | 表示内容 | データの紐付け |
 | --- | --- | --- |
-| ① プロジェクト・アラート | 「炎上中」バッジ、予算/納期リスクのプログレス表示 | `project_health_snapshots`（最新） |
-| ② メンバー Genome リスト | 「燃え尽き」「ダイヤの原石」等の診断バッジ。クリックで根拠ログ確認 | `ai_analysis_results`（pattern/score/log） + `users` |
+| ① プロジェクト・アラート | 「炎上中」バッジ、health_score / risk_level の可視化 | `project_health_snapshots`（最新） |
+| ② メンバー Genome リスト | 「燃え尽き」「ダイヤの原石」等の診断バッジ。クリックで根拠ログ確認 | `ai_analysis_results`（pattern / debate_log） + `users` |
 | ③ 軍師の緊急提案（Modal） | 「松竹梅」3案を並列提示。推奨案にはバッジ | `ai_strategy_proposals` |
 | ④ Action Required（HITL） | 「面談（仮押さえ済み）」「メール（下書き済み）」の承認ボタン | `autonomous_actions`（status=Pending） |
 
@@ -90,36 +90,54 @@ sequenceDiagram
 
 ```json
 {
-  "project_status": {
-    "name": "プロジェクト・フェニックス",
-    "health": "danger",
-    "risk_scores": { "budget": 95, "delay": 80 }
-  },
-  "member_diagnoses": [
+  "kpis": [
+    { "label": "エンゲージメント", "value": 78, "suffix": "%", "delta": "▲ 2.4pt", "color": "#10b981", "deltaColor": "#10b981" }
+  ],
+  "alerts": [
     {
-      "user_name": "田中 未来",
-      "pattern": "燃え尽き (Burnout)",
-      "risk_level": "High",
-      "summary": "週報に『腰痛』『飽き』の兆候あり。離職リスク95%"
-    },
-    {
-      "user_name": "佐藤 健太",
-      "pattern": "ダイヤの原石 (Rising Star)",
-      "risk_level": "Low",
-      "summary": "スキル不足だが成長意欲が極めて高く、リーダー抜擢の好機"
+      "id": "alert-P001-202501",
+      "title": "プロジェクト・フェニックス のリスクが上昇",
+      "subtitle": "Health 72 / variance 0.42",
+      "risk": 72,
+      "severity": "medium",
+      "status": "open",
+      "projectId": "P001"
     }
   ],
-  "pending_proposals": [
+  "members": [
     {
-      "plan_type": "Plan_B (未来投資)",
-      "is_recommended": true,
-      "description": "佐藤をリーダーに抜擢し、田中を週2日の技術顧問にスライドさせる",
-      "actions": [
-        { "id": 101, "type": "mail_draft", "title": "クライアントへの体制変更願い" },
-        { "id": 102, "type": "meeting", "title": "佐藤さんとのリーダー打診面談" }
-      ]
+      "id": "U002",
+      "name": "田中 未来",
+      "role": "Dev",
+      "skillLevel": 10,
+      "cost": 95,
+      "availability": 60,
+      "skills": ["Dev", "L10", "Java"],
+      "notes": "腰痛が悪化しており、レガシー案件に飽きている。",
+      "analysis": {
+        "patternId": "burnout",
+        "patternName": "燃え尽き",
+        "finalDecision": "不採用"
+      }
     }
-  ]
+  ],
+  "proposals": [
+    {
+      "id": 12,
+      "projectId": "P001",
+      "planType": "Plan_B",
+      "description": "佐藤をリーダーに抜擢し、田中を週2日の技術顧問にスライドさせる",
+      "recommendationScore": 82,
+      "isRecommended": true
+    }
+  ],
+  "pendingActions": [
+    { "id": 101, "proposalId": 12, "actionType": "mail_draft", "title": "体制変更の連絡", "status": "approval_pending" }
+  ],
+  "watchdog": [
+    { "t": "09:00", "text": "全社解析完了（12名の週報を更新）", "dot": "#6366f1" }
+  ],
+  "checkpointWaiting": true
 }
 ```
 

@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS user_skills;
-DROP TABLE IF EXISTS user_profiles;
 DROP TABLE IF EXISTS langgraph_checkpoints;
 DROP TABLE IF EXISTS project_health_snapshots;
 DROP TABLE IF EXISTS user_motivation_history;

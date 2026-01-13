@@ -1,17 +1,23 @@
-[
+﻿[
   {
-    "user_id": "tanaka",
-    "posted_at": "2026-01-01T09:00:00",
-    "content": "Weekly report: fatigue is building up, need rest. Legacy stack feels repetitive."
+    "user_id": "U001",
+    "project_id": "P001",
+    "reporting_date": "2026-01-01",
+    "content_text": "週報: 疲労が蓄積。火消し対応が続いている。",
+    "reported_at": "2026-01-01T09:00:00+09:00"
   },
   {
-    "user_id": "yamada",
-    "posted_at": "2026-01-02T09:00:00",
-    "content": "Weekly report: eager to tackle harder tasks and learn AI tooling."
+    "user_id": "U003",
+    "project_id": "P002",
+    "reporting_date": "2026-01-02",
+    "content_text": "週報: 難易度の高い課題に挑戦して学びを得たい。",
+    "reported_at": "2026-01-02T09:00:00+09:00"
   },
   {
-    "user_id": "sato",
-    "posted_at": "2026-01-03T09:00:00",
-    "content": "Weekly report: available for architecture review, limited weekly hours."
+    "user_id": "U005",
+    "project_id": "P001",
+    "reporting_date": "2026-01-03",
+    "content_text": "週報: 顧問として週1レビューで支援可能。",
+    "reported_at": "2026-01-03T09:00:00+09:00"
   }
 ]

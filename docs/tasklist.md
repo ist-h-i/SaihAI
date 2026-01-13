@@ -26,7 +26,7 @@
 - `requirement-docs/requirement.md`（要件定義）
 - `requirement-docs/function-list.md`（機能一覧 + mock受け入れメモ）
 - `requirement-docs/app-guideline.md`（技術スタック/採用理由。AWS構成の前提）
-- `requirement-docs/database-schema.md`（DBスキーマ/DDL）
+- `docs/db-idea.md`（DBスキーマ/DDL・正式仕様）
 - `requirement-docs/human-in-the-loop.md`（HITL設計：承認/監査/冪等性）
 - `requirement-docs/response-example.md`（AI応答スキーマ例）
 - `requirement-docs/agent-prompts/*.md`（PM/HR/Risk プロンプト）
@@ -234,7 +234,7 @@
 
 ### 6.2 DB（“正” の参照）
 
-- DB スキーマの “正” は `requirement-docs/database-schema.md` の **DDL セクション** とする（冒頭表に差分がある場合は DDL を優先）。
+- DB スキーマ仕様（設計書）の “正” は `docs/db-idea.md` とする（DDL 例も同ファイルに記載）。
 - pgvector の embedding 次元は **1024**（`amazon.titan-embed-text-v2` を想定）。
 
 ### 6.3 エンドポイント一覧

@@ -29,9 +29,9 @@ def ensure_weekly_report_embeddings(conn: Connection, limit: int = 50) -> int:
     rows = conn.execute(
         text(
             """
-            SELECT report_id, content
+            SELECT report_id, content_text
             FROM weekly_reports
-            WHERE content_embedding IS NULL
+            WHERE content_vector IS NULL
             ORDER BY report_id
             LIMIT :limit
             """
@@ -45,14 +45,14 @@ def ensure_weekly_report_embeddings(conn: Connection, limit: int = 50) -> int:
     dialect = conn.engine.dialect.name
     updated = 0
     for row in rows:
-        content = row.get("content") or ""
+        content = row.get("content_text") or ""
         embedding = generate_embedding(content)
         payload = embedding_to_db_value(embedding, dialect)
         conn.execute(
             text(
                 """
                 UPDATE weekly_reports
-                SET content_embedding = :embedding
+                SET content_vector = :embedding
                 WHERE report_id = :report_id
                 """
             ),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -10,8 +10,8 @@ from uuid import uuid4
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-ACTION_TYPE_EMAIL = "send_email"
-ACTION_TYPE_CALENDAR = "schedule_calendar"
+ACTION_TYPE_EMAIL = "mail_draft"
+ACTION_TYPE_CALENDAR = "meeting_request"
 
 EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mock")
 CALENDAR_PROVIDER = os.getenv("CALENDAR_PROVIDER", "mock")
@@ -63,7 +63,7 @@ def execute_external_action(
     action = conn.execute(
         text(
             """
-            SELECT action_type, draft_content, action_payload
+            SELECT action_type, draft_content
             FROM autonomous_actions
             WHERE action_id = :action_id
             """
@@ -77,12 +77,8 @@ def execute_external_action(
     if action_type not in (ACTION_TYPE_EMAIL, ACTION_TYPE_CALENDAR):
         return None
 
-    existing = _load_run_by_job(conn, job_id)
-    if existing:
-        return existing
-
     provider_name = EMAIL_PROVIDER if action_type == ACTION_TYPE_EMAIL else CALENDAR_PROVIDER
-    payload = _build_payload(action_type, action.get("action_payload"), action.get("draft_content"))
+    payload = _build_payload(action_type, action.get("draft_content"))
 
     response: dict[str, Any] | None = None
     error: str | None = None
@@ -97,28 +93,6 @@ def execute_external_action(
         error = str(exc)
 
     run_id = f"ext-{uuid4().hex[:12]}"
-    conn.execute(
-        text(
-            """
-            INSERT INTO external_action_runs
-              (run_id, job_id, action_id, action_type, provider, status, request_payload, response_payload, error)
-            VALUES
-              (:run_id, :job_id, :action_id, :action_type, :provider, :status, :request_payload, :response_payload, :error)
-            """
-        ),
-        {
-            "run_id": run_id,
-            "job_id": job_id,
-            "action_id": action_id,
-            "action_type": action_type,
-            "provider": provider_name,
-            "status": status,
-            "request_payload": _serialize_json(payload),
-            "response_payload": _serialize_json(response),
-            "error": error,
-        },
-    )
-
     result = ExternalActionRun(
         run_id=run_id,
         status=status,
@@ -135,10 +109,9 @@ def execute_external_action(
 
 def _build_payload(
     action_type: str,
-    raw_payload: Any,
     draft_content: str | None,
 ) -> EmailPayload | CalendarPayload:
-    payload = _deserialize_json(raw_payload) or {}
+    payload = _extract_payload_from_draft(draft_content)
     if action_type == ACTION_TYPE_EMAIL:
         subject = str(payload.get("subject") or f"Approval action {action_type}")
         body = str(payload.get("body") or draft_content or "Action executed.")
@@ -191,48 +164,17 @@ def _create_calendar_event(payload: CalendarPayload) -> dict[str, Any]:
     }
 
 
-def _serialize_json(value: Any) -> str | None:
-    if value is None:
-        return None
-    if is_dataclass(value):
-        return json.dumps(asdict(value))
-    if isinstance(value, str):
-        return value
-    return json.dumps(value)
-
-
-def _deserialize_json(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, (dict, list)):
-        return value
-    if isinstance(value, str):
+def _extract_payload_from_draft(draft_content: str | None) -> dict[str, Any]:
+    if not draft_content:
+        return {}
+    for line in reversed(draft_content.splitlines()):
+        candidate = line.strip()
+        if not candidate.startswith("{"):
+            continue
         try:
-            return json.loads(value)
-        except (TypeError, json.JSONDecodeError):
-            return value
-    return value
-
-
-def _load_run_by_job(conn: Connection, job_id: str) -> ExternalActionRun | None:
-    row = conn.execute(
-        text(
-            """
-            SELECT run_id, job_id, action_id, action_type, provider, status, response_payload
-            FROM external_action_runs
-            WHERE job_id = :job_id
-            """
-        ),
-        {"job_id": job_id},
-    ).mappings().first()
-    if not row:
-        return None
-    return ExternalActionRun(
-        run_id=row["run_id"],
-        status=row["status"],
-        provider=row["provider"],
-        action_type=row["action_type"],
-        job_id=row["job_id"],
-        action_id=row["action_id"],
-        response=_deserialize_json(row.get("response_payload")),
-    )
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return {}

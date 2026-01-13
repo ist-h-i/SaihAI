@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from datetime import date
 from typing import Any, Iterable
 
 from sqlalchemy import bindparam, text
@@ -39,7 +40,7 @@ def fetch_projects(conn: Connection) -> list[dict[str, Any]]:
     rows = conn.execute(
         text(
             """
-            SELECT project_id, name, status, budget_cap, difficulty_level, required_skills, description
+            SELECT project_id, project_name, status, budget_cap, difficulty_level, required_skills, description
             FROM projects
             ORDER BY project_id
             """
@@ -50,7 +51,7 @@ def fetch_projects(conn: Connection) -> list[dict[str, Any]]:
         projects.append(
             {
                 "id": row["project_id"],
-                "name": row["name"],
+                "name": row["project_name"],
                 "budget": int(row["budget_cap"] or 0),
                 "requiredSkills": _parse_text_array(row["required_skills"]),
                 "status": row["status"],
@@ -65,7 +66,7 @@ def fetch_project(conn: Connection, project_id: str) -> dict[str, Any] | None:
     row = conn.execute(
         text(
             """
-            SELECT project_id, name, status, budget_cap, difficulty_level, required_skills, description
+            SELECT project_id, project_name, status, budget_cap, difficulty_level, required_skills, description
             FROM projects
             WHERE project_id = :project_id
             """
@@ -76,7 +77,7 @@ def fetch_project(conn: Connection, project_id: str) -> dict[str, Any] | None:
         return None
     return {
         "id": row["project_id"],
-        "name": row["name"],
+        "name": row["project_name"],
         "budget": int(row["budget_cap"] or 0),
         "requiredSkills": _parse_text_array(row["required_skills"]),
         "status": row["status"],
@@ -85,68 +86,134 @@ def fetch_project(conn: Connection, project_id: str) -> dict[str, Any] | None:
     }
 
 
-def _load_member_profiles(conn: Connection, user_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+def _load_member_assignments(
+    conn: Connection, user_ids: Iterable[str]
+) -> dict[str, list[dict[str, Any]]]:
     ids = list(user_ids)
     if not ids:
         return {}
     stmt = text(
             """
-            SELECT user_id, availability_pct, notes
-            FROM user_profiles
+            SELECT assignment_id, user_id, project_id, role_in_pj, allocation_rate, start_date, end_date
+            FROM assignments
             WHERE user_id IN :ids
+            ORDER BY assignment_id
             """
     ).bindparams(bindparam("ids", expanding=True))
-    profile_rows = conn.execute(stmt, {"ids": ids}).mappings()
-    return {row["user_id"]: dict(row) for row in profile_rows}
+    assignment_rows = conn.execute(stmt, {"ids": ids}).mappings().all()
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in assignment_rows:
+        grouped[row["user_id"]].append(dict(row))
+    return grouped
 
 
-def _load_member_skills(conn: Connection, user_ids: Iterable[str]) -> dict[str, list[str]]:
+def _load_project_skills(conn: Connection, project_ids: Iterable[str]) -> dict[str, list[str]]:
+    ids = list({pid for pid in project_ids if pid})
+    if not ids:
+        return {}
+    stmt = text(
+            """
+            SELECT project_id, required_skills
+            FROM projects
+            WHERE project_id IN :ids
+            """
+    ).bindparams(bindparam("ids", expanding=True))
+    rows = conn.execute(stmt, {"ids": ids}).mappings().all()
+    return {row["project_id"]: _parse_text_array(row["required_skills"]) for row in rows}
+
+
+def _load_latest_reports(conn: Connection, user_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
     ids = list(user_ids)
     if not ids:
         return {}
-    skills = defaultdict(list)
     stmt = text(
             """
-            SELECT user_id, skill
-            FROM user_skills
+            SELECT user_id, reporting_date, reported_at, content_text
+            FROM weekly_reports
             WHERE user_id IN :ids
-            ORDER BY skill
+            ORDER BY user_id, reporting_date DESC, reported_at DESC
             """
     ).bindparams(bindparam("ids", expanding=True))
-    skill_rows = conn.execute(stmt, {"ids": ids}).mappings()
-    for row in skill_rows:
-        skills[row["user_id"]].append(row["skill"])
-    return skills
+    rows = conn.execute(stmt, {"ids": ids}).mappings().all()
+    latest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row["user_id"] not in latest:
+            latest[row["user_id"]] = dict(row)
+    return latest
+
+
+def _availability_from_assignments(assignments: list[dict[str, Any]]) -> int:
+    if not assignments:
+        return 100
+    today = date.today()
+    active = 0.0
+    for assignment in assignments:
+        start = assignment.get("start_date")
+        end = assignment.get("end_date")
+        if start and isinstance(start, date) and start > today:
+            continue
+        if end and isinstance(end, date) and end < today:
+            continue
+        active += float(assignment.get("allocation_rate") or 0)
+    return max(0, min(100, round(100 - active * 100)))
+
+
+def _collect_member_skills(
+    member_role: str | None,
+    assignments: list[dict[str, Any]],
+    project_skills: dict[str, list[str]],
+) -> list[str]:
+    collected: list[str] = []
+    if member_role:
+        collected.append(member_role)
+    for assignment in assignments:
+        role = assignment.get("role_in_pj")
+        if role:
+            collected.append(str(role))
+        for skill in project_skills.get(assignment.get("project_id"), []):
+            collected.append(skill)
+    seen: set[str] = set()
+    unique: list[str] = []
+    for skill in collected:
+        if skill and skill not in seen:
+            seen.add(skill)
+            unique.append(skill)
+    return unique
 
 
 def fetch_members(conn: Connection) -> list[dict[str, Any]]:
     rows = conn.execute(
         text(
             """
-            SELECT user_id, name, role, skill_level, unit_price, can_overtime, career_aspiration
+            SELECT user_id, name, role, skill_level, cost_per_month, can_overtime, career_aspiration
             FROM users
             ORDER BY user_id
             """
         )
     ).mappings().all()
     user_ids = [row["user_id"] for row in rows]
-    profiles = _load_member_profiles(conn, user_ids)
-    skills_map = _load_member_skills(conn, user_ids)
+    assignments_map = _load_member_assignments(conn, user_ids)
+    project_skills = _load_project_skills(
+        conn,
+        [assignment.get("project_id") for assignments in assignments_map.values() for assignment in assignments],
+    )
+    latest_reports = _load_latest_reports(conn, user_ids)
 
     members: list[dict[str, Any]] = []
     for row in rows:
-        profile = profiles.get(row["user_id"], {})
-        skills = skills_map.get(row["user_id"]) or ([row["role"]] if row["role"] else [])
-        availability = profile.get("availability_pct")
-        if availability is None:
-            availability = 80 if row.get("can_overtime") else 60
-        notes = profile.get("notes") or row.get("career_aspiration") or ""
+        assignments = assignments_map.get(row["user_id"], [])
+        skills = _collect_member_skills(row.get("role"), assignments, project_skills)
+        availability = _availability_from_assignments(assignments)
+        if availability == 100 and row.get("can_overtime") is False:
+            availability = 80
+        report = latest_reports.get(row["user_id"], {})
+        notes = report.get("content_text") or row.get("career_aspiration") or ""
         members.append(
             {
                 "id": row["user_id"],
                 "name": row["name"],
-                "cost": int(row["unit_price"] or 0),
-                "availability": int(availability or 0),
+                "cost": int(row["cost_per_month"] or 0),
+                "availability": int(availability),
                 "skills": [s for s in skills if s],
                 "notes": notes,
                 "role": row.get("role"),
@@ -163,29 +230,34 @@ def fetch_members_by_ids(conn: Connection, user_ids: Iterable[str]) -> list[dict
         return []
     stmt = text(
             """
-            SELECT user_id, name, role, skill_level, unit_price, can_overtime, career_aspiration
+            SELECT user_id, name, role, skill_level, cost_per_month, can_overtime, career_aspiration
             FROM users
             WHERE user_id IN :ids
             """
     ).bindparams(bindparam("ids", expanding=True))
     rows = conn.execute(stmt, {"ids": ids}).mappings().all()
-    profiles = _load_member_profiles(conn, [row["user_id"] for row in rows])
-    skills_map = _load_member_skills(conn, [row["user_id"] for row in rows])
+    assignments_map = _load_member_assignments(conn, [row["user_id"] for row in rows])
+    project_skills = _load_project_skills(
+        conn,
+        [assignment.get("project_id") for assignments in assignments_map.values() for assignment in assignments],
+    )
+    latest_reports = _load_latest_reports(conn, [row["user_id"] for row in rows])
 
     members: list[dict[str, Any]] = []
     for row in rows:
-        profile = profiles.get(row["user_id"], {})
-        skills = skills_map.get(row["user_id"]) or ([row["role"]] if row["role"] else [])
-        availability = profile.get("availability_pct")
-        if availability is None:
-            availability = 80 if row.get("can_overtime") else 60
-        notes = profile.get("notes") or row.get("career_aspiration") or ""
+        assignments = assignments_map.get(row["user_id"], [])
+        skills = _collect_member_skills(row.get("role"), assignments, project_skills)
+        availability = _availability_from_assignments(assignments)
+        if availability == 100 and row.get("can_overtime") is False:
+            availability = 80
+        report = latest_reports.get(row["user_id"], {})
+        notes = report.get("content_text") or row.get("career_aspiration") or ""
         members.append(
             {
                 "id": row["user_id"],
                 "name": row["name"],
-                "cost": int(row["unit_price"] or 0),
-                "availability": int(availability or 0),
+                "cost": int(row["cost_per_month"] or 0),
+                "availability": int(availability),
                 "skills": [s for s in skills if s],
                 "notes": notes,
                 "role": row.get("role"),
@@ -200,7 +272,7 @@ def fetch_member_detail(conn: Connection, user_id: str) -> dict[str, Any] | None
     row = conn.execute(
         text(
             """
-            SELECT user_id, name, role, skill_level, unit_price, can_overtime, career_aspiration
+            SELECT user_id, name, role, skill_level, cost_per_month, can_overtime, career_aspiration
             FROM users
             WHERE user_id = :user_id
             """
@@ -209,17 +281,21 @@ def fetch_member_detail(conn: Connection, user_id: str) -> dict[str, Any] | None
     ).mappings().first()
     if not row:
         return None
-    profile = _load_member_profiles(conn, [user_id]).get(user_id, {})
-    skills = _load_member_skills(conn, [user_id]).get(user_id) or ([row["role"]] if row["role"] else [])
-    availability = profile.get("availability_pct")
-    if availability is None:
-        availability = 80 if row.get("can_overtime") else 60
-    notes = profile.get("notes") or row.get("career_aspiration") or ""
+    assignments = _load_member_assignments(conn, [user_id]).get(user_id, [])
+    project_skills = _load_project_skills(
+        conn, [assignment.get("project_id") for assignment in assignments]
+    )
+    skills = _collect_member_skills(row.get("role"), assignments, project_skills)
+    availability = _availability_from_assignments(assignments)
+    if availability == 100 and row.get("can_overtime") is False:
+        availability = 80
+    report = _load_latest_reports(conn, [user_id]).get(user_id, {})
+    notes = report.get("content_text") or row.get("career_aspiration") or ""
     return {
         "id": row["user_id"],
         "name": row["name"],
-        "cost": int(row["unit_price"] or 0),
-        "availability": int(availability or 0),
+        "cost": int(row["cost_per_month"] or 0),
+        "availability": int(availability),
         "skills": [s for s in skills if s],
         "notes": notes,
         "role": row.get("role"),
@@ -232,7 +308,7 @@ def fetch_user(conn: Connection, user_id: str) -> dict[str, Any] | None:
     row = conn.execute(
         text(
             """
-            SELECT user_id, name, role, skill_level, unit_price, can_overtime, career_aspiration
+            SELECT user_id, name, role, skill_level, cost_per_month, can_overtime, career_aspiration
             FROM users
             WHERE user_id = :user_id
             """

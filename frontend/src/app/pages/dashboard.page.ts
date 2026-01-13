@@ -558,12 +558,20 @@ export class DashboardPage {
 
   protected proposalSummary(p: DashboardProposal): string {
     const { summary } = this.splitProposal(p.description);
+    const impact = p.predictedFutureImpact ? `影響予測: ${p.predictedFutureImpact}` : '';
     const nextAction = '次: 介入プランを確認';
-    return `理由: ${summary}\n${nextAction}`;
+    return `理由: ${summary}\n${impact ? `${impact}\n` : ''}${nextAction}`;
   }
 
   protected proposalDetail(p: DashboardProposal): string | null {
-    return this.splitProposal(p.description).detail;
+    const detail = this.splitProposal(p.description).detail;
+    if (p.predictedFutureImpact) {
+      if (detail) {
+        return `${detail}\n影響予測: ${p.predictedFutureImpact}`;
+      }
+      return `影響予測: ${p.predictedFutureImpact}`;
+    }
+    return detail;
   }
 
   private splitProposal(description: string): { summary: string; detail: string | null } {

@@ -4,7 +4,7 @@
 
 - 対象範囲: localhost 起動（Backend/Frontend）しつつ、**必須の AWS サービス（Bedrock / PostgreSQL+pgvector）** を接続する（ALB/CloudFront は PoC では扱わない）
 - 目的: 新規参加者が迷わず **ローカル + AWS最小（Bedrock + pgvector DB）** で動かせること
-- 参照: `STRANDS_BEDROCK.md`、`requirement-docs/database-schema.md`
+- 参照: `STRANDS_BEDROCK.md`、`docs/db-idea.md`
 
 ## まずは localhost で動かす（PoC / AWS最小）
 
@@ -45,6 +45,13 @@ uv run python scripts/db_tool.py seed --force
 ```
 
 DB 疎通で `Operation timed out` になる場合は、まず `docs/aws-setup.md` の「接続テスト（ローカル）」で `nc -vz <DbEndpoint> 5432` を確認し、Security Group の許可元IPなどを見直してください。
+
+3.5) 週報データ投入（任意）
+
+```bash
+cd backend
+uv run python scripts/ingest_weekly_reports.py
+```
 
 4) 起動
 
@@ -190,6 +197,7 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - DB: `db_tool.py up/seed` が通り、pgvector が有効な DB に接続できる
 - Slack（任意）: `auth.test` で `ok: true`
 - Watchdog: `cd backend && uv run python scripts/watchdog_enqueue.py` → `uv run python scripts/watchdog_worker.py`
+- Weekly reports: `cd backend && uv run python scripts/ingest_weekly_reports.py`
 - アプリ
   - Backend: `cd backend && uvicorn app.main:app --reload` で `GET /api/health` が `{"status":"ok"}` を返す
   - Frontend: `cd frontend && npm i && npm start` でローカル起動

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -47,21 +47,28 @@ def ingest_weekly_reports(
         payload = _load_source(source)
         for row in payload:
             user_id = str(row.get("user_id") or "")
-            content = str(row.get("content") or "")
-            posted_at = str(row.get("posted_at") or "")
-            if not user_id or not content:
+            project_id = str(row.get("project_id") or "")
+            content = str(row.get("content_text") or "")
+            reporting_date = _normalize_date(row.get("reporting_date"))
+            reported_at = _normalize_timestamp(str(row.get("reported_at") or ""))
+            if not user_id or not project_id or not content:
                 continue
-            posted_at = _normalize_timestamp(posted_at)
             exists = conn.execute(
                 text(
                     """
                     SELECT 1
                     FROM weekly_reports
-                    WHERE user_id = :user_id AND posted_at = :posted_at
+                    WHERE user_id = :user_id
+                      AND project_id = :project_id
+                      AND reporting_date = :reporting_date
                     LIMIT 1
                     """
                 ),
-                {"user_id": user_id, "posted_at": posted_at},
+                {
+                    "user_id": user_id,
+                    "project_id": project_id,
+                    "reporting_date": reporting_date,
+                },
             ).scalar()
             if exists:
                 continue
@@ -69,11 +76,19 @@ def ingest_weekly_reports(
             conn.execute(
                 text(
                     """
-                    INSERT INTO weekly_reports (user_id, posted_at, content)
-                    VALUES (:user_id, :posted_at, :content)
+                    INSERT INTO weekly_reports
+                      (user_id, project_id, reporting_date, content_text, reported_at)
+                    VALUES
+                      (:user_id, :project_id, :reporting_date, :content_text, :reported_at)
                     """
                 ),
-                {"user_id": user_id, "posted_at": posted_at, "content": content},
+                {
+                    "user_id": user_id,
+                    "project_id": project_id,
+                    "reporting_date": reporting_date,
+                    "content_text": content,
+                    "reported_at": reported_at,
+                },
             )
             items_inserted += 1
 
@@ -83,26 +98,6 @@ def ingest_weekly_reports(
         error = str(exc)
 
     finished_at = datetime.now(timezone.utc)
-    conn.execute(
-        text(
-            """
-            INSERT INTO input_ingestion_runs
-              (run_id, source_type, status, items_inserted, started_at, finished_at, metadata, error)
-            VALUES
-              (:run_id, :source_type, :status, :items_inserted, :started_at, :finished_at, :metadata, :error)
-            """
-        ),
-        {
-            "run_id": run_id,
-            "source_type": SOURCE_WEEKLY_REPORTS,
-            "status": status,
-            "items_inserted": items_inserted,
-            "started_at": started_at.isoformat(),
-            "finished_at": finished_at.isoformat(),
-            "metadata": _serialize_json(metadata),
-            "error": error,
-        },
-    )
     return IngestionRunResult(
         run_id=run_id,
         source_type=SOURCE_WEEKLY_REPORTS,
@@ -120,36 +115,7 @@ def fetch_ingestion_runs(
     source_type: str = SOURCE_WEEKLY_REPORTS,
     limit: int = 10,
 ) -> list[IngestionRunResult]:
-    rows = conn.execute(
-        text(
-            """
-            SELECT run_id, source_type, status, items_inserted, started_at, finished_at, metadata, error
-            FROM input_ingestion_runs
-            WHERE source_type = :source_type
-            ORDER BY started_at DESC
-            LIMIT :limit
-            """
-        ),
-        {"source_type": source_type, "limit": limit},
-    ).mappings().all()
-
-    results: list[IngestionRunResult] = []
-    for row in rows:
-        started_at = _parse_timestamp(row.get("started_at"))
-        finished_at = _parse_timestamp(row.get("finished_at"))
-        results.append(
-            IngestionRunResult(
-                run_id=row["run_id"],
-                source_type=row["source_type"],
-                status=row["status"],
-                items_inserted=int(row.get("items_inserted") or 0),
-                started_at=started_at,
-                finished_at=finished_at,
-                error=row.get("error"),
-                metadata=_deserialize_json(row.get("metadata")),
-            )
-        )
-    return results
+    return []
 
 
 def _load_source(source: Path) -> list[dict[str, Any]]:
@@ -171,34 +137,15 @@ def _normalize_timestamp(value: str) -> str:
         return datetime.now(timezone.utc).isoformat()
 
 
-def _parse_timestamp(value: Any) -> datetime:
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
+def _normalize_date(value: Any) -> str:
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str) and value:
         try:
-            return datetime.fromisoformat(value)
+            return date.fromisoformat(value).isoformat()
         except ValueError:
-            pass
-    return datetime.now(timezone.utc)
+            return date.today().isoformat()
+    return date.today().isoformat()
 
 
-def _serialize_json(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return json.dumps(value)
-
-
-def _deserialize_json(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, (dict, list)):
-        return value
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (TypeError, json.JSONDecodeError):
-            return value
-    return value
 

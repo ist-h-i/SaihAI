@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.engine import Connection
@@ -100,18 +102,29 @@ async def slack_events(request: Request, conn: Connection = Depends(get_db)) -> 
 
 
 def _find_approval_by_thread(conn: Connection, thread_ts: str) -> dict | None:
-    return conn.execute(
-        text(
-            """
-            SELECT approval_request_id
-            FROM hitl_approval_requests
-            WHERE slack_thread_ts = :thread_ts OR slack_message_ts = :thread_ts
-            ORDER BY requested_at DESC
-            LIMIT 1
-            """
-        ),
-        {"thread_ts": thread_ts},
-    ).mappings().first()
+    rows = conn.execute(
+        text("SELECT metadata FROM langgraph_checkpoints")
+    ).mappings().all()
+    for row in rows:
+        metadata = row.get("metadata")
+        if isinstance(metadata, (bytes, bytearray, memoryview)):
+            try:
+                metadata = metadata.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                continue
+        if not isinstance(metadata, dict):
+            continue
+        slack = metadata.get("slack") or {}
+        if slack.get("thread_ts") == thread_ts or slack.get("message_ts") == thread_ts:
+            approval_request_id = metadata.get("approval_request_id")
+            if approval_request_id:
+                return {"approval_request_id": approval_request_id}
+    return None
 
 
 def _parse_plan(text_value: str) -> str | None:

@@ -1,72 +1,81 @@
-{
+﻿{
   "projects": [
     {
-      "id": "ec",
-      "name": "ECリニューアル (炎上)",
-      "budget": 200,
-      "requiredSkills": ["Java", "Leadership", "Legacy", "Risk"]
+      "id": "P001",
+      "name": "EC Renewal",
+      "budget": 220,
+      "requiredSkills": ["angular", "tailwind", "fastapi", "api"],
+      "status": "稼働中",
+      "difficulty": "L3",
+      "description": "Legacy EC refresh and modernization.",
+      "managerId": "U001"
     },
     {
-      "id": "hr",
-      "name": "HRシステム保守",
-      "budget": 120,
-      "requiredSkills": ["Java", "Ops", "Stability"]
-    },
-    {
-      "id": "ai",
-      "name": "新規AI開発PoC",
-      "budget": 180,
-      "requiredSkills": ["Python", "Cloud", "ML"]
+      "id": "P002",
+      "name": "Ops Automation",
+      "budget": 140,
+      "requiredSkills": ["python", "fastapi", "api", "testing"],
+      "status": "稼働中",
+      "difficulty": "L2",
+      "description": "Automate ops workflows.",
+      "managerId": "U002"
     }
   ],
   "members": [
     {
-      "id": "watanabe",
-      "name": "渡辺 救",
-      "cost": 90,
-      "availability": 90,
-      "skills": ["TechLead", "Java", "Incident", "Leadership"],
-      "notes": "面談: 立て直し経験が豊富で即応可。体調良好。"
-    },
-    {
-      "id": "tanaka",
-      "name": "田中 未来",
+      "id": "U001",
+      "name": "Tanaka Mirai",
+      "role": "PM",
+      "unitId": "Unit-A",
       "cost": 95,
       "availability": 70,
-      "skills": ["Senior", "Java", "Legacy", "PM"],
-      "notes": "週報: 疲労が抜けず腰痛も再発。レガシー案件に飽きている。"
+      "projectId": "P001",
+      "notes": "週報: 疲労/飽きが増加。炎上案件が続いている。",
+      "careerAspiration": "現場支援と組織改善の両立に挑戦したい。"
     },
     {
-      "id": "sato",
-      "name": "佐藤 健太",
+      "id": "U002",
+      "name": "Suzuki Makoto",
+      "role": "Backend",
+      "unitId": "Unit-B",
       "cost": 60,
-      "availability": 100,
-      "skills": ["Junior", "Java", "Go", "Backend"],
-      "notes": "週報: 伸びしろを感じており新領域に挑戦したい。育成枠希望。"
-    },
-    {
-      "id": "saionji",
-      "name": "西園寺 豪",
-      "cost": 150,
-      "availability": 50,
-      "skills": ["CTO", "Architecture", "Security", "Strategy"],
-      "notes": "面談: 高単価だが短期で成果を約束。"
-    },
-    {
-      "id": "genda",
-      "name": "源田 剛",
-      "cost": 88,
-      "availability": 80,
-      "skills": ["Lead", "Java", "Ops", "Delivery"],
-      "notes": "面談: 対人トラブルの噂があり、以前の現場で強い叱責が問題化。"
-    },
-    {
-      "id": "suzuki",
-      "name": "鈴木 一郎",
-      "cost": 85,
       "availability": 60,
-      "skills": ["PM", "Risk", "Java", "Process"],
-      "notes": "面談: 育児のため週1の夜間稼働のみ。顧問として参加希望。"
+      "projectId": "P002",
+      "notes": "週報: 安定志向。品質改善に前向き。",
+      "careerAspiration": "API品質を高める仕組みを作りたい。"
+    },
+    {
+      "id": "U003",
+      "name": "Yamada Tsubasa",
+      "role": "QA",
+      "unitId": "Unit-B",
+      "cost": 35,
+      "availability": 100,
+      "projectId": "P002",
+      "notes": "週報: 伸びしろ大。難易度が高い領域に挑戦したい。",
+      "careerAspiration": "AIテスト支援の実験に参加したい。"
+    },
+    {
+      "id": "U004",
+      "name": "Kobayashi Rei",
+      "role": "Frontend",
+      "unitId": "Unit-A",
+      "cost": 70,
+      "availability": 80,
+      "projectId": "P001",
+      "notes": "週報: 表面上は安定だが、対人トラブルの噂がある。",
+      "careerAspiration": "フロント体験を磨きつつチーム連携を強化したい。"
+    },
+    {
+      "id": "U005",
+      "name": "Sato Takumi",
+      "role": "Architect",
+      "unitId": "Unit-C",
+      "cost": 120,
+      "availability": 20,
+      "projectId": "P001",
+      "notes": "週報: 顧問として週1レビューなら可能。高単価だがリスク低減に強い。",
+      "careerAspiration": "組織横断の技術顧問として貢献したい。"
     }
   ]
 }

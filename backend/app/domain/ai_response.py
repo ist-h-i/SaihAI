@@ -28,6 +28,7 @@ class Plan(BaseModel):
     risk_score: int = Field(ge=0, le=100)
     risk_reward_ratio: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    predicted_future_impact: str = Field(min_length=1)
     final_judgment: FinalJudgment
     debate_summary: list[DebateSummaryEntry]
 
