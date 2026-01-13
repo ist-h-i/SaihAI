@@ -28,7 +28,18 @@ def main() -> None:
     source_path = Path(args.source).resolve() if args.source else None
     with db_connection() as conn:
         result = ingest_weekly_reports(conn, source_path=source_path)
-        print(json.dumps(result.__dict__, ensure_ascii=False))
+
+    payload = {
+        "runId": result.run_id,
+        "sourceType": result.source_type,
+        "status": result.status,
+        "itemsInserted": result.items_inserted,
+        "startedAt": result.started_at.isoformat(),
+        "finishedAt": result.finished_at.isoformat(),
+        "error": result.error,
+        "metadata": result.metadata,
+    }
+    print(json.dumps(payload, ensure_ascii=False))
 
 
 if __name__ == "__main__":

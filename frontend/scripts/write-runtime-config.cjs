@@ -36,9 +36,14 @@ const loadEnv = () => {
 
 loadEnv();
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8000/api/v1';
+const DEFAULT_DEV_API_BASE_URL = 'http://localhost:8000/api/v1';
+const DEFAULT_BUILD_API_BASE_URL = '/api/v1';
 
-const apiBaseUrl = (process.env.SAIHAI_API_BASE_URL || '').trim() || DEFAULT_API_BASE_URL;
+const lifecycleEvent = (process.env.npm_lifecycle_event || '').trim().toLowerCase();
+const isBuild = lifecycleEvent.includes('build');
+
+const defaultApiBaseUrl = isBuild ? DEFAULT_BUILD_API_BASE_URL : DEFAULT_DEV_API_BASE_URL;
+const apiBaseUrl = (process.env.SAIHAI_API_BASE_URL || '').trim() || defaultApiBaseUrl;
 const authToken = (process.env.SAIHAI_AUTH_TOKEN || '').trim();
 const loginTimeoutMs = Number.parseInt((process.env.SAIHAI_LOGIN_TIMEOUT_MS || '').trim(), 10);
 const logLevel = (process.env.SAIHAI_LOG_LEVEL || '').trim().toLowerCase();

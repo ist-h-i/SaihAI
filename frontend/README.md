@@ -19,7 +19,7 @@ npm start
 The frontend reads `/assets/runtime-config.json` at boot. `npm start` and `npm run build`
 regenerate it from environment variables.
 
-- `SAIHAI_API_BASE_URL` (default: `http://localhost:8000/api/v1`)
+- `SAIHAI_API_BASE_URL` (default: `http://localhost:8000/api/v1` for `npm start`, `/api/v1` for `npm run build`)
 - `SAIHAI_AUTH_TOKEN` (optional Bearer token)
 - `SAIHAI_LOGIN_TIMEOUT_MS` (optional: login timeout in milliseconds, default `60000`)
 - `SAIHAI_LOG_LEVEL` (optional: `debug` | `info` | `warn` | `error`)

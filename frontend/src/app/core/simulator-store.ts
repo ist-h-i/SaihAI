@@ -216,7 +216,8 @@ export class SimulatorStore {
   }
 
   private buildStreamUrl(simulationId: string): string {
-    const url = new URL(`${this.config.apiBaseUrl}/simulations/${simulationId}/plans/stream`);
+    const endpoint = `${this.config.apiBaseUrl.replace(/\/+$/, '')}/simulations/${simulationId}/plans/stream`;
+    const url = new URL(endpoint, window.location.origin);
     const token = this.tokenStore.token();
     if (token) {
       url.searchParams.set('token', token);
