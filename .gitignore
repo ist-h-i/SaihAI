@@ -28,6 +28,9 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+codex-triage.json
+.github/**/runtime_prompt.md
+.github/**/triage_prompt.md
 .codex/
 .vscode/
 .mcp/

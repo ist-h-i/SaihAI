@@ -20,6 +20,13 @@ test.describe('Docs: uiux-improvement-plan.md', () => {
       '文字情報削減',
       'サイハイくん',
       'emotion',
+      'Issue #34',
+      'ログイン画面の emotion 使い分け',
+      '`anxiety`',
+      '`energy`',
+      '`hope`',
+      '`effort`',
+      '`standard`',
       'トーン&マナー',
       'ロードマップ',
     ];

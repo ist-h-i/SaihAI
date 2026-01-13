@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TimeoutError, firstValueFrom, timeout } from 'rxjs';
 
@@ -7,9 +7,11 @@ import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { AuthClient } from '../core/auth-client';
 import { AppConfigService } from '../core/config/app-config.service';
 import { AuthTokenStore } from '../core/auth-token.store';
+import { HaisaEmotion, HaisaSpeechTone } from '../core/haisa-emotion';
 
 const LOGIN_FAILURE_MESSAGE = 'ログインに失敗しました。入力内容を確認してください。';
 const LOGIN_TIMEOUT_MESSAGE = '認証がタイムアウトしました。時間をおいて再度お試しください。';
+const LOGIN_GUIDANCE_MESSAGE = '入力したらログインを押してください。';
 
 @Component({
   imports: [HaisaSpeechComponent],
@@ -190,10 +192,12 @@ const LOGIN_TIMEOUT_MESSAGE = '認証がタイムアウトしました。時間�
             </div>
             <div class="mt-3">
               <app-haisa-speech
-                [tone]="'info'"
-                [message]="'入力したらログインを押してください。'"
+                [tone]="haisaTone()"
+                [message]="haisaMessage()"
+                [emotion]="haisaEmotion()"
                 [compact]="true"
-                [showAvatar]="false"
+                [showAvatar]="true"
+                [speaker]="'ハイサイくん'"
               />
             </div>
 
@@ -239,17 +243,6 @@ const LOGIN_TIMEOUT_MESSAGE = '認証がタイムアウトしました。時間�
               </div>
             </div>
 
-            @if (error(); as err) {
-              <div class="mt-4">
-                <app-haisa-speech
-                  [tone]="'error'"
-                  [message]="err"
-                  [compact]="true"
-                  [showAvatar]="false"
-                />
-              </div>
-            }
-
             <button
               type="button"
               class="mt-6 w-full rounded-xl bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(14,116,144,0.35)] hover:from-indigo-400 hover:via-sky-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
@@ -279,6 +272,20 @@ export class LoginPage {
   protected readonly password = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
+
+  protected readonly haisaTone = computed<HaisaSpeechTone>(() => (this.error() ? 'error' : 'info'));
+
+  protected readonly haisaMessage = computed(() => this.error() ?? LOGIN_GUIDANCE_MESSAGE);
+
+  protected readonly haisaEmotion = computed<HaisaEmotion>(() => {
+    if (this.error()) return 'anxiety';
+    if (this.loading()) return 'energy';
+    const hasUserId = this.userId().trim().length > 0;
+    const hasPassword = this.password().trim().length > 0;
+    if (hasUserId && hasPassword) return 'hope';
+    if (hasUserId || hasPassword) return 'effort';
+    return 'standard';
+  });
 
   protected onUserInput(event: Event): void {
     const target = event.target;
