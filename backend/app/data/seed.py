@@ -8,7 +8,7 @@ SEED_PATH = Path(__file__).resolve().parent / "seed.json"
 
 @lru_cache(maxsize=1)
 def load_seed() -> dict[str, Any]:
-    with SEED_PATH.open(encoding="utf-8") as f:
+    with SEED_PATH.open(encoding="utf-8-sig") as f:
         return json.load(f)
 
 

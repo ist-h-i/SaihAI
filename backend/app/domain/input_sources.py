@@ -121,7 +121,7 @@ def fetch_ingestion_runs(
 def _load_source(source: Path) -> list[dict[str, Any]]:
     if not source.exists():
         return []
-    with source.open(encoding="utf-8") as handle:
+    with source.open(encoding="utf-8-sig") as handle:
         data = json.load(handle)
     if isinstance(data, list):
         return [row for row in data if isinstance(row, dict)]
