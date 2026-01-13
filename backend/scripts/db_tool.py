@@ -223,13 +223,66 @@ def seed_data(force: bool = False) -> None:
                 print("Seed skipped: users already exist. Use --force to reseed.")
                 return
 
+        user_rows = []
+        report_rows = []
+        seed_user_ids: set[str] = set()
+        for m in members:
+            notes = m.get("notes") or ""
+            role = m.get("role") or (m.get("skills") or [None])[0] or "Engineer"
+            cost = int(m.get("cost") or 0)
+            can_overtime = m.get("canOvertime")
+            if can_overtime is None:
+                can_overtime = bool((m.get("availability") or 0) >= 80)
+            user_id = str(m.get("id") or "")
+            if user_id:
+                seed_user_ids.add(user_id)
+            user_rows.append(
+                {
+                    "user_id": user_id,
+                    "name": m.get("name"),
+                    "role": role,
+                    "skill_level": int(m.get("skillLevel") or _skill_level_from_cost(cost)),
+                    "unit_id": m.get("unitId"),
+                    "cost_per_month": cost,
+                    "can_overtime": bool(can_overtime),
+                    "career_aspiration": m.get("careerAspiration") or notes,
+                }
+            )
+            project_id = m.get("projectId") or (projects[0].get("id") if projects else None)
+            if project_id:
+                report_rows.append(
+                    {
+                        "user_id": user_id,
+                        "project_id": project_id,
+                        "reporting_date": m.get("reportingDate") or date.today().isoformat(),
+                        "content_text": notes or "Weekly report: steady progress.",
+                        "reported_at": m.get("reportedAt") or "2026-01-01 09:00:00",
+                    }
+                )
+
+        if user_rows:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users
+                      (user_id, name, role, skill_level, unit_id, cost_per_month, can_overtime, career_aspiration)
+                    VALUES
+                      (:user_id, :name, :role, :skill_level, :unit_id, :cost_per_month, :can_overtime, :career_aspiration)
+                    """
+                ),
+                user_rows,
+            )
+
         project_rows = []
         for p in projects:
+            manager_id = p.get("managerId")
+            if manager_id and manager_id not in seed_user_ids:
+                manager_id = None
             project_rows.append(
                 {
                     "project_id": p.get("id"),
                     "project_name": p.get("name"),
-                    "manager_id": p.get("managerId"),
+                    "manager_id": manager_id,
                     "status": p.get("status") or "稼働中",
                     "budget_cap": int(p.get("budget") or 0),
                     "difficulty_level": p.get("difficulty") or "L3",
@@ -252,51 +305,6 @@ def seed_data(force: bool = False) -> None:
                 project_rows,
             )
 
-        user_rows = []
-        report_rows = []
-        for m in members:
-            notes = m.get("notes") or ""
-            role = m.get("role") or (m.get("skills") or [None])[0] or "Engineer"
-            cost = int(m.get("cost") or 0)
-            can_overtime = m.get("canOvertime")
-            if can_overtime is None:
-                can_overtime = bool((m.get("availability") or 0) >= 80)
-            user_rows.append(
-                {
-                    "user_id": m.get("id"),
-                    "name": m.get("name"),
-                    "role": role,
-                    "skill_level": int(m.get("skillLevel") or _skill_level_from_cost(cost)),
-                    "unit_id": m.get("unitId"),
-                    "cost_per_month": cost,
-                    "can_overtime": bool(can_overtime),
-                    "career_aspiration": m.get("careerAspiration") or notes,
-                }
-            )
-            project_id = m.get("projectId") or (projects[0].get("id") if projects else None)
-            if project_id:
-                report_rows.append(
-                    {
-                        "user_id": m.get("id"),
-                        "project_id": project_id,
-                        "reporting_date": m.get("reportingDate") or date.today().isoformat(),
-                        "content_text": notes or "Weekly report: steady progress.",
-                        "reported_at": m.get("reportedAt") or "2026-01-01 09:00:00",
-                    }
-                )
-
-        if user_rows:
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO users
-                      (user_id, name, role, skill_level, unit_id, cost_per_month, can_overtime, career_aspiration)
-                    VALUES
-                      (:user_id, :name, :role, :skill_level, :unit_id, :cost_per_month, :can_overtime, :career_aspiration)
-                    """
-                ),
-                user_rows,
-            )
         if report_rows:
             conn.execute(
                 text(
