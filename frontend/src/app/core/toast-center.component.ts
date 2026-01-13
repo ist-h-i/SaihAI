@@ -17,7 +17,7 @@ import { ToastService } from './toast.service';
           [title]="toast.title"
           [message]="toast.message"
           [compact]="true"
-          [showAvatar]="false"
+          [showAvatar]="true"
           [dismissible]="true"
           [dismissLabel]="'閉じる'"
           (dismissed)="dismiss(toast.id)"

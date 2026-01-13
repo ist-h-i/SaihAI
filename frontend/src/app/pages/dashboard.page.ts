@@ -257,8 +257,7 @@ interface ClusterAccumulator {
                       [meta]="'score ' + p.recommendationScore"
                       [message]="proposalSummary(p)"
                       [compact]="true"
-                      [showAvatar]="false"
-                      [reserveAvatarSpace]="true"
+                      [showAvatar]="true"
                     />
                     @if (proposalDetail(p); as detail) {
                       <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">

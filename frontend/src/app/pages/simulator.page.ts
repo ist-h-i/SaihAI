@@ -5,13 +5,7 @@ import { Subscription } from 'rxjs';
 import { EmptyStateComponent } from '../components/empty-state.component';
 import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
-import {
-  HaisaEmotion,
-  haisaAvatarSrc as resolveHaisaAvatarSrc,
-  haisaEmotionForFit,
-  haisaEmotionForRisk,
-  haisaEmotionLabel as resolveHaisaEmotionLabel,
-} from '../core/haisa-emotion';
+import { HaisaEmotion, haisaEmotionForFit, haisaEmotionForRisk } from '../core/haisa-emotion';
 import { SimulatorStore } from '../core/simulator-store';
 import { SimulationPlan, SimulationResult } from '../core/types';
 
@@ -92,7 +86,7 @@ interface ChatEntry {
           [tone]="'error'"
           [message]="err"
           [compact]="true"
-          [showAvatar]="false"
+          [showAvatar]="true"
         />
       </div>
     }
@@ -645,52 +639,34 @@ interface ChatEntry {
                     </div>
                     <div class="p-4 sm:p-5 space-y-3 min-h-0 lg:flex-1 lg:overflow-auto">
                       @for (m of overlayChat(); track $index) {
-                        <div
-                          class="haisa-chat-line"
-                          [class.justify-end]="m.from === 'user'"
-                          [class.justify-start]="m.from !== 'user'"
-                        >
-                          <div
-                            class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border haisa-bubble haisa-bubble--tail break-words"
-                            [class.bg-indigo-600]="m.from === 'user'"
-                            [class.text-white]="m.from === 'user'"
-                            [class.border-indigo-500/40]="m.from === 'user'"
-                            [class.bg-slate-900/40]="m.from !== 'user'"
-                            [class.text-slate-100]="m.from !== 'user'"
-                            [class.border-slate-800]="m.from !== 'user'"
-                            [class.ai]="m.from !== 'user'"
-                            [class.user]="m.from === 'user'"
-                          >
-                            {{ m.text }}
+                        @if (m.from === 'user') {
+                          <div class="haisa-chat-line justify-end">
+                            <div
+                              class="max-w-[80%] rounded-2xl px-4 py-3 text-sm border bg-indigo-600 text-white border-indigo-500/40 haisa-bubble haisa-bubble--tail user break-words"
+                            >
+                              {{ m.text }}
+                            </div>
                           </div>
-                        </div>
+                        } @else {
+                          <app-haisa-speech
+                            [tone]="overlayMode() === 'alert' ? 'warning' : 'info'"
+                            [message]="m.text"
+                            [emotion]="m.emotion"
+                            [compact]="true"
+                            [showAvatar]="true"
+                          />
+                        }
                       }
                     </div>
 
                     <div class="p-4 sm:p-5 border-t border-slate-800/80">
-                      <div class="flex items-center gap-3">
-                        <div
-                          class="haisa-avatar"
-                          [attr.title]="haisaEmotionLabel(overlayHaisaEmotion())"
-                          [style.width.px]="56"
-                          [style.height.px]="56"
-                          [style.border-radius.px]="18"
-                          aria-hidden="true"
-                        >
-                          <img
-                            [src]="haisaAvatarSrc(overlayHaisaEmotion())"
-                            alt=""
-                            class="haisa-avatar-image"
-                            aria-hidden="true"
-                          />
-                        </div>
-                        <div class="min-w-0">
-                          <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                            サイハイくん
-                          </div>
-                          <div class="text-xs text-slate-300">指示をまとめて共有します。</div>
-                        </div>
-                      </div>
+                      <app-haisa-speech
+                        [tone]="overlayMode() === 'alert' ? 'warning' : 'info'"
+                        [message]="'指示をまとめて共有します。'"
+                        [emotion]="overlayHaisaEmotion()"
+                        [compact]="true"
+                        [showAvatar]="true"
+                      />
                     </div>
 
                     <div class="p-4 sm:p-5 border-t border-slate-800/80 flex flex-col gap-3">
@@ -975,10 +951,6 @@ export class SimulatorPage implements OnDestroy {
     this.timers.push(t);
   }
 
-  protected haisaEmotionLabel(emotion?: HaisaEmotion): string {
-    return resolveHaisaEmotionLabel(emotion ?? 'standard');
-  }
-
   protected overlayHaisaEmotion(): HaisaEmotion {
     const chat = this.overlayChat();
     for (let i = chat.length - 1; i >= 0; i -= 1) {
@@ -986,10 +958,6 @@ export class SimulatorPage implements OnDestroy {
       if (entry?.from !== 'user') return entry.emotion ?? 'standard';
     }
     return 'standard';
-  }
-
-  protected haisaAvatarSrc(emotion: HaisaEmotion = 'standard'): string {
-    return resolveHaisaAvatarSrc(emotion);
   }
 
   private emotionForOverlay(

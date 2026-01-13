@@ -9,7 +9,7 @@ test('login page renders Haisa speech as avatar + bubble with emotion rules', as
   expect(source).toContain("const LOGIN_GUIDANCE_MESSAGE = '入力したらログインを押してください。';");
   expect(source).toContain('<app-haisa-speech');
   expect(source).toContain('[showAvatar]="true"');
-  expect(source).toContain('[speaker]="\'ハイサイくん\'"');
+  expect(source).toContain('[speaker]="\'サイハイくん\'"');
   expect(source).toContain('[message]="haisaMessage()"');
   expect(source).toContain('[emotion]="haisaEmotion()"');
 

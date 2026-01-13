@@ -197,7 +197,7 @@ const LOGIN_GUIDANCE_MESSAGE = '入力したらログインを押してくださ
                 [emotion]="haisaEmotion()"
                 [compact]="true"
                 [showAvatar]="true"
-                [speaker]="'ハイサイくん'"
+                [speaker]="'サイハイくん'"
               />
             </div>
 
