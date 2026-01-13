@@ -2,58 +2,71 @@
   "projects": [
     {
       "id": "ec",
-      "name": "ECリニューアル(炎上)",
-      "budget": 220,
-      "requiredSkills": ["angular", "tailwind", "fastapi", "api"]
+      "name": "ECリニューアル (炎上)",
+      "budget": 200,
+      "requiredSkills": ["Java", "Leadership", "Legacy", "Risk"]
     },
     {
-      "id": "ops",
-      "name": "運用自動化(省力化)",
-      "budget": 140,
-      "requiredSkills": ["python", "fastapi", "api", "testing"]
+      "id": "hr",
+      "name": "HRシステム保守",
+      "budget": 120,
+      "requiredSkills": ["Java", "Ops", "Stability"]
+    },
+    {
+      "id": "ai",
+      "name": "新規AI開発PoC",
+      "budget": 180,
+      "requiredSkills": ["Python", "Cloud", "ML"]
     }
   ],
   "members": [
+    {
+      "id": "watanabe",
+      "name": "渡辺 救",
+      "cost": 90,
+      "availability": 90,
+      "skills": ["TechLead", "Java", "Incident", "Leadership"],
+      "notes": "面談: 立て直し経験が豊富で即応可。体調良好。"
+    },
     {
       "id": "tanaka",
       "name": "田中 未来",
       "cost": 95,
       "availability": 70,
-      "skills": ["angular", "tailwind", "frontend"],
-      "notes": "週報: 疲労/飽きが増加。炎上案件が続いている。"
-    },
-    {
-      "id": "suzuki",
-      "name": "鈴木 誠",
-      "cost": 60,
-      "availability": 60,
-      "skills": ["python", "fastapi", "api", "testing"],
-      "notes": "面談: 安定志向。品質改善に前向き。"
-    },
-    {
-      "id": "yamada",
-      "name": "山田 翼",
-      "cost": 35,
-      "availability": 100,
-      "skills": ["python", "testing"],
-      "notes": "週報: 伸びしろ大。難易度が高い領域に挑戦したい。"
-    },
-    {
-      "id": "kobayashi",
-      "name": "小林 玲",
-      "cost": 70,
-      "availability": 80,
-      "skills": ["angular", "testing", "frontend"],
-      "notes": "週報: 表面上は順調だが、過去に対人トラブルがあったという噂。"
+      "skills": ["Senior", "Java", "Legacy", "PM"],
+      "notes": "週報: 疲労が抜けず腰痛も再発。レガシー案件に飽きている。"
     },
     {
       "id": "sato",
-      "name": "佐藤 匠(顧問)",
-      "cost": 120,
-      "availability": 20,
-      "skills": ["architecture", "security", "api"],
-      "notes": "面談: 週1レビューなら可能。高単価だがリスク低減に強い。"
+      "name": "佐藤 健太",
+      "cost": 60,
+      "availability": 100,
+      "skills": ["Junior", "Java", "Go", "Backend"],
+      "notes": "週報: 伸びしろを感じており新領域に挑戦したい。育成枠希望。"
+    },
+    {
+      "id": "saionji",
+      "name": "西園寺 豪",
+      "cost": 150,
+      "availability": 50,
+      "skills": ["CTO", "Architecture", "Security", "Strategy"],
+      "notes": "面談: 高単価だが短期で成果を約束。"
+    },
+    {
+      "id": "genda",
+      "name": "源田 剛",
+      "cost": 88,
+      "availability": 80,
+      "skills": ["Lead", "Java", "Ops", "Delivery"],
+      "notes": "面談: 対人トラブルの噂があり、以前の現場で強い叱責が問題化。"
+    },
+    {
+      "id": "suzuki",
+      "name": "鈴木 一郎",
+      "cost": 85,
+      "availability": 60,
+      "skills": ["PM", "Risk", "Java", "Process"],
+      "notes": "面談: 育児のため週1の夜間稼働のみ。顧問として参加希望。"
     }
   ]
 }
-
