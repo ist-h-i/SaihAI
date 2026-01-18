@@ -100,7 +100,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
           <input
             type="text"
             class="mt-2 w-full bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 ui-focus-ring"
-            placeholder="例: tanaka / angular / testing"
+            placeholder="例: U001 / angular / testing"
             [value]="query()"
             (input)="onQueryInput($event)"
           />

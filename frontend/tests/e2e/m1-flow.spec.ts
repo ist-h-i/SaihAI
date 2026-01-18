@@ -166,7 +166,7 @@ test('login -> dashboard -> simulator evaluate -> generate', async ({ page }) =>
   });
 
   await page.goto('/login');
-  await page.getByPlaceholder('例: tanaka').fill('m1');
+  await page.getByPlaceholder('例: U001').fill('m1');
   await page.getByPlaceholder('dev password').fill('saihai');
   await page.getByRole('button', { name: 'ログイン' }).click();
 
@@ -210,7 +210,7 @@ test('mobile flow supports input and approval', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto('/login');
-  await page.getByPlaceholder('例: tanaka').fill('m1');
+  await page.getByPlaceholder('例: U001').fill('m1');
   await page.getByPlaceholder('dev password').fill('saihai');
   await page.getByRole('button', { name: 'ログイン' }).click();
 

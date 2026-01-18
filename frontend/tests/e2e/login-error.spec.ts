@@ -18,7 +18,7 @@ test('login failure shows inline warning and re-enables form', async ({ page }) 
   );
 
   await page.goto('/login');
-  await page.getByPlaceholder('例: tanaka').fill('wrong');
+  await page.getByPlaceholder('例: U001').fill('wrong');
   await page.getByPlaceholder('dev password').fill('wrong');
   await page.getByRole('button', { name: 'ログイン' }).click();
 
@@ -39,7 +39,7 @@ test('login timeout shows timeout warning and re-enables form', async ({ page })
   );
 
   await page.goto('/login');
-  await page.getByPlaceholder('例: tanaka').fill('slow');
+  await page.getByPlaceholder('例: U001').fill('slow');
   await page.getByPlaceholder('dev password').fill('slow');
   await page.getByRole('button', { name: 'ログイン' }).click();
 

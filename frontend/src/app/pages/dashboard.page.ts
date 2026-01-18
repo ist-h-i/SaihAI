@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
@@ -6,7 +7,7 @@ import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
-import { DashboardProposal, Member } from '../core/types';
+import { ApprovalRequestResponse, DashboardPendingAction, DashboardProposal, Member } from '../core/types';
 
 const BURNOUT_WORDS = ['疲労', '飽き', '燃え尽き', '限界'] as const;
 const RISK_WORDS = ['対人トラブル', '噂', '炎上', '不満'] as const;
@@ -290,7 +291,16 @@ interface ClusterAccumulator {
                       <div class="text-sm font-semibold">{{ action.title }}</div>
                       <div class="text-[11px] text-slate-400">{{ action.actionType }}</div>
                     </div>
-                    <div class="mt-1 text-xs text-slate-400">status: {{ action.status }}</div>
+                    <div class="mt-2 flex items-center justify-between gap-3">
+                      <div class="text-xs text-slate-400">status: {{ action.status }}</div>
+                      <button
+                        type="button"
+                        class="ui-button-secondary"
+                        (click)="openNemawashi(action)"
+                      >
+                        下書き/承認
+                      </button>
+                    </div>
                   </div>
                 }
               </div>
@@ -423,6 +433,80 @@ interface ClusterAccumulator {
         }
       </div>
     </div>
+
+    @if (nemawashiOpen() && nemawashiAction(); as action) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-950/70" (click)="closeNemawashi()"></div>
+        <div class="relative w-full max-w-2xl rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="ui-kicker">Nemawashi</div>
+              <div class="mt-1 text-sm font-semibold text-slate-100">Action #{{ action.id }}</div>
+              <div class="mt-1 text-xs text-slate-400">
+                type: {{ action.actionType }} / status: {{ action.status }}
+              </div>
+            </div>
+            <button type="button" class="ui-button-ghost" (click)="closeNemawashi()">Close</button>
+          </div>
+
+          @if (nemawashiError(); as err) {
+            <div class="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100">
+              {{ err }}
+            </div>
+          }
+
+          <div class="mt-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+            <div class="text-xs text-slate-400 font-semibold">Draft</div>
+            <pre class="mt-2 text-xs text-slate-200 whitespace-pre-wrap">{{ action.title }}</pre>
+          </div>
+
+          @if (nemawashiApproval(); as approval) {
+            <div class="mt-3 text-xs text-slate-400">
+              approval: {{ approval.approval_request_id }} / {{ approval.status }}
+            </div>
+          }
+
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            @if (!nemawashiApproval() && action.status !== 'approval_pending') {
+              <button
+                type="button"
+                class="ui-button-primary"
+                [disabled]="nemawashiWorking()"
+                (click)="requestNemawashiApproval()"
+              >
+                承認依頼
+              </button>
+            } @else if (nemawashiApproval(); as approval) {
+              <button
+                type="button"
+                class="ui-button-primary"
+                [disabled]="nemawashiWorking()"
+                (click)="approveNemawashi(approval.approval_request_id)"
+              >
+                承認
+              </button>
+              <button
+                type="button"
+                class="ui-button-secondary"
+                [disabled]="nemawashiWorking()"
+                (click)="rejectNemawashi(approval.approval_request_id)"
+              >
+                却下
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="ui-button-secondary"
+                [disabled]="nemawashiWorking()"
+                (click)="refreshNemawashiApproval()"
+              >
+                承認情報を取得
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class DashboardPage {
@@ -452,6 +536,12 @@ export class DashboardPage {
     const count = this.dashboard.pendingActions().length;
     return count ? `${count}件` : '0件';
   });
+
+  protected readonly nemawashiOpen = signal(false);
+  protected readonly nemawashiAction = signal<DashboardPendingAction | null>(null);
+  protected readonly nemawashiApproval = signal<ApprovalRequestResponse | null>(null);
+  protected readonly nemawashiWorking = signal(false);
+  protected readonly nemawashiError = signal<string | null>(null);
 
   protected readonly matrixPoints = computed(() => {
     return this.dashboard.members().map((m) => {
@@ -586,6 +676,109 @@ export class DashboardPage {
 
   protected toggleCluster(clusterId: string): void {
     this.openedClusterId.set(this.openedClusterId() === clusterId ? null : clusterId);
+  }
+
+  protected openNemawashi(action: DashboardPendingAction): void {
+    this.nemawashiError.set(null);
+    this.nemawashiApproval.set(null);
+    this.nemawashiAction.set(action);
+    this.nemawashiOpen.set(true);
+
+    if (action.status === 'approval_pending') {
+      void this.refreshNemawashiApproval();
+    }
+  }
+
+  protected closeNemawashi(): void {
+    this.nemawashiOpen.set(false);
+    this.nemawashiAction.set(null);
+    this.nemawashiApproval.set(null);
+    this.nemawashiError.set(null);
+  }
+
+  protected async requestNemawashiApproval(): Promise<void> {
+    const action = this.nemawashiAction();
+    if (!action) return;
+
+    this.nemawashiWorking.set(true);
+    this.nemawashiError.set(null);
+    try {
+      const approval = await this.dashboard.requestNemawashiApproval(action.id);
+      this.nemawashiApproval.set(approval);
+
+      await this.dashboard.load();
+      this.nemawashiAction.set(this.findPendingAction(action.id) ?? action);
+    } catch (e) {
+      this.nemawashiError.set(this.describeError(e));
+    } finally {
+      this.nemawashiWorking.set(false);
+    }
+  }
+
+  protected async refreshNemawashiApproval(): Promise<void> {
+    const action = this.nemawashiAction();
+    if (!action) return;
+
+    this.nemawashiWorking.set(true);
+    this.nemawashiError.set(null);
+    try {
+      const approval = await this.dashboard.requestNemawashiApproval(action.id);
+      this.nemawashiApproval.set(approval);
+
+      await this.dashboard.load();
+      this.nemawashiAction.set(this.findPendingAction(action.id) ?? action);
+    } catch (e) {
+      this.nemawashiError.set(this.describeError(e));
+    } finally {
+      this.nemawashiWorking.set(false);
+    }
+  }
+
+  protected async approveNemawashi(approvalId: string): Promise<void> {
+    this.nemawashiWorking.set(true);
+    this.nemawashiError.set(null);
+    try {
+      await this.dashboard.approveApproval(approvalId);
+      await this.dashboard.load();
+      this.closeNemawashi();
+    } catch (e) {
+      this.nemawashiError.set(this.describeError(e));
+    } finally {
+      this.nemawashiWorking.set(false);
+    }
+  }
+
+  protected async rejectNemawashi(approvalId: string): Promise<void> {
+    this.nemawashiWorking.set(true);
+    this.nemawashiError.set(null);
+    try {
+      await this.dashboard.rejectApproval(approvalId);
+      await this.dashboard.load();
+      this.closeNemawashi();
+    } catch (e) {
+      this.nemawashiError.set(this.describeError(e));
+    } finally {
+      this.nemawashiWorking.set(false);
+    }
+  }
+
+  private findPendingAction(actionId: number): DashboardPendingAction | undefined {
+    return this.dashboard.pendingActions().find((a) => a.id === actionId);
+  }
+
+  private describeError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const detail =
+        typeof error.error === 'string'
+          ? error.error
+          : typeof error.error?.detail === 'string'
+            ? error.error.detail
+            : null;
+      if (detail) return `${detail}`;
+      return error.message || `${error.status} ${error.statusText}`.trim() || 'request failed';
+    }
+    if (error instanceof Error) return error.message;
+    return 'request failed';
   }
 
   constructor() {

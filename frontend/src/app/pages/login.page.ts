@@ -223,7 +223,7 @@ const LOGIN_GUIDANCE_MESSAGE = '入力したらログインを押してくださ
                 </label>
                 <input
                   class="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-400/20"
-                  placeholder="例: tanaka"
+                  placeholder="例: U001"
                   [value]="userId()"
                   (input)="onUserInput($event)"
                 />
