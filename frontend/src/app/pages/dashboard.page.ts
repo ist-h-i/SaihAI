@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { EmptyStateComponent } from '../components/empty-state.component';
@@ -7,7 +7,13 @@ import { HaisaSpeechComponent } from '../components/haisa-speech.component';
 import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
-import { ApprovalRequestResponse, DashboardPendingAction, DashboardProposal, Member } from '../core/types';
+import {
+  ApprovalRequestResponse,
+  DashboardAlert,
+  DashboardPendingAction,
+  DashboardProposal,
+  Member,
+} from '../core/types';
 
 const BURNOUT_WORDS = ['疲労', '飽き', '燃え尽き', '限界'] as const;
 const RISK_WORDS = ['対人トラブル', '噂', '炎上', '不満'] as const;
@@ -94,7 +100,7 @@ interface ClusterAccumulator {
                 <span class="text-rose-100 font-semibold">{{ alert.risk }}%</span>
               </div>
               <div class="mt-3">
-                <button type="button" class="ui-button-primary" (click)="goSimulator('alert')">
+                <button type="button" class="ui-button-primary" (click)="openAlert(alert)">
                   介入へ
                 </button>
               </div>
@@ -131,7 +137,14 @@ interface ClusterAccumulator {
       </div>
     </div>
 
-    <div class="mt-6 grid gap-4 grid-cols-1 md:grid-cols-4">
+    <div class="mt-6 flex items-center justify-between gap-3">
+      <div class="ui-kicker">KPIモニタリング</div>
+      <div class="text-xs text-slate-400">
+        更新: {{ lastUpdatedLabel() }} / {{ refreshIntervalSec }}s
+      </div>
+    </div>
+
+    <div class="mt-3 grid gap-4 grid-cols-1 md:grid-cols-4">
       @for (k of kpis(); track k.label) {
         <div class="ui-panel-muted">
           <div class="ui-kicker">{{ k.label }}</div>
@@ -143,6 +156,53 @@ interface ClusterAccumulator {
           </div>
           <div class="mt-2 text-xs" [style.color]="k.deltaColor">{{ k.delta }}</div>
         </div>
+      }
+    </div>
+
+    <div class="mt-6">
+      <div class="ui-kicker">緊急アラートフィード</div>
+      @if (alertFeed().length) {
+        <div class="mt-2 space-y-3">
+          @for (alert of alertFeed(); track alert.id) {
+            <div class="ui-panel flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+                  <span
+                    class="ui-pill"
+                    [class.border-rose-500/40]="alert.category !== 'career_mismatch'"
+                    [class.bg-rose-500/10]="alert.category !== 'career_mismatch'"
+                    [class.text-rose-200]="alert.category !== 'career_mismatch'"
+                    [class.border-indigo-500/40]="alert.category === 'career_mismatch'"
+                    [class.bg-indigo-500/10]="alert.category === 'career_mismatch'"
+                    [class.text-indigo-200]="alert.category === 'career_mismatch'"
+                  >
+                    {{ alertCategoryLabel(alert) }}
+                  </span>
+                  @if (alertFocusName(alert); as focusName) {
+                    <span class="text-slate-400">対象: {{ focusName }}</span>
+                  }
+                </div>
+                <div class="mt-2 text-sm font-semibold text-slate-100">{{ alert.title }}</div>
+                <div class="text-xs text-slate-400 truncate">{{ alert.subtitle }}</div>
+              </div>
+              <div class="flex items-center gap-4 sm:ml-auto">
+                <div class="text-right">
+                  <div class="text-[10px] text-slate-400 font-semibold">RISK</div>
+                  <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
+                </div>
+                <button type="button" class="ui-button-secondary" (click)="openAlert(alert)">
+                  詳細を開く
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          kicker="Empty"
+          title="緊急アラートはありません"
+          description="新しいアラートが検知されるとここに表示します。"
+        />
       }
     </div>
 
@@ -509,16 +569,28 @@ interface ClusterAccumulator {
     }
   `,
 })
-export class DashboardPage {
+export class DashboardPage implements OnDestroy {
   protected readonly store = inject(SimulatorStore);
   protected readonly dashboard = inject(DashboardStore);
   private readonly router = inject(Router);
 
   protected readonly kpis = computed(() => this.dashboard.kpis());
+  protected readonly alertFeed = computed(() => {
+    return [...this.dashboard.alerts()].sort((a, b) => b.risk - a.risk);
+  });
+  protected readonly refreshIntervalSec = 30;
+  protected readonly lastUpdatedLabel = computed(() => {
+    const updatedAt = this.dashboard.lastUpdatedAt();
+    if (!updatedAt) return '--:--';
+    return updatedAt.toLocaleTimeString('ja-JP', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  });
 
   protected readonly activeAlert = computed(() => {
-    const alerts = [...this.dashboard.alerts()].sort((a, b) => b.risk - a.risk);
-    return alerts[0] ?? null;
+    return this.alertFeed()[0] ?? null;
   });
 
   protected readonly primaryProposal = computed(() => {
@@ -536,6 +608,8 @@ export class DashboardPage {
     const count = this.dashboard.pendingActions().length;
     return count ? `${count}件` : '0件';
   });
+
+  private pollTimer: number | null = null;
 
   protected readonly nemawashiOpen = signal(false);
   protected readonly nemawashiAction = signal<DashboardPendingAction | null>(null);
@@ -783,10 +857,37 @@ export class DashboardPage {
 
   constructor() {
     void this.dashboard.load();
+    this.startPolling();
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer !== null) {
+      window.clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private startPolling(): void {
+    if (this.pollTimer !== null) return;
+    this.pollTimer = window.setInterval(() => {
+      void this.dashboard.load();
+    }, this.refreshIntervalSec * 1000);
   }
 
   protected reload(): void {
     void this.dashboard.load();
+  }
+
+  protected openAlert(alert: DashboardAlert): void {
+    const mode = alert.category === 'career_mismatch' ? 'manual' : 'alert';
+    this.openedClusterId.set(null);
+    void this.router.navigate(['/simulator'], {
+      queryParams: {
+        ...(alert.projectId ? { project: alert.projectId } : {}),
+        ...(alert.focusMemberId ? { focus: alert.focusMemberId } : {}),
+        mode,
+      },
+    });
   }
 
   protected goSimulator(demo?: 'alert' | 'manual', focusMemberId?: string): void {
@@ -797,5 +898,17 @@ export class DashboardPage {
         ...(focusMemberId ? { focus: focusMemberId } : {}),
       },
     });
+  }
+
+  protected alertCategoryLabel(alert: DashboardAlert): string {
+    if (alert.category === 'career_mismatch') return 'Career';
+    if (alert.category === 'burnout') return 'Burnout';
+    return 'Alert';
+  }
+
+  protected alertFocusName(alert: DashboardAlert): string | null {
+    const focusId = alert.focusMemberId;
+    if (!focusId) return null;
+    return this.dashboard.members().find((m) => m.id === focusId)?.name ?? null;
   }
 }

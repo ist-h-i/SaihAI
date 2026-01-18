@@ -268,6 +268,41 @@ def fetch_members_by_ids(conn: Connection, user_ids: Iterable[str]) -> list[dict
     return members
 
 
+def fetch_project_team(conn: Connection, project_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        text(
+            """
+            SELECT user_id, role_in_pj, allocation_rate
+            FROM assignments
+            WHERE project_id = :project_id
+            ORDER BY assignment_id
+            """
+        ),
+        {"project_id": project_id},
+    ).mappings().all()
+    if not rows:
+        return []
+    assignment_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        user_id = row["user_id"]
+        if user_id not in assignment_map:
+            assignment_map[user_id] = dict(row)
+            continue
+        existing = assignment_map[user_id]
+        if (row.get("allocation_rate") or 0) > (existing.get("allocation_rate") or 0):
+            assignment_map[user_id] = dict(row)
+
+    members = fetch_members_by_ids(conn, assignment_map.keys())
+    for member in members:
+        assignment = assignment_map.get(member["id"])
+        if assignment:
+            member["assignment"] = {
+                "role": assignment.get("role_in_pj"),
+                "allocationRate": float(assignment.get("allocation_rate") or 0),
+            }
+    return members
+
+
 def fetch_member_detail(conn: Connection, user_id: str) -> dict[str, Any] | None:
     row = conn.execute(
         text(

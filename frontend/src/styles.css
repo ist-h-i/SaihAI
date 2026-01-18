@@ -121,6 +121,46 @@ app-root {
   .ui-pill {
     @apply text-[10px] font-semibold uppercase tracking-wider rounded-full border px-2 py-1;
   }
+
+  .member-card {
+    @apply rounded-xl border border-slate-800 bg-slate-900/30 p-4 flex flex-col gap-2 min-h-[220px];
+  }
+
+  .member-card--selected {
+    @apply border-indigo-500/60 bg-indigo-500/10;
+  }
+
+  .member-card--readonly {
+    @apply border-slate-800 bg-slate-950/40;
+  }
+
+  .member-badge {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold;
+  }
+
+  .member-badge-label {
+    @apply text-slate-300;
+  }
+
+  .member-badge-value {
+    @apply text-slate-100;
+  }
+
+  .member-badge.badge-good {
+    @apply border-emerald-500/40 bg-emerald-500/10 text-emerald-200;
+  }
+
+  .member-badge.badge-warn {
+    @apply border-amber-500/40 bg-amber-500/10 text-amber-200;
+  }
+
+  .member-badge.badge-risk {
+    @apply border-rose-500/40 bg-rose-500/10 text-rose-200;
+  }
+
+  .member-badge.badge-neutral {
+    @apply border-slate-700 bg-white/5 text-slate-300;
+  }
 }
 
 .timeline-list {

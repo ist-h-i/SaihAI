@@ -27,7 +27,7 @@ test('simulator CTA removes demos and promotes intervention entry', async () => 
   const source = fs.readFileSync(simulatorPath, 'utf8');
 
   expect(source).not.toContain('デモ');
-  expect(source).toContain('介入チェックポイントを開く');
+  expect(source).toContain('介入（HITL）を開く');
   expect(source).toContain('再シミュレーション');
 });
 

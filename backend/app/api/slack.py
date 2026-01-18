@@ -12,6 +12,7 @@ from app.domain.hitl import apply_steer, approve_request, reject_request
 from app.integrations.slack import (
     parse_action_value,
     parse_interaction_payload,
+    post_thread_message,
     verify_slack_signature,
 )
 
@@ -89,6 +90,15 @@ async def slack_events(request: Request, conn: Connection = Depends(get_db)) -> 
         return JSONResponse({"ok": True})
 
     selected_plan = _parse_plan(text_value)
+    if not selected_plan and not _contains_action_keyword(text_value):
+        channel = event.get("channel")
+        post_thread_message(
+            channel=str(channel) if channel else "",
+            thread_ts=thread_ts,
+            text="対象が不明です。メール/カレンダー/稟議のどれを調整しますか？",
+        )
+        return JSONResponse({"ok": True})
+
     apply_steer(
         conn,
         approval_request_id=approval["approval_request_id"],
@@ -136,3 +146,19 @@ def _parse_plan(text_value: str) -> str | None:
     if "plan c" in lowered or "プランc" in text_value or "c案" in text_value:
         return "C"
     return None
+
+
+def _contains_action_keyword(text_value: str) -> bool:
+    lowered = text_value.lower()
+    keywords = [
+        "mail",
+        "email",
+        "メール",
+        "カレンダー",
+        "calendar",
+        "meeting",
+        "会議",
+        "稟議",
+        "承認",
+    ]
+    return any(key in lowered or key in text_value for key in keywords)

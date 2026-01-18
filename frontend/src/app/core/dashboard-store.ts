@@ -25,6 +25,7 @@ export class DashboardStore {
   readonly pendingActions = signal<DashboardPendingAction[]>([]);
   readonly watchdog = signal<DashboardTimelineEntry[]>([]);
   readonly checkpointWaiting = signal(false);
+  readonly lastUpdatedAt = signal<Date | null>(null);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -45,6 +46,7 @@ export class DashboardStore {
       this.pendingActions.set(response.pendingActions ?? []);
       this.watchdog.set(response.watchdog ?? []);
       this.checkpointWaiting.set(Boolean(response.checkpointWaiting));
+      this.lastUpdatedAt.set(new Date());
     } catch (e) {
       if (!(e instanceof HttpErrorResponse)) {
         this.error.set(e instanceof Error ? e.message : 'failed to load');

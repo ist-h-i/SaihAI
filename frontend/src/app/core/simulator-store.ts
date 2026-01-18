@@ -10,6 +10,7 @@ import {
   PlanStreamComplete,
   PlanStreamLog,
   PlanStreamProgress,
+  ProjectTeamMember,
   Project,
   SimulationPlan,
   SimulationResult,
@@ -26,6 +27,9 @@ export class SimulatorStore {
 
   readonly selectedProjectId = signal<string | null>(null);
   readonly selectedMemberIds = signal<string[]>([]);
+  readonly currentTeam = signal<ProjectTeamMember[]>([]);
+  readonly currentTeamLoading = signal(false);
+  readonly currentTeamError = signal<string | null>(null);
   readonly simulationResult = signal<SimulationResult | null>(null);
   readonly planProgress = signal<PlanStreamProgress | null>(null);
   readonly planProgressLog = signal<PlanStreamProgress[]>([]);
@@ -67,7 +71,12 @@ export class SimulatorStore {
       ]);
       this.projects.set(projects);
       this.members.set(members);
-      if (!this.selectedProjectId() && projects.length) this.selectedProjectId.set(projects[0].id);
+      if (!this.selectedProjectId() && projects.length) {
+        this.selectedProjectId.set(projects[0].id);
+      }
+      if (this.selectedProjectId()) {
+        await this.loadProjectTeam(this.selectedProjectId() as string);
+      }
     } catch (e) {
       if (!(e instanceof HttpErrorResponse)) {
         this.error.set(e instanceof Error ? e.message : 'failed to load');
@@ -83,6 +92,7 @@ export class SimulatorStore {
     this.selectedMemberIds.set([]);
     this.simulationResult.set(null);
     this.resetProgress();
+    void this.loadProjectTeam(projectId);
   }
 
   toggleMember(memberId: string): void {
@@ -91,6 +101,11 @@ export class SimulatorStore {
       ? current.filter((id) => id !== memberId)
       : [...current, memberId];
     this.selectedMemberIds.set(next);
+  }
+
+  setSelectedMembers(memberIds: string[]): void {
+    const unique = Array.from(new Set(memberIds));
+    this.selectedMemberIds.set(unique);
   }
 
   focusMember(memberId: string): void {
@@ -148,6 +163,22 @@ export class SimulatorStore {
     this.planProgressLog.set([]);
     this.planDiscussionLog.set([]);
     this.streaming.set(false);
+  }
+
+  async loadProjectTeam(projectId: string): Promise<void> {
+    this.currentTeamLoading.set(true);
+    this.currentTeamError.set(null);
+    try {
+      const response = await firstValueFrom(this.api.getProjectTeam(projectId));
+      this.currentTeam.set(response.members ?? []);
+    } catch (e) {
+      if (!(e instanceof HttpErrorResponse)) {
+        this.currentTeamError.set(e instanceof Error ? e.message : 'failed to load team');
+      }
+      this.currentTeam.set([]);
+    } finally {
+      this.currentTeamLoading.set(false);
+    }
   }
 
   private async streamPlans(simulationId: string): Promise<SimulationPlan[]> {

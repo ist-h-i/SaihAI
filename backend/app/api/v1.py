@@ -20,6 +20,7 @@ from app.db.repository import (
     fetch_members,
     fetch_members_by_ids,
     fetch_project,
+    fetch_project_team,
     fetch_projects,
 )
 from app.domain.patterns import detect_pattern
@@ -83,6 +84,20 @@ class MemberResponse(BaseModel):
 
 class MemberDetailResponse(MemberResponse):
     assignments: list[dict] = Field(default_factory=list)
+
+
+class ProjectAssignment(BaseModel):
+    role: str | None = None
+    allocationRate: float | None = None
+
+
+class ProjectTeamMember(MemberResponse):
+    assignment: ProjectAssignment | None = None
+
+
+class ProjectTeamResponse(BaseModel):
+    projectId: str
+    members: list[ProjectTeamMember]
 
 
 class SimulationEvaluateRequest(BaseModel):
@@ -185,6 +200,8 @@ class DashboardAlert(BaseModel):
     severity: str
     status: str
     projectId: str | None = None
+    category: str | None = None
+    focusMemberId: str | None = None
 
 
 class DashboardProposal(BaseModel):
@@ -294,6 +311,24 @@ def list_projects(conn: Connection = Depends(get_db)) -> list[dict]:
     return fetch_projects(conn)
 
 
+@router.get(
+    "/projects/{project_id}/team",
+    response_model=ProjectTeamResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def get_project_team(project_id: str, conn: Connection = Depends(get_db)) -> dict:
+    project = fetch_project(conn, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="project not found")
+    members = fetch_project_team(conn, project_id)
+    analysis = _load_latest_analysis(conn)
+    for member in members:
+        detail = analysis.get(member["id"])
+        if detail:
+            member["analysis"] = detail
+    return {"projectId": project_id, "members": members}
+
+
 @router.get("/members", response_model=list[MemberResponse], dependencies=[Depends(get_current_user)])
 def list_members(conn: Connection = Depends(get_db)) -> list[dict]:
     members = fetch_members(conn)
@@ -334,6 +369,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
             member["analysis"] = analysis_by_user[member["id"]]
 
     projects = {p["id"]: p for p in fetch_projects(conn)}
+    project_members = _load_project_members(conn)
     snapshots = conn.execute(
         text(
             """
@@ -348,24 +384,52 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
     for row in snapshots:
         health_score = int(row.get("health_score") or 0)
         risk_level = row.get("risk_level") or "Safe"
-        if risk_level == "Safe":
-            continue
         project = projects.get(row["project_id"], {})
-        severity = "high" if risk_level == "Critical" or health_score <= 50 else "medium"
-        subtitle = f"Health {health_score}"
-        if row.get("variance_score") is not None:
-            subtitle = f"{subtitle} / variance {row['variance_score']}"
-        alerts.append(
-            {
-                "id": f"alert-{row['project_id']}-{row['snapshot_id']}",
-                "title": f"{project.get('name', 'Project')} のリスクが上昇",
-                "subtitle": subtitle,
-                "risk": health_score,
-                "severity": severity,
-                "status": "open",
-                "projectId": row["project_id"],
-            }
-        )
+        project_id = row["project_id"]
+        if risk_level != "Safe":
+            severity = "high" if risk_level == "Critical" or health_score <= 50 else "medium"
+            subtitle = f"Health {health_score}"
+            if row.get("variance_score") is not None:
+                subtitle = f"{subtitle} / variance {row['variance_score']}"
+            alerts.append(
+                {
+                    "id": f"alert-{project_id}-{row['snapshot_id']}-burnout",
+                    "title": f"{project.get('name', 'Project')} の炎上リスクが上昇",
+                    "subtitle": subtitle,
+                    "risk": health_score,
+                    "severity": severity,
+                    "status": "open",
+                    "projectId": project_id,
+                    "category": "burnout",
+                    "focusMemberId": _select_focus_member(
+                        project_members, analysis_by_user, project_id, focus_on="risk"
+                    ),
+                }
+            )
+
+        mismatch_score = None
+        if row.get("manager_gap_score") is not None and row["manager_gap_score"] >= 0.35:
+            mismatch_score = float(row["manager_gap_score"])
+        elif row.get("variance_score") is not None and row["variance_score"] >= 0.55:
+            mismatch_score = float(row["variance_score"])
+        if mismatch_score is not None:
+            severity = "high" if mismatch_score >= 0.6 else "medium"
+            subtitle = f"gap {mismatch_score:.2f}"
+            alerts.append(
+                {
+                    "id": f"alert-{project_id}-{row['snapshot_id']}-career",
+                    "title": f"{project.get('name', 'Project')} のキャリアミスマッチ",
+                    "subtitle": subtitle,
+                    "risk": int(round(mismatch_score * 100)),
+                    "severity": severity,
+                    "status": "open",
+                    "projectId": project_id,
+                    "category": "career_mismatch",
+                    "focusMemberId": _select_focus_member(
+                        project_members, analysis_by_user, project_id, focus_on="career"
+                    ),
+                }
+            )
 
     proposals = conn.execute(
         text(
@@ -1012,6 +1076,32 @@ def _build_watchdog_timeline(
         }
     )
     return timeline
+
+
+def _load_project_members(conn: Connection) -> dict[str, list[str]]:
+    rows = conn.execute(
+        text("SELECT project_id, user_id FROM assignments")
+    ).mappings().all()
+    project_members: dict[str, list[str]] = {}
+    for row in rows:
+        project_members.setdefault(row["project_id"], []).append(row["user_id"])
+    return project_members
+
+
+def _select_focus_member(
+    project_members: dict[str, list[str]],
+    analysis_by_user: dict[str, dict],
+    project_id: str,
+    focus_on: str,
+) -> str | None:
+    candidates = project_members.get(project_id) or []
+    if not candidates:
+        return None
+    if focus_on == "career":
+        key = "hrRiskScore"
+    else:
+        key = "riskRiskScore"
+    return max(candidates, key=lambda uid: analysis_by_user.get(uid, {}).get(key, 0) or 0)
 
 
 def _load_assignments(conn: Connection, user_id: str) -> list[dict]:

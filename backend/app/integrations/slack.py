@@ -190,3 +190,10 @@ def send_approval_message(
     if not message_ts:
         return None
     return SlackMeta(channel=channel, message_ts=message_ts, thread_ts=message_ts)
+
+
+def post_thread_message(channel: str, thread_ts: str, text: str) -> None:
+    if not SLACK_BOT_TOKEN or not channel or not thread_ts:
+        return
+    payload = {"channel": channel, "text": text, "thread_ts": thread_ts}
+    _post_slack(payload)

@@ -13,13 +13,31 @@ import {
   haisaEmotionLabel as resolveHaisaEmotionLabel,
 } from '../core/haisa-emotion';
 import { SimulatorStore } from '../core/simulator-store';
-import { SimulationPlan, SimulationResult } from '../core/types';
+import { Member, ProjectTeamMember, SimulationPlan, SimulationResult } from '../core/types';
 
 interface ChatEntry {
   from: 'ai' | 'user';
   text: string;
   emotion?: HaisaEmotion;
 }
+
+type BadgeTone = 'good' | 'warn' | 'risk' | 'neutral';
+
+interface MemberBadge {
+  label: string;
+  value: string;
+  tone: BadgeTone;
+}
+
+interface MemberCostInfo {
+  value: number;
+  original: number | null;
+  adjusted: boolean;
+}
+
+const LEADER_NAME_TOKENS = ['sato', '佐藤'];
+const VETERAN_NAME_TOKENS = ['tanaka', '田中'];
+const COMPRESSED_COST = 30;
 
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
@@ -113,59 +131,171 @@ interface ChatEntry {
         </select>
 
         <div class="mt-4 flex items-center justify-between">
-          <div class="text-sm text-slate-300">メンバー</div>
-          @if (store.selectedMemberIds().length) {
+          <div class="text-sm text-slate-300">Candidate Pool</div>
+          <div class="text-xs text-slate-400">{{ store.members().length }} 名</div>
+        </div>
+
+        <div class="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          @for (m of store.members(); track m.id) {
             <button
               type="button"
-              class="text-xs px-2 py-1 rounded border border-slate-700 hover:border-slate-500 ui-focus-ring"
-              (click)="store.clearSelection()"
+              class="member-card ui-panel-interactive text-left"
+              [class.member-card--selected]="store.selectedMemberIds().includes(m.id)"
+              (click)="store.toggleMember(m.id)"
             >
-              選択解除
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="font-semibold text-slate-100 truncate">{{ m.name }}</div>
+                  <div class="text-xs text-slate-400 truncate">{{ memberRoleLabel(m) }}</div>
+                </div>
+                <div class="text-right shrink-0">
+                  <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                  <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
+                </div>
+              </div>
+              <div class="mt-2 text-xs text-slate-400 break-words">{{ m.skills.join(', ') }}</div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                @for (badge of memberBadges(m); track badge.label) {
+                  <span
+                    class="member-badge"
+                    [class.badge-good]="badge.tone === 'good'"
+                    [class.badge-warn]="badge.tone === 'warn'"
+                    [class.badge-risk]="badge.tone === 'risk'"
+                    [class.badge-neutral]="badge.tone === 'neutral'"
+                  >
+                    <span class="member-badge-label">{{ badge.label }}</span>
+                    <span class="member-badge-value">{{ badge.value }}</span>
+                  </span>
+                }
+              </div>
+              <div class="mt-3 text-[11px] text-slate-400">
+                {{ store.selectedMemberIds().includes(m.id) ? '選択中' : 'クリックで追加' }}
+              </div>
             </button>
           }
         </div>
 
-        <div class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
-          @for (m of store.members(); track m.id) {
-            <label
-              class="flex items-start gap-3 rounded border border-slate-800 bg-slate-900/40 px-3 py-2"
-            >
-              <input
-                type="checkbox"
-                class="mt-1"
-                [checked]="store.selectedMemberIds().includes(m.id)"
-                (change)="store.toggleMember(m.id)"
-              />
-              <div class="flex-1">
-                <div class="flex items-center justify-between gap-3">
-                  <div class="font-medium">{{ m.name }}</div>
-                  <div class="text-xs text-slate-300">{{ m.cost }} / {{ m.availability }}%</div>
-                </div>
-                <div class="text-xs text-slate-400 mt-1">{{ m.skills.join(', ') }}</div>
-              </div>
-            </label>
-          }
-        </div>
-
         <div class="mt-4">
-          <div class="text-sm text-slate-300">チーム編成</div>
-          <div
-            class="mt-2 min-h-12 rounded-xl border border-slate-800 bg-slate-950/30 p-3 flex flex-wrap gap-2 items-center"
-          >
-            @if (store.selectedMembers().length) {
-              @for (m of store.selectedMembers(); track m.id) {
-                <button
-                  type="button"
-                  class="px-3 py-2 rounded-lg border border-slate-700 bg-white/5 hover:bg-white/10 text-sm font-semibold ui-focus-ring"
-                  (click)="store.toggleMember(m.id)"
-                  [title]="'クリックで外す: ' + m.name"
-                >
-                  {{ m.name }}
-                </button>
+          <div class="text-sm text-slate-300">Split View</div>
+          <div class="mt-2 space-y-3">
+            <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <span>Current (Read-only)</span>
+                <span>{{ store.currentTeam().length }} 名</span>
+              </div>
+              @if (store.currentTeamLoading()) {
+                <div class="mt-2 text-xs text-slate-400">loading current team…</div>
+              } @else if (store.currentTeamError(); as err) {
+                <div class="mt-2 text-xs text-rose-200">{{ err }}</div>
+              } @else if (store.currentTeam().length) {
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                  @for (m of store.currentTeam(); track m.id) {
+                    <div class="member-card member-card--readonly">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="font-semibold text-slate-100 truncate">{{ m.name }}</div>
+                          <div class="text-xs text-slate-400 truncate">
+                            {{ currentRoleLabel(m) }}
+                            @if (allocationLabel(m.assignment?.allocationRate); as rateLabel) {
+                              <span class="ml-2 text-slate-500">{{ rateLabel }}</span>
+                            }
+                          </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                          <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                          <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
+                        </div>
+                      </div>
+                      <div class="mt-2 text-xs text-slate-400 break-words">
+                        {{ m.skills.join(', ') }}
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        @for (badge of memberBadges(m); track badge.label) {
+                          <span
+                            class="member-badge"
+                            [class.badge-good]="badge.tone === 'good'"
+                            [class.badge-warn]="badge.tone === 'warn'"
+                            [class.badge-risk]="badge.tone === 'risk'"
+                            [class.badge-neutral]="badge.tone === 'neutral'"
+                          >
+                            <span class="member-badge-label">{{ badge.label }}</span>
+                            <span class="member-badge-value">{{ badge.value }}</span>
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="mt-2 text-xs text-slate-500">現状チームのデータがありません。</div>
               }
-            } @else {
-              <span class="text-xs text-slate-500">メンバーを選択してください</span>
-            }
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <span>Simulation (Editable)</span>
+                @if (store.selectedMemberIds().length) {
+                  <button
+                    type="button"
+                    class="text-[11px] px-2 py-1 rounded border border-slate-700 hover:border-slate-500 ui-focus-ring"
+                    (click)="store.clearSelection()"
+                  >
+                    選択解除
+                  </button>
+                }
+              </div>
+              @if (store.selectedMembers().length) {
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                  @for (m of store.selectedMembers(); track m.id) {
+                    <button
+                      type="button"
+                      class="member-card member-card--selected text-left"
+                      (click)="store.toggleMember(m.id)"
+                      [title]="'クリックで外す: ' + m.name"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="font-semibold text-slate-100 truncate">{{ m.name }}</div>
+                          <div class="text-xs text-slate-400 truncate">
+                            {{ memberRoleLabel(m, store.selectedMembers(), true) }}
+                          </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                          <div class="text-sm text-slate-200 font-bold">
+                            ¥{{ memberCostValue(m, store.selectedMembers(), true) }}
+                          </div>
+                          @if (memberCostAdjusted(m, store.selectedMembers())) {
+                            <div class="text-[10px] text-slate-500 line-through">¥{{ m.cost }}</div>
+                          } @else {
+                            <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
+                          }
+                        </div>
+                      </div>
+                      <div class="mt-2 text-xs text-slate-400 break-words">
+                        {{ m.skills.join(', ') }}
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        @for (badge of memberBadges(m); track badge.label) {
+                          <span
+                            class="member-badge"
+                            [class.badge-good]="badge.tone === 'good'"
+                            [class.badge-warn]="badge.tone === 'warn'"
+                            [class.badge-risk]="badge.tone === 'risk'"
+                            [class.badge-neutral]="badge.tone === 'neutral'"
+                          >
+                            <span class="member-badge-label">{{ badge.label }}</span>
+                            <span class="member-badge-value">{{ badge.value }}</span>
+                          </span>
+                        }
+                      </div>
+                      <div class="mt-3 text-[11px] text-slate-400">クリックで外す</div>
+                    </button>
+                  }
+                </div>
+              } @else {
+                <div class="mt-2 text-xs text-slate-500">メンバーを選択してください</div>
+              }
+            </div>
           </div>
 
           <div class="mt-3">
@@ -175,6 +305,11 @@ interface ChatEntry {
                 >{{ budgetUsed() }} / {{ store.selectedProject()?.budget ?? 0 }}</span
               >
             </div>
+            @if (compressionActive()) {
+              <div class="mt-1 text-[11px] text-emerald-200">
+                Advisor cost compression applied
+              </div>
+            }
             <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
               <div
                 class="h-2"
@@ -214,7 +349,7 @@ interface ChatEntry {
           <div class="font-semibold">2. 結果</div>
           @if (store.simulationResult()) {
             <button type="button" class="ui-button-primary text-xs" (click)="openOverlay('manual')">
-              介入チェックポイントを開く
+              介入（HITL）を開く
             </button>
           } @else {
             <button type="button" class="ui-button-secondary text-xs" disabled>
@@ -422,7 +557,8 @@ interface ChatEntry {
           </div>
 
           <div class="mt-4">
-            <div class="text-sm font-semibold">推奨プラン</div>
+            <div class="text-sm font-semibold">3プラン（A/B/C）</div>
+            <div class="mt-2 text-xs text-slate-400">推奨プラン</div>
             @if (recommendedPlan(); as plan) {
               <div class="mt-2 rounded border border-emerald-500/50 bg-emerald-500/10 p-3">
                 <div class="flex items-center justify-between gap-2">
@@ -680,7 +816,7 @@ interface ChatEntry {
                         #chatInput
                         type="text"
                         class="w-full bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 ui-focus-ring"
-                        placeholder="条件や指示を入力"
+                        placeholder="指示を入力（空欄で承認）"
                         (keydown.enter)="sendChat(chatInput.value); chatInput.value = ''"
                         autocomplete="off"
                       />
@@ -697,7 +833,7 @@ interface ChatEntry {
                           class="ui-button-primary"
                           (click)="approvePlan()"
                         >
-                          承認して実行
+                          実行
                         </button>
                       </div>
                     </div>
@@ -759,8 +895,11 @@ export class SimulatorPage implements OnDestroy {
     return result.plans.filter((p) => p !== recommended);
   });
 
+  protected readonly compressionActive = computed(() =>
+    this.isCompressionActive(this.store.selectedMembers())
+  );
   protected readonly budgetUsed = computed(() =>
-    this.store.selectedMembers().reduce((sum, m) => sum + m.cost, 0)
+    this.teamCost(this.store.selectedMembers(), true)
   );
   protected readonly budgetPct = computed(() => {
     const budget = this.store.selectedProject()?.budget ?? 0;
@@ -770,6 +909,128 @@ export class SimulatorPage implements OnDestroy {
   protected readonly budgetBarColor = computed(() =>
     this.budgetPct() >= 100 ? '#f43f5e' : '#06b6d4'
   );
+
+  protected memberBadges(member: Member): MemberBadge[] {
+    const analysis = member.analysis;
+    const matchScore =
+      analysis?.pmRiskScore != null ? Math.max(0, 100 - analysis.pmRiskScore) : null;
+    const valueScore =
+      analysis?.hrRiskScore != null ? Math.max(0, 100 - analysis.hrRiskScore) : null;
+    const riskScore = analysis?.riskRiskScore != null ? analysis.riskRiskScore : null;
+
+    return [
+      {
+        label: 'Match',
+        value: matchScore == null ? '--' : this.matchLabel(matchScore),
+        tone: matchScore == null ? 'neutral' : this.scoreTone(matchScore),
+      },
+      {
+        label: 'Value',
+        value: valueScore == null ? '--' : this.valueLabel(valueScore),
+        tone: valueScore == null ? 'neutral' : this.scoreTone(valueScore),
+      },
+      {
+        label: 'Risk',
+        value: riskScore == null ? '--' : this.riskLabel(riskScore),
+        tone: riskScore == null ? 'neutral' : this.riskTone(riskScore),
+      },
+    ];
+  }
+
+  protected memberRoleLabel(
+    member: Member,
+    team: Member[] = [],
+    applyCompression: boolean = false
+  ): string {
+    const baseRole = member.role ?? 'Member';
+    if (!applyCompression || !this.isCompressionActive(team)) return baseRole;
+    if (this.memberHasTokens(member, VETERAN_NAME_TOKENS)) return 'Advisor';
+    return baseRole;
+  }
+
+  protected currentRoleLabel(member: ProjectTeamMember): string {
+    return member.assignment?.role ?? this.memberRoleLabel(member);
+  }
+
+  protected allocationLabel(rate?: number | null): string | null {
+    if (rate == null) return null;
+    return `${Math.round(rate * 100)}%`;
+  }
+
+  protected memberCostValue(
+    member: Member,
+    team: Member[] = [],
+    applyCompression: boolean = false
+  ): number {
+    if (!applyCompression || !this.isCompressionActive(team)) return member.cost;
+    if (this.memberHasTokens(member, VETERAN_NAME_TOKENS)) {
+      return Math.min(member.cost, COMPRESSED_COST);
+    }
+    return member.cost;
+  }
+
+  protected memberCostAdjusted(member: Member, team: Member[] = []): boolean {
+    return this.memberCostValue(member, team, true) !== member.cost;
+  }
+
+  private teamCost(members: Member[], applyCompression: boolean): number {
+    if (!applyCompression) {
+      return members.reduce((sum, member) => sum + member.cost, 0);
+    }
+    const compressionActive = this.isCompressionActive(members);
+    return members.reduce((sum, member) => {
+      if (compressionActive && this.memberHasTokens(member, VETERAN_NAME_TOKENS)) {
+        return sum + Math.min(member.cost, COMPRESSED_COST);
+      }
+      return sum + member.cost;
+    }, 0);
+  }
+
+  private isCompressionActive(members: Member[]): boolean {
+    return (
+      this.hasMemberTokens(members, LEADER_NAME_TOKENS)
+      && this.hasMemberTokens(members, VETERAN_NAME_TOKENS)
+    );
+  }
+
+  private hasMemberTokens(members: Member[], tokens: string[]): boolean {
+    return members.some((member) => this.memberHasTokens(member, tokens));
+  }
+
+  private memberHasTokens(member: Member, tokens: string[]): boolean {
+    const text = `${member.name ?? ''} ${member.role ?? ''}`.toLowerCase();
+    return tokens.some((token) => text.includes(token.toLowerCase()));
+  }
+
+  private matchLabel(score: number): string {
+    if (score >= 80) return 'Perfect';
+    if (score >= 65) return 'Good';
+    if (score >= 50) return 'Fair';
+    return 'Low';
+  }
+
+  private valueLabel(score: number): string {
+    const delta = Math.round((score - 50) * 2);
+    return delta >= 0 ? `+${delta}%` : `${delta}%`;
+  }
+
+  private riskLabel(score: number): string {
+    if (score >= 75) return 'High';
+    if (score >= 50) return 'Mid';
+    return 'Low';
+  }
+
+  private scoreTone(score: number): BadgeTone {
+    if (score >= 70) return 'good';
+    if (score >= 50) return 'warn';
+    return 'risk';
+  }
+
+  private riskTone(score: number): BadgeTone {
+    if (score >= 75) return 'risk';
+    if (score >= 50) return 'warn';
+    return 'good';
+  }
 
   private readonly timers: number[] = [];
   private lastKey = '';
@@ -799,32 +1060,87 @@ export class SimulatorPage implements OnDestroy {
     this.querySub = this.route.queryParamMap.subscribe((p) => {
       const demo = p.get('demo');
       const focus = p.get('focus');
-      const key = `${demo ?? ''}|${focus ?? ''}`;
+      const project = p.get('project');
+      const mode = p.get('mode');
+      const key = `${demo ?? ''}|${mode ?? ''}|${project ?? ''}|${focus ?? ''}`;
       if (key === this.lastKey) return;
       this.lastKey = key;
 
+      if (project && this.store.projects().some((entry) => entry.id === project)) {
+        this.store.setProject(project);
+      }
+      if (mode === 'alert' || mode === 'manual') {
+        void this.runAlertContext(mode, focus);
+        return;
+      }
+      if (demo === 'alert' || demo === 'manual') {
+        void this.runDemo(demo, focus);
+        return;
+      }
       if (focus) this.store.focusMember(focus);
-      if (demo === 'alert' || demo === 'manual') void this.runDemo(demo);
     });
   }
 
-  private async runDemo(mode: 'alert' | 'manual'): Promise<void> {
+  private async runAlertContext(mode: 'alert' | 'manual', focus: string | null): Promise<void> {
+    const projectId = this.store.selectedProjectId();
+    if (projectId) {
+      await this.store.loadProjectTeam(projectId);
+    }
+
+    const currentTeamIds = this.store.currentTeam().map((m) => m.id);
+    const selected = currentTeamIds.length ? [...currentTeamIds] : [];
+    if (focus && this.store.members().some((m) => m.id === focus)) {
+      if (!selected.includes(focus)) selected.push(focus);
+    }
+    if (!selected.length) {
+      selected.push(...this.store.members().slice(0, 2).map((m) => m.id));
+    }
+    if (selected.length) {
+      this.store.setSelectedMembers(selected);
+    }
+
+    await this.store.runSimulation();
+    this.openOverlay(mode);
+  }
+
+  private async runDemo(mode: 'alert' | 'manual', focus: string | null): Promise<void> {
     const projectId = this.store.projects().some((x) => x.id === 'ec')
       ? 'ec'
       : this.store.projects()[0]?.id;
     if (projectId) this.store.setProject(projectId);
 
-    const ids = this.store.members().map((m) => m.id);
     if (mode === 'alert') {
-      if (ids.includes('tanaka')) this.store.focusMember('tanaka');
-      if (ids.includes('kobayashi')) this.store.focusMember('kobayashi');
+      this.selectDemoMembers(['tanaka', '田中'], ['kobayashi', '小林'], focus);
     } else {
-      if (ids.includes('yamada')) this.store.focusMember('yamada');
-      if (ids.includes('suzuki')) this.store.focusMember('suzuki');
+      this.selectDemoMembers(['yamada', '山田'], ['suzuki', '鈴木'], focus);
     }
 
     await this.store.runSimulation();
     this.openOverlay(mode);
+  }
+
+  private selectDemoMembers(primary: string[], secondary: string[], focus: string | null): void {
+    const selected: string[] = [];
+    const primaryId = this.findMemberIdByTokens(primary);
+    if (primaryId) selected.push(primaryId);
+    const secondaryId = this.findMemberIdByTokens(secondary);
+    if (secondaryId) selected.push(secondaryId);
+    if (focus && this.store.members().some((m) => m.id === focus)) {
+      if (!selected.includes(focus)) selected.push(focus);
+    }
+    if (selected.length < 2) {
+      selected.push(...this.store.members().slice(0, 2).map((m) => m.id));
+    }
+    this.store.setSelectedMembers(selected);
+  }
+
+  private findMemberIdByTokens(tokens: string[]): string | null {
+    const lowered = tokens.map((token) => token.toLowerCase());
+    const found = this.store.members().find((member) => {
+      const name = (member.name ?? '').toLowerCase();
+      return lowered.some((token) => name.includes(token));
+    });
+    return found?.id ?? null;
   }
 
   protected openOverlay(mode: 'alert' | 'manual'): void {
@@ -925,10 +1241,9 @@ export class SimulatorPage implements OnDestroy {
   }
 
   protected approvePlan(): void {
-    const selected = this.selectedPlanId() ?? this.recommendedPlan()?.planType ?? 'A';
     this.overlayChat.update((curr) => [
       ...curr,
-      { from: 'ai', emotion: 'relief', text: `Plan ${selected} を承認しました。実行します。` },
+      { from: 'ai', emotion: 'relief', text: '承認されました。実行します。' },
     ]);
     const t = window.setTimeout(() => this.closeOverlay(), 900);
     this.timers.push(t);
@@ -936,7 +1251,10 @@ export class SimulatorPage implements OnDestroy {
 
   protected sendChat(text: string): void {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      this.approvePlan();
+      return;
+    }
 
     this.overlayChat.update((curr) => [...curr, { from: 'user', text: trimmed }]);
     const tone = this.emotionFromChatRequest(trimmed);

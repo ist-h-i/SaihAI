@@ -32,6 +32,15 @@ export interface Member {
   analysis?: MemberAnalysis | null;
 }
 
+export interface ProjectAssignment {
+  role?: string | null;
+  allocationRate?: number | null;
+}
+
+export interface ProjectTeamMember extends Member {
+  assignment?: ProjectAssignment | null;
+}
+
 export interface SimulationRequest {
   projectId: string;
   memberIds: string[];
@@ -157,6 +166,8 @@ export interface DashboardAlert {
   severity: string;
   status: string;
   projectId?: string | null;
+  category?: string | null;
+  focusMemberId?: string | null;
 }
 
 export interface DashboardProposal {
@@ -191,6 +202,11 @@ export interface DashboardInitialResponse {
   pendingActions: DashboardPendingAction[];
   watchdog: DashboardTimelineEntry[];
   checkpointWaiting: boolean;
+}
+
+export interface ProjectTeamResponse {
+  projectId: string;
+  members: ProjectTeamMember[];
 }
 
 export interface SlackMeta {
