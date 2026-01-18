@@ -23,7 +23,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
         <div class="ui-kicker">Genome DB</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">人材データベース</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          スキル・メモ・リスク兆候を横断して、介入すべき候補を見つけます。
+          スキル・メモ・リスク兆候を横断して候補を把握します。
         </p>
       </div>
 
@@ -32,9 +32,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
           <div class="relative p-4">
             <div class="text-xs text-slate-200 font-bold">Genome Scan</div>
-            <div class="mt-1 text-sm text-slate-300">
-              検索とフィルタで、最適な候補を絞り込みます。
-            </div>
+            <div class="mt-1 text-sm text-slate-300">検索とフィルタで候補を絞り込みます。</div>
             <div class="mt-3 text-xs text-slate-300">
               MEMBERS:
               <span class="font-extrabold text-slate-100">{{ store.members().length }}</span>
@@ -51,7 +49,6 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
       <div class="ui-panel">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="text-sm font-bold text-slate-100">Skill Genome Matrix</div>
-          <div class="text-xs text-slate-400">スキルをクリックでフィルタ</div>
         </div>
         <div class="mt-3 overflow-auto">
           <table class="min-w-full text-xs">
@@ -127,13 +124,15 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               </button>
             }
           </div>
-          <button
-            type="button"
-            class="mt-3 text-xs text-slate-400 hover:text-white ui-focus-ring"
-            (click)="clearFilters()"
-          >
-            Clear
-          </button>
+          @if (hasActiveFilters()) {
+            <button
+              type="button"
+              class="mt-3 text-xs text-slate-400 hover:text-white ui-focus-ring"
+              (click)="clearFilters()"
+            >
+              リセット
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -190,7 +189,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                     {{ isRisky(m) ? 'RISK' : 'STABLE' }}
                   </div>
                   <div class="text-xs text-slate-400">
-                    {{ selectedMemberId() === m.id ? '選択中' : '詳細を見る' }}
+                    {{ selectedMemberId() === m.id ? '選択中' : '' }}
                   </div>
                 </div>
               </button>
@@ -200,8 +199,8 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
           <app-empty-state
             kicker="Empty"
             title="該当するメンバーがいません"
-            description="検索条件やフィルタを調整してください。"
-            primaryLabel="フィルタをクリア"
+            description="検索条件を調整してください。"
+            primaryLabel="フィルタをリセット"
             (primary)="clearFilters()"
           />
         }
@@ -219,7 +218,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
               class="text-xs text-slate-400 hover:text-white ui-focus-ring"
               (click)="clearSelection()"
             >
-              クリア
+              選択解除
             </button>
           </div>
           <div class="mt-3">
@@ -260,7 +259,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
           <app-empty-state
             kicker="Select"
             title="詳細を見るメンバーを選択"
-            description="カードをクリックすると詳細がここに表示されます。"
+            description="カードを選択してください。"
           />
         }
       </aside>
@@ -320,6 +319,10 @@ export class GenomePage {
     if (skill) return skill;
     if (q) return 'keyword';
     return 'なし';
+  });
+
+  protected readonly hasActiveFilters = computed(() => {
+    return Boolean(this.query().trim()) || Boolean(this.skillFilter());
   });
 
   constructor() {

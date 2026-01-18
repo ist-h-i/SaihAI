@@ -76,8 +76,7 @@ interface ClusterAccumulator {
         <div class="ui-kicker">Shadow Dashboard</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">経営ダッシュボード</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          影で回るAIが「予兆検知 → 根回し準備」まで済ませます。あなたは最後の直感で介入し、
-          1クリックで決裁します。
+          影のAIが予兆と提案を整理し、判断だけに集中できます。
         </p>
       </div>
 
@@ -93,23 +92,17 @@ interface ClusterAccumulator {
                 <span class="ui-pill border-rose-500/40 bg-rose-500/15 text-rose-200">RISK</span>
                 <span class="text-rose-100 font-semibold">{{ alert.risk }}%</span>
               </div>
-              <div class="mt-3 flex gap-2">
+              <div class="mt-3">
                 <button type="button" class="ui-button-primary" (click)="goSimulator('alert')">
                   介入へ
-                </button>
-                <button type="button" class="ui-button-secondary" (click)="goSimulator()">
-                  シミュレーター
                 </button>
               </div>
             } @else if (primaryProposal(); as proposal) {
               <div class="mt-2 text-sm font-semibold text-slate-100">推奨提案を確認</div>
-              <div class="mt-1 text-xs text-slate-300">Plan {{ proposal.planType }} を起点に介入</div>
-              <div class="mt-3 flex gap-2">
+              <div class="mt-1 text-xs text-slate-300">Plan {{ proposal.planType }}</div>
+              <div class="mt-3">
                 <button type="button" class="ui-button-primary" (click)="goSimulator()">
                   介入へ
-                </button>
-                <button type="button" class="ui-button-secondary" (click)="goSimulator('manual')">
-                  デモ
                 </button>
               </div>
             } @else if (dashboard.pendingActions().length) {
@@ -121,14 +114,14 @@ interface ClusterAccumulator {
                 </button>
               </div>
             } @else {
-              <div class="mt-2 text-sm font-semibold text-slate-100">状況を確認</div>
-              <div class="mt-1 text-xs text-slate-300">最新状況を更新して判断材料を補強します。</div>
-              <div class="mt-3 flex gap-2">
-                <button type="button" class="ui-button-primary" (click)="reload()">
-                  再読み込み
-                </button>
-                <button type="button" class="ui-button-secondary" (click)="goSimulator()">
+              <div class="mt-2 text-sm font-semibold text-slate-100">最新状況を確認</div>
+              <div class="mt-1 text-xs text-slate-300">新しい動きがないか更新します。</div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button type="button" class="ui-button-primary" (click)="goSimulator()">
                   シミュレーターへ
+                </button>
+                <button type="button" class="ui-button-ghost" (click)="reload()">
+                  再読み込み
                 </button>
               </div>
             }
@@ -155,11 +148,7 @@ interface ClusterAccumulator {
     <div class="mt-6">
       <div class="ui-kicker">Today Focus</div>
       @if (activeAlert(); as alert) {
-        <button
-          type="button"
-          class="mt-2 w-full text-left ui-panel-interactive border-rose-500/30 bg-rose-500/10"
-          (click)="goSimulator('alert')"
-        >
+        <div class="mt-2 w-full text-left ui-panel border-rose-500/30 bg-rose-500/10">
           <div class="flex flex-col sm:flex-row sm:items-center gap-4">
             <div
               class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
@@ -175,7 +164,7 @@ interface ClusterAccumulator {
               <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
             </div>
           </div>
-        </button>
+        </div>
       } @else if (primaryProposal(); as proposal) {
         <div class="mt-2 ui-panel">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -186,9 +175,6 @@ interface ClusterAccumulator {
                 {{ proposalSummary(proposal) }}
               </div>
             </div>
-            <button type="button" class="ui-button-primary" (click)="goSimulator()">
-              介入へ
-            </button>
           </div>
           @if (proposalDetail(proposal); as detail) {
             <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
@@ -203,11 +189,7 @@ interface ClusterAccumulator {
         <app-empty-state
           kicker="Empty"
           title="意思決定ポイントはありません"
-          description="新しいアラートや提案が届いたらここに集約されます。"
-          primaryLabel="再読み込み"
-          secondaryLabel="シミュレーターへ"
-          (primary)="reload()"
-          (secondary)="goSimulator()"
+          description="新しいアラートや提案が届いたら表示します。"
         />
       }
     </div>
@@ -216,9 +198,6 @@ interface ClusterAccumulator {
       <div class="ui-panel">
         <div class="flex items-center justify-between gap-3">
           <div class="ui-section-title">AI 提案</div>
-          <button type="button" class="ui-button-ghost text-xs" (click)="goSimulator()">
-            シミュレーターへ
-          </button>
         </div>
         @if (dashboard.proposals().length) {
           <div class="mt-3 space-y-3">
@@ -277,11 +256,7 @@ interface ClusterAccumulator {
           <app-empty-state
             kicker="Empty"
             title="提案を準備中"
-            description="新しい提案が届いたらここに表示します。"
-            primaryLabel="再読み込み"
-            secondaryLabel="シミュレーターへ"
-            (primary)="reload()"
-            (secondary)="goSimulator()"
+            description="新しい提案が届いたら表示します。"
           />
         }
       </div>
@@ -326,8 +301,6 @@ interface ClusterAccumulator {
             kicker="Empty"
             title="承認待ちはありません"
             description="新しい承認が発生したら通知します。"
-            primaryLabel="シミュレーターへ"
-            (primary)="goSimulator()"
           />
         }
       </div>
@@ -558,9 +531,10 @@ export class DashboardPage {
 
   protected proposalSummary(p: DashboardProposal): string {
     const { summary } = this.splitProposal(p.description);
-    const impact = p.predictedFutureImpact ? `影響予測: ${p.predictedFutureImpact}` : '';
-    const nextAction = '次: 介入プランを確認';
-    return `理由: ${summary}\n${impact ? `${impact}\n` : ''}${nextAction}`;
+    if (p.predictedFutureImpact) {
+      return `理由: ${summary}\n影響予測: ${p.predictedFutureImpact}`;
+    }
+    return `理由: ${summary}`;
   }
 
   protected proposalDetail(p: DashboardProposal): string | null {

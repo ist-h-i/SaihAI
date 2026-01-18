@@ -59,26 +59,6 @@ import { ToastCenterComponent } from './core/toast-center.component';
             </a>
           </div>
 
-          <div>
-            <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">
-              Debug & Demo
-            </div>
-            <button
-              type="button"
-              class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15"
-              (click)="triggerDemo('alert')"
-            >
-              <span class="text-sm font-semibold">緊急介入 (Alert)</span>
-            </button>
-            <button
-              type="button"
-              class="mt-2 w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/15"
-              (click)="triggerDemo('manual')"
-            >
-              <span class="text-sm font-semibold">AI自動編成 (手動)</span>
-            </button>
-          </div>
-
           <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
             <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
             <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
@@ -110,21 +90,6 @@ import { ToastCenterComponent } from './core/toast-center.component';
                 </span>
               </button>
               <div class="text-base font-bold tracking-tight truncate">{{ pageTitle() }}</div>
-            </div>
-            <div class="flex items-center gap-2 sm:gap-3">
-              <button
-                type="button"
-                class="hidden sm:inline-flex px-3 py-2 rounded-lg border border-slate-800 bg-white/5 text-slate-200 hover:bg-white/10 text-sm"
-              >
-                レポート
-              </button>
-              <button
-                type="button"
-                class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm"
-                (click)="triggerDemo('manual')"
-              >
-                AI自動編成
-              </button>
             </div>
           </header>
 
@@ -200,28 +165,6 @@ import { ToastCenterComponent } from './core/toast-center.component';
                 </a>
               </div>
 
-              <div>
-                <div
-                  class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3"
-                >
-                  Debug & Demo
-                </div>
-                <button
-                  type="button"
-                  class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15"
-                  (click)="triggerDemo('alert')"
-                >
-                  <span class="text-sm font-semibold">緊急介入 (Alert)</span>
-                </button>
-                <button
-                  type="button"
-                  class="mt-2 w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/15"
-                  (click)="triggerDemo('manual')"
-                >
-                  <span class="text-sm font-semibold">AI自動編成 (手動)</span>
-                </button>
-              </div>
-
               <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
                 <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
                 <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
@@ -280,11 +223,6 @@ export class App {
     effect(() => {
       this.titleService.setTitle(this.documentTitle());
     });
-  }
-
-  protected triggerDemo(mode: 'alert' | 'manual'): void {
-    this.mobileNavOpen.set(false);
-    void this.router.navigate(['/simulator'], { queryParams: { demo: mode } });
   }
 
   protected toggleMobileNav(): void {
