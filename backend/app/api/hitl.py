@@ -17,7 +17,7 @@ from app.domain.hitl import (
     request_approval,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["hitl"])
+router = APIRouter(prefix="/v1", tags=["hitl"])
 
 
 class SlackMetaResponse(BaseModel):

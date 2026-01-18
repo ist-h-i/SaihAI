@@ -49,6 +49,29 @@ uv run python scripts/db_tool.py down
 - `POST /api/v1/auth/login`
 - `GET /api/v1/me`
 - `POST /api/v1/logs/frontend`
+- `GET /api/v1/bedrock/status`
+- `POST /api/v1/bedrock/invoke`
+
+## Bedrock (optional)
+
+Environment variables:
+
+- `AWS_REGION`
+- `AWS_BEDROCK_MODEL_ID`
+
+Auth:
+
+- Uses `boto3` credential resolution (e.g., `AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`).
+
+Quick check:
+
+```powershell
+curl -sS -X POST `
+  -H "Authorization: Bearer <your-jwt>" `
+  -H "Content-Type: application/json" `
+  http://localhost:8000/api/v1/bedrock/invoke `
+  -d '{"prompt":"Say hello as JSON only: {\"ok\":true}","allowMock":true}'
+```
 
 ## Notes
 

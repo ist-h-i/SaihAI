@@ -4,6 +4,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { ApiClient } from './api-client';
 import {
+  ApprovalDecisionResponse,
+  ApprovalRequestResponse,
   DashboardAlert,
   DashboardKpi,
   DashboardPendingAction,
@@ -50,5 +52,17 @@ export class DashboardStore {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  async requestNemawashiApproval(actionId: number): Promise<ApprovalRequestResponse> {
+    return firstValueFrom(this.api.requestNemawashiApproval(actionId));
+  }
+
+  async approveApproval(approvalId: string): Promise<ApprovalDecisionResponse> {
+    return firstValueFrom(this.api.approveApproval(approvalId));
+  }
+
+  async rejectApproval(approvalId: string): Promise<{ status: string }> {
+    return firstValueFrom(this.api.rejectApproval(approvalId));
   }
 }

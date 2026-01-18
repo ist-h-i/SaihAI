@@ -192,3 +192,24 @@ export interface DashboardInitialResponse {
   watchdog: DashboardTimelineEntry[];
   checkpointWaiting: boolean;
 }
+
+export interface SlackMeta {
+  channel: string;
+  message_ts: string;
+  thread_ts?: string | null;
+}
+
+export interface ApprovalRequestResponse {
+  thread_id: string;
+  approval_request_id: string;
+  status: string;
+  action_id: number;
+  slack?: SlackMeta | null;
+}
+
+export interface ApprovalDecisionResponse {
+  job_id: string;
+  status: string;
+  thread_id: string;
+  action_id: number;
+}

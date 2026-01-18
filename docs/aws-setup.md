@@ -59,6 +59,25 @@
 
 ## 2. ベクトルDB（AWS PostgreSQL + pgvector）
 
+### 2.0 CDK で作る（`infra/`）
+
+`infra/` に Aurora PostgreSQL + Secrets Manager（接続情報）を作る CDK スタックを用意しています（`infra/lib/infra-stack.ts`）。
+
+```bash
+cd infra
+npm ci
+npx cdk synth
+# 例: 自分の Public IP のみ許可してデプロイ
+npx cdk deploy -c stage=dev --parameters DbAllowedCidr=$(curl -s https://checkip.amazonaws.com)/32
+```
+
+Outputs（CloudFormation Outputs）:
+
+- `DbSecretArn`（Secrets Manager）
+- `DbWriterEndpoint` / `DbPort` / `DbNameOut`
+
+その後 `backend/.env` の `DATABASE_URL` を設定し、`uv run python scripts/db_tool.py up` で `CREATE EXTENSION vector;` を適用します。
+
 RDS → Create database で **Aurora PostgreSQL**（または **RDS for PostgreSQL**）を作成します。
 
 ### 2.1 接続方法（PoC 推奨）

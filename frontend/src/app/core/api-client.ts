@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 
 import { AppConfigService } from './config/app-config.service';
 import {
+  ApprovalDecisionResponse,
+  ApprovalRequestResponse,
   DashboardInitialResponse,
   Member,
   Project,
@@ -40,6 +42,27 @@ export class ApiClient {
   generatePlans(simulationId: string): Observable<SimulationPlan[]> {
     return this.http.post<SimulationPlan[]>(
       this.buildUrl(`/simulations/${simulationId}/plans/generate`),
+      {}
+    );
+  }
+
+  requestNemawashiApproval(actionId: number): Observable<ApprovalRequestResponse> {
+    return this.http.post<ApprovalRequestResponse>(
+      this.buildUrl(`/nemawashi/${actionId}/request-approval`),
+      {}
+    );
+  }
+
+  approveApproval(approvalId: string): Observable<ApprovalDecisionResponse> {
+    return this.http.post<ApprovalDecisionResponse>(
+      this.buildUrl(`/approvals/${encodeURIComponent(approvalId)}/approve`),
+      {}
+    );
+  }
+
+  rejectApproval(approvalId: string): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      this.buildUrl(`/approvals/${encodeURIComponent(approvalId)}/reject`),
       {}
     );
   }
