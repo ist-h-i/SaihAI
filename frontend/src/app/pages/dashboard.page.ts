@@ -288,7 +288,7 @@ interface ProposalGroup {
                     <app-haisa-speech
                       [tone]="p.isRecommended ? 'success' : 'info'"
                       [title]="'Plan ' + p.planType"
-                      [tag]="p.isRecommended ? '推奨' : null"
+                [tag]="p.isRecommended ? '推奨' : undefined"
                       [meta]="proposalMeta(p)"
                       [message]="proposalSummary(p)"
                       [compact]="true"
@@ -318,7 +318,7 @@ interface ProposalGroup {
                           <app-haisa-speech
                             [tone]="p.isRecommended ? 'success' : 'info'"
                             [title]="'Plan ' + p.planType"
-                            [tag]="p.isRecommended ? '推奨' : null"
+                      [tag]="p.isRecommended ? '推奨' : undefined"
                             [meta]="proposalMeta(p)"
                             [message]="proposalSummary(p)"
                             [compact]="true"

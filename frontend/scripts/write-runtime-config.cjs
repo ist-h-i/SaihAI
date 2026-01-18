@@ -3,7 +3,8 @@ const path = require('node:path');
 
 const ENV_PATHS = [
   path.join(process.cwd(), '.env'),
-  path.resolve(__dirname, '..', '..', '.env')
+  path.resolve(__dirname, '..', '..', '.env'),
+  path.resolve(__dirname, '..', '..', 'backend', '.env')
 ];
 
 const loadEnv = () => {
@@ -30,7 +31,6 @@ const loadEnv = () => {
         process.env[key] = value;
       }
     }
-    break;
   }
 };
 
