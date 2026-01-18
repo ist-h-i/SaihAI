@@ -36,11 +36,14 @@ from app.domain.input_sources import (
     ingest_weekly_reports,
 )
 from app.domain.hitl import fetch_history
+from app.integrations.bedrock import BedrockError, is_bedrock_configured
+from app.agents.simulator_planner import build_simulation_plan_logs, generate_simulation_plans
 
 router = APIRouter(prefix="/v1")
 
 DEV_LOGIN_PASSWORD = os.getenv("DEV_LOGIN_PASSWORD", "saihai")
 auth_logger = logging.getLogger("saihai.auth")
+logger = logging.getLogger("saihai.api.v1")
 
 
 class LoginRequest(BaseModel):
@@ -636,7 +639,12 @@ def evaluate(req: SimulationEvaluateRequest, conn: Connection = Depends(get_db))
         "requirementResult": requirement_result,
     }
 
-    _simulations[sim_id] = {"evaluation": evaluation, "riskScore": metrics["riskPct"]}
+    _simulations[sim_id] = {
+        "evaluation": evaluation,
+        "riskScore": metrics["riskPct"],
+        "project": project,
+        "team": team,
+    }
     return evaluation
 
 
@@ -650,8 +658,14 @@ def generate_plans(simulation_id: str) -> list[dict]:
     if not simulation:
         raise HTTPException(status_code=404, detail="simulation not found")
 
+    try:
+        plans, _logs = _build_plans_with_bedrock(simulation_id, simulation)
+        return plans
+    except BedrockError:
+        logger.exception("Bedrock plan generation failed, falling back simulation_id=%s", simulation_id)
+
     risk_score = int(simulation.get("riskScore", 0))
-    return _build_plans(simulation_id, risk_score)
+    return _build_plans_fallback(simulation_id, risk_score)
 
 
 @router.get("/simulations/{simulation_id}/plans/stream")
@@ -684,7 +698,24 @@ async def stream_plans(
                     yield _sse_event("log", entry)
                     await asyncio.sleep(0.2)
 
-        plans = _build_plans(simulation_id, risk_score)
+        try:
+            plans, ai_logs = await asyncio.to_thread(_build_plans_with_bedrock, simulation_id, simulation)
+            for entry in ai_logs:
+                yield _sse_event("log", entry)
+                await asyncio.sleep(0.12)
+        except BedrockError:
+            logger.exception(
+                "Bedrock plan generation failed during stream, falling back simulation_id=%s", simulation_id
+            )
+            yield _sse_event(
+                "log",
+                {
+                    "agent": "SYSTEM",
+                    "message": "Bedrock 呼び出しに失敗したため、ローカル推定のプランにフォールバックしました。",
+                    "tone": "gunshi",
+                },
+            )
+            plans = _build_plans_fallback(simulation_id, risk_score)
         yield _sse_event("complete", {"plans": plans})
 
     headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
@@ -939,6 +970,46 @@ def list_history_api(
 
 
 def _build_plans(simulation_id: str, risk_score: int) -> list[dict]:
+    return _build_plans_fallback(simulation_id, risk_score)
+
+
+def _build_plans_with_bedrock(simulation_id: str, simulation: dict) -> tuple[list[dict], list[dict[str, str]]]:
+    if not is_bedrock_configured():
+        raise BedrockError("Bedrock is not configured.")
+
+    evaluation = simulation.get("evaluation") or {}
+    project = simulation.get("project") or evaluation.get("project") or {}
+    team = simulation.get("team") or []
+    context = {
+        "simulation_id": simulation_id,
+        "project": project,
+        "team": team,
+        "metrics": evaluation.get("metrics") or {},
+        "pattern": evaluation.get("pattern") or "",
+        "requirement_result": evaluation.get("requirementResult") or [],
+    }
+
+    result = generate_simulation_plans(context)
+    plans: list[dict] = []
+    for draft in result.plans:
+        plan_id = f"plan-{simulation_id}-{draft.plan_type}"
+        plan = {
+            "id": plan_id,
+            "simulationId": simulation_id,
+            "planType": draft.plan_type,
+            "summary": draft.summary,
+            "prosCons": {"pros": draft.pros, "cons": draft.cons},
+            "score": draft.score,
+            "recommended": draft.is_recommended,
+        }
+        _plans[plan_id] = plan
+        plans.append(plan)
+
+    logs = build_simulation_plan_logs(result)
+    return plans, logs
+
+
+def _build_plans_fallback(simulation_id: str, risk_score: int) -> list[dict]:
     recommended = "A" if risk_score <= 50 else "B"
     plans: list[dict] = []
     for pid, title, pros, cons in [
