@@ -67,32 +67,98 @@ def invoke_bedrock_text(
         raise BedrockDependencyError("Missing dependency: boto3") from exc
 
     client = boto3.client("bedrock-runtime", region_name=region)
-    if not hasattr(client, "converse"):
-        raise BedrockInvocationError("boto3 bedrock-runtime client does not support converse().")
+    if hasattr(client, "converse"):
+        system: list[dict[str, Any]] = []
+        if system_prompt:
+            system.append({"text": system_prompt})
 
-    system: list[dict[str, Any]] = []
+        try:
+            response = client.converse(
+                modelId=model_id,
+                system=system,
+                messages=[{"role": "user", "content": [{"text": prompt}]}],
+                inferenceConfig={
+                    "maxTokens": max_tokens,
+                    "temperature": temperature,
+                },
+            )
+        except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
+            raise BedrockInvocationError(str(exc)) from exc
+
+        try:
+            content = response["output"]["message"]["content"]
+            chunks = [part.get("text", "") for part in content if isinstance(part, dict)]
+            text = "".join(chunks).strip()
+        except Exception as exc:
+            raise BedrockInvocationError(f"Unexpected Bedrock response shape: {exc}") from exc
+
+        return BedrockInvokeResult(provider="bedrock", model_id=model_id, text=text)
+
+    if not hasattr(client, "invoke_model"):
+        raise BedrockInvocationError("boto3 bedrock-runtime client does not support converse() or invoke_model().")
+
+    request_body: dict[str, Any] = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt}],
+            }
+        ],
+    }
     if system_prompt:
-        system.append({"text": system_prompt})
+        request_body["system"] = system_prompt
 
     try:
-        response = client.converse(
+        response = client.invoke_model(
             modelId=model_id,
-            system=system,
-            messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={
-                "maxTokens": max_tokens,
-                "temperature": temperature,
-            },
+            body=json.dumps(request_body),
+            contentType="application/json",
+            accept="application/json",
         )
     except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
         raise BedrockInvocationError(str(exc)) from exc
 
     try:
-        content = response["output"]["message"]["content"]
-        chunks = [part.get("text", "") for part in content if isinstance(part, dict)]
-        text = "".join(chunks).strip()
+        body = response.get("body")
+        raw = body.read() if hasattr(body, "read") else body
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode("utf-8")
+        result = json.loads(raw or "{}")
+
+        text = ""
+        if isinstance(result, dict):
+            content = result.get("content")
+            if isinstance(content, list):
+                chunks = [
+                    str(part.get("text") or "")
+                    for part in content
+                    if isinstance(part, dict) and str(part.get("text") or "").strip()
+                ]
+                text = "".join(chunks).strip()
+
+            if not text:
+                completion = result.get("completion") or result.get("generation")
+                if isinstance(completion, str):
+                    text = completion.strip()
+
+            if not text:
+                output = result.get("output")
+                if isinstance(output, dict):
+                    message = output.get("message")
+                    if isinstance(message, dict) and isinstance(message.get("content"), list):
+                        chunks = [
+                            str(part.get("text") or "")
+                            for part in message["content"]
+                            if isinstance(part, dict) and str(part.get("text") or "").strip()
+                        ]
+                        text = "".join(chunks).strip()
+        else:
+            text = str(result).strip()
     except Exception as exc:
-        raise BedrockInvocationError(f"Unexpected Bedrock response shape: {exc}") from exc
+        raise BedrockInvocationError(f"Unexpected Bedrock invoke_model response shape: {exc}") from exc
 
     return BedrockInvokeResult(provider="bedrock", model_id=model_id, text=text)
 
@@ -104,11 +170,19 @@ def invoke_text(
     allow_mock: bool = False,
 ) -> BedrockInvokeResult:
     if is_bedrock_configured():
-        try:
-            return invoke_bedrock_text(prompt, system_prompt=system_prompt)
-        except BedrockError:
-            raise
-    raise BedrockNotConfiguredError("Bedrock is required and not configured.")
+        return invoke_bedrock_text(prompt, system_prompt=system_prompt)
+
+    if allow_mock:
+        wants_json = bool(re.search(r"\bjson\b", prompt, flags=re.IGNORECASE)) or ("{" in prompt and "}" in prompt)
+        if wants_json:
+            text = json.dumps({"ok": True, "provider": "mock"}, ensure_ascii=False)
+        else:
+            text = "mock response (Bedrock is not configured)"
+        return BedrockInvokeResult(provider="mock", model_id=None, text=text)
+
+    raise BedrockNotConfiguredError(
+        "Bedrock is required and not configured. Set AWS_REGION and AWS_BEDROCK_MODEL_ID (and auth such as AWS_BEARER_TOKEN_BEDROCK)."
+    )
 
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\\s*(.*?)\\s*```", flags=re.DOTALL | re.IGNORECASE)
@@ -160,4 +234,3 @@ def invoke_json(
             current_system = (current_system or "") + "\nReturn only valid JSON. No prose."
             time.sleep(retry_delay)
     raise BedrockInvocationError(f"Failed to parse JSON: {last_error}") from last_error
-

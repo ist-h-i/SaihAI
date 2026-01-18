@@ -47,7 +47,7 @@ def bedrock_invoke(req: BedrockInvokeRequest) -> BedrockInvokeResponse:
         result: BedrockInvokeResult = invoke_text(
             req.prompt,
             system_prompt=req.systemPrompt,
-            allow_mock=False,
+            allow_mock=req.allowMock,
         )
     except BedrockError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
