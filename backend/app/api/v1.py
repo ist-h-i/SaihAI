@@ -207,6 +207,7 @@ class DashboardAlert(BaseModel):
 class DashboardProposal(BaseModel):
     id: int
     projectId: str
+    projectName: str | None = None
     planType: str
     description: str
     predictedFutureImpact: str | None = None
@@ -444,6 +445,7 @@ def dashboard_initial(conn: Connection = Depends(get_db)) -> dict:
         {
             "id": row["proposal_id"],
             "projectId": row["project_id"],
+            "projectName": projects.get(row["project_id"], {}).get("name") or row["project_id"],
             "planType": row["plan_type"],
             "description": row["description"],
             "predictedFutureImpact": row.get("predicted_future_impact"),

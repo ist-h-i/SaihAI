@@ -173,6 +173,7 @@ export interface DashboardAlert {
 export interface DashboardProposal {
   id: number;
   projectId: string;
+  projectName?: string | null;
   planType: string;
   description: string;
   predictedFutureImpact?: string | null;
