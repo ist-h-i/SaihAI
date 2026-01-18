@@ -170,11 +170,19 @@ def invoke_text(
     allow_mock: bool = False,
 ) -> BedrockInvokeResult:
     if is_bedrock_configured():
-        try:
-            return invoke_bedrock_text(prompt, system_prompt=system_prompt)
-        except BedrockError:
-            raise
-    raise BedrockNotConfiguredError("Bedrock is required and not configured.")
+        return invoke_bedrock_text(prompt, system_prompt=system_prompt)
+
+    if allow_mock:
+        wants_json = bool(re.search(r"\bjson\b", prompt, flags=re.IGNORECASE)) or ("{" in prompt and "}" in prompt)
+        if wants_json:
+            text = json.dumps({"ok": True, "provider": "mock"}, ensure_ascii=False)
+        else:
+            text = "mock response (Bedrock is not configured)"
+        return BedrockInvokeResult(provider="mock", model_id=None, text=text)
+
+    raise BedrockNotConfiguredError(
+        "Bedrock is required and not configured. Set AWS_REGION and AWS_BEDROCK_MODEL_ID (and auth such as AWS_BEARER_TOKEN_BEDROCK)."
+    )
 
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\\s*(.*?)\\s*```", flags=re.DOTALL | re.IGNORECASE)
