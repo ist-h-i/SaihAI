@@ -25,9 +25,19 @@
     "assertText": "経営ダッシュボード"
   },
   {
+    "name": "ui_dashboard_alert_feed",
+    "url": "/dashboard",
+    "assertText": "緊急アラートフィード"
+  },
+  {
     "name": "ui_simulator_demo_alert",
     "url": "/simulator?demo=alert",
     "assertText": "介入チェックポイント"
+  },
+  {
+    "name": "ui_simulator_split_view",
+    "url": "/simulator",
+    "assertText": "Split View"
   },
   {
     "name": "ui_genome_overview",

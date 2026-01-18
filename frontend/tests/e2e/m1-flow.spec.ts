@@ -155,6 +155,9 @@ test('login -> dashboard -> simulator evaluate -> generate', async ({ page }) =>
   await page.route('**/mock-api/projects', (route) => {
     route.fulfill({ json: sampleProjects });
   });
+  await page.route('**/mock-api/projects/**/team', (route) => {
+    route.fulfill({ json: { projectId: 'alpha', members: [] } });
+  });
   await page.route('**/mock-api/members', (route) => {
     route.fulfill({ json: sampleMembers });
   });
@@ -196,6 +199,9 @@ test('mobile flow supports input and approval', async ({ page }) => {
   });
   await page.route('**/mock-api/projects', (route) => {
     route.fulfill({ json: sampleProjects });
+  });
+  await page.route('**/mock-api/projects/**/team', (route) => {
+    route.fulfill({ json: { projectId: 'alpha', members: [] } });
   });
   await page.route('**/mock-api/members', (route) => {
     route.fulfill({ json: sampleMembers });

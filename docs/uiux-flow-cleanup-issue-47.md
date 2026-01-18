@@ -7,7 +7,7 @@
 ## Primary CTA (per screen)
 - Dashboard: Next Action panel (contextual primary button only)
 - Genome: Search + filter inputs (reset button appears only when filters are active)
-- Simulator: input section "AI自動編成" (before results), results section "介入チェックポイントを開く" (after results)
+- Simulator: input section "AI自動編成" (before results), results section "介入（HITL）を開く" (after results)
 
 ## 削除/統合一覧
 | Screen | Item | Change | Reason |

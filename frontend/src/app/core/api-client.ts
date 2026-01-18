@@ -8,6 +8,7 @@ import {
   ApprovalRequestResponse,
   DashboardInitialResponse,
   Member,
+  ProjectTeamResponse,
   Project,
   SimulationEvaluation,
   SimulationPlan,
@@ -25,6 +26,10 @@ export class ApiClient {
 
   getMembers(): Observable<Member[]> {
     return this.http.get<Member[]>(this.buildUrl('/members'));
+  }
+
+  getProjectTeam(projectId: string): Observable<ProjectTeamResponse> {
+    return this.http.get<ProjectTeamResponse>(this.buildUrl(`/projects/${projectId}/team`));
   }
 
   getMemberDetail(memberId: string): Observable<Member> {

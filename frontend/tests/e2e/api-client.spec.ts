@@ -48,11 +48,18 @@ const routeMembers = async (page: Page) => {
   });
 };
 
+const routeProjectTeam = async (page: Page) => {
+  await page.route('**/mock-api/projects/**/team', (route) => {
+    route.fulfill({ json: { projectId: 'alpha', members: [] } });
+  });
+};
+
 test('uses runtime config base url', async ({ page }) => {
   const urls: string[] = [];
   await routeConfig(page);
   await routeProjects(page, (url) => urls.push(url));
   await routeMembers(page);
+  await routeProjectTeam(page);
 
   await page.goto('/simulator');
 
@@ -66,6 +73,7 @@ test('injects auth header for api requests', async ({ page }) => {
     expect(headers.authorization).toBe('Bearer token-123');
   });
   await routeMembers(page);
+  await routeProjectTeam(page);
 
   await page.goto('/simulator');
 
@@ -82,6 +90,7 @@ test('shows toast when api returns error', async ({ page }) => {
     });
   });
   await routeMembers(page);
+  await routeProjectTeam(page);
 
   await page.goto('/simulator');
 
