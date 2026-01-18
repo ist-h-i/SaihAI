@@ -29,7 +29,7 @@ interface ChatEntry {
         <div class="ui-kicker">Tactical Simulator</div>
         <h2 class="mt-1 text-xl sm:text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          案件と候補者を選び、AIの「未来予測」と介入プランを確認します。
+          案件とメンバーを選び、介入プランを確認します。
         </p>
       </div>
 
@@ -38,49 +38,21 @@ interface ChatEntry {
           <div class="ui-kicker">Next Action</div>
           @if (store.loading() || store.streaming()) {
             <div class="mt-1 text-sm font-semibold text-slate-100">AIが編成中</div>
-            <div class="mt-1 text-xs text-slate-400">進捗を確認しながら待機します。</div>
+            <div class="mt-1 text-xs text-slate-400">進捗ストリームを更新中。</div>
             <div class="mt-3">
-              <button type="button" class="ui-button-secondary" disabled>進行中...</button>
+              <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100"
+                >processing</span
+              >
             </div>
           } @else if (store.simulationResult()) {
-            <div class="mt-1 text-sm font-semibold text-slate-100">介入チェックポイントへ</div>
-            <div class="mt-1 text-xs text-slate-400">
-              結果を確認し、プランを承認または指示を追加します。
-            </div>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button type="button" class="ui-button-primary" (click)="openOverlay('manual')">
-                介入を開く
-              </button>
-              <button type="button" class="ui-button-secondary" (click)="startDemo('alert')">
-                緊急デモ
-              </button>
-            </div>
+            <div class="mt-1 text-sm font-semibold text-slate-100">結果の確認へ</div>
+            <div class="mt-1 text-xs text-slate-400">結果セクションで介入に進みます。</div>
           } @else if (canRunSimulation()) {
-            <div class="mt-1 text-sm font-semibold text-slate-100">AI自動編成を実行</div>
-            <div class="mt-1 text-xs text-slate-400">
-              選択内容を確認し、シミュレーションを開始します。
-            </div>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button type="button" class="ui-button-primary" (click)="store.runSimulation()">
-                AI自動編成
-              </button>
-              <button type="button" class="ui-button-secondary" (click)="startDemo('manual')">
-                デモで確認
-              </button>
-            </div>
+            <div class="mt-1 text-sm font-semibold text-slate-100">実行準備完了</div>
+            <div class="mt-1 text-xs text-slate-400">入力を確認して AI を実行します。</div>
           } @else {
             <div class="mt-1 text-sm font-semibold text-slate-100">対象を選択</div>
-            <div class="mt-1 text-xs text-slate-400">
-              案件とメンバーを選ぶと、次のアクションに進めます。
-            </div>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <button type="button" class="ui-button-secondary" (click)="startDemo('manual')">
-                デモで開始
-              </button>
-              <button type="button" class="ui-button-ghost" (click)="startDemo('alert')">
-                緊急デモ
-              </button>
-            </div>
+            <div class="mt-1 text-xs text-slate-400">案件とメンバーを選んで開始します。</div>
           }
         </div>
       </div>
@@ -142,13 +114,15 @@ interface ChatEntry {
 
         <div class="mt-4 flex items-center justify-between">
           <div class="text-sm text-slate-300">メンバー</div>
-          <button
-            type="button"
-            class="text-xs px-2 py-1 rounded border border-slate-700 hover:border-slate-500 ui-focus-ring"
-            (click)="store.clearSelection()"
-          >
-            Clear
-          </button>
+          @if (store.selectedMemberIds().length) {
+            <button
+              type="button"
+              class="text-xs px-2 py-1 rounded border border-slate-700 hover:border-slate-500 ui-focus-ring"
+              (click)="store.clearSelection()"
+            >
+              選択解除
+            </button>
+          }
         </div>
 
         <div class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
@@ -211,14 +185,25 @@ interface ChatEntry {
           </div>
         </div>
 
-        <button
-          type="button"
-          class="mt-4 w-full ui-button-primary disabled:opacity-60"
-          [disabled]="store.loading()"
-          (click)="store.runSimulation()"
-        >
-          AI自動編成
-        </button>
+        @if (store.simulationResult()) {
+          <button
+            type="button"
+            class="mt-4 w-full ui-button-secondary disabled:opacity-60"
+            [disabled]="store.loading()"
+            (click)="store.runSimulation()"
+          >
+            再シミュレーション
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="mt-4 w-full ui-button-primary disabled:opacity-60"
+            [disabled]="store.loading() || !canRunSimulation()"
+            (click)="store.runSimulation()"
+          >
+            AI自動編成
+          </button>
+        }
         @if (store.loading()) {
           <div class="text-xs text-slate-400 mt-2">running…</div>
         }
@@ -227,14 +212,15 @@ interface ChatEntry {
       <section class="ui-panel">
         <div class="flex items-center justify-between gap-3 mb-3">
           <div class="font-semibold">2. 結果</div>
-          <button
-            type="button"
-            class="ui-button-secondary text-xs disabled:opacity-60"
-            [disabled]="!store.simulationResult()"
-            (click)="openOverlay('manual')"
-          >
-            介入チェックポイント
-          </button>
+          @if (store.simulationResult()) {
+            <button type="button" class="ui-button-primary text-xs" (click)="openOverlay('manual')">
+              介入チェックポイントを開く
+            </button>
+          } @else {
+            <button type="button" class="ui-button-secondary text-xs" disabled>
+              介入チェックポイント
+            </button>
+          }
         </div>
 
         @if (store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length) {
@@ -491,11 +477,7 @@ interface ChatEntry {
           <app-empty-state
             kicker="Empty"
             title="結果はまだありません"
-            description="案件とメンバーを選択してAI自動編成を実行してください。"
-            primaryLabel="デモで確認"
-            secondaryLabel="緊急デモ"
-            (primary)="startDemo('manual')"
-            (secondary)="startDemo('alert')"
+            description="案件とメンバーを選択してください。"
           />
         }
       </section>
@@ -801,10 +783,6 @@ export class SimulatorPage implements OnDestroy {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
     this.store.setProject(target.value);
-  }
-
-  protected startDemo(mode: 'alert' | 'manual'): void {
-    void this.runDemo(mode);
   }
 
   ngOnDestroy(): void {
