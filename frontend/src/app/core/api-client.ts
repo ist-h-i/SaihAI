@@ -7,6 +7,7 @@ import {
   ApprovalDecisionResponse,
   ApprovalRequestResponse,
   DashboardInitialResponse,
+  HistoryEntry,
   Member,
   ProjectTeamResponse,
   Project,
@@ -70,6 +71,19 @@ export class ApiClient {
       this.buildUrl(`/approvals/${encodeURIComponent(approvalId)}/reject`),
       {}
     );
+  }
+
+  getHistory(params?: {
+    status?: string;
+    projectId?: string;
+    limit?: number;
+  }): Observable<HistoryEntry[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.projectId) query.set('project_id', params.projectId);
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+    const suffix = query.toString();
+    return this.http.get<HistoryEntry[]>(this.buildUrl(`/history${suffix ? `?${suffix}` : ''}`));
   }
 
   private buildUrl(path: string): string {

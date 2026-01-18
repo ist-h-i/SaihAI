@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import random
-from typing import Iterable
+from typing import Any, Iterable
 
 from sqlalchemy.engine import Connection
 from sqlalchemy import text
@@ -60,3 +61,78 @@ def ensure_weekly_report_embeddings(conn: Connection, limit: int = 50) -> int:
         )
         updated += 1
     return updated
+
+
+def search_weekly_reports(
+    conn: Connection,
+    query_text: str,
+    *,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    query_embedding = generate_embedding(query_text)
+    rows = conn.execute(
+        text(
+            """
+            SELECT report_id, user_id, project_id, reporting_date, content_text, content_vector
+            FROM weekly_reports
+            WHERE content_vector IS NOT NULL
+            ORDER BY report_id
+            """
+        )
+    ).mappings().all()
+    scored: list[dict[str, Any]] = []
+    for row in rows:
+        embedding = _parse_embedding(row.get("content_vector"))
+        if not embedding:
+            continue
+        score = _cosine_similarity(query_embedding, embedding)
+        scored.append(
+            {
+                "report_id": row["report_id"],
+                "user_id": row.get("user_id"),
+                "project_id": row.get("project_id"),
+                "reporting_date": row.get("reporting_date"),
+                "content_text": row.get("content_text"),
+                "score": score,
+            }
+        )
+    scored.sort(key=lambda item: item.get("score") or 0, reverse=True)
+    return scored[:limit]
+
+
+def _parse_embedding(value: Any) -> list[float] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [float(v) for v in value]
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        value = value.decode("utf-8")
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            stripped = stripped[1:-1].strip()
+            if not stripped:
+                return []
+            try:
+                return [float(v) for v in stripped.split(",")]
+            except ValueError:
+                return None
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, list):
+            return [float(v) for v in parsed]
+    return None
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if not a or not b:
+        return 0.0
+    length = min(len(a), len(b))
+    dot = sum(a[i] * b[i] for i in range(length))
+    norm_a = math.sqrt(sum(a[i] * a[i] for i in range(length)))
+    norm_b = math.sqrt(sum(b[i] * b[i] for i in range(length)))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)

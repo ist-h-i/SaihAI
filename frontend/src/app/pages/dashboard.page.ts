@@ -494,6 +494,60 @@ interface ClusterAccumulator {
       </div>
     </div>
 
+    <div class="mt-6 ui-panel">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="ui-section-title">History</div>
+        <select
+          class="rounded-md border border-slate-800 bg-slate-900/50 px-2 py-1 text-xs text-slate-200"
+          (change)="updateHistoryFilter($event)"
+          [value]="historyStatusFilter() ?? ''"
+        >
+          <option value="">All</option>
+          <option value="approval_pending">Approval Pending</option>
+          <option value="approved">Approved</option>
+          <option value="executing">Executing</option>
+          <option value="executed">Executed</option>
+          <option value="failed">Failed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      @if (historyEntries().length) {
+        <div class="mt-3 space-y-3">
+          @for (entry of historyEntries(); track entry.thread_id) {
+            <details class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                <span class="text-slate-100">Action #{{ entry.action_id }}</span>
+                <span class="text-slate-400">
+                  / {{ entry.status || 'unknown' }} / {{ formatHistoryTime(entry.updated_at) }}
+                </span>
+              </summary>
+              <div class="mt-2 text-xs text-slate-300 whitespace-pre-wrap">
+                {{ entry.summary || 'No summary available.' }}
+              </div>
+              @if (entry.events.length) {
+                <div class="mt-3 space-y-2 text-[11px] text-slate-400">
+                  @for (evt of entry.events; track evt.created_at) {
+                    <div>
+                      <span class="text-slate-500">{{ formatHistoryTime(evt.created_at) }}</span>
+                      <span class="text-slate-300"> {{ evt.event_type }}</span>
+                      @if (evt.actor) { <span class="text-slate-500"> by {{ evt.actor }}</span> }
+                    </div>
+                  }
+                </div>
+              }
+            </details>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          kicker="Empty"
+          title="履歴はまだありません"
+          description="承認や実行が発生するとここに履歴が表示されます。"
+        />
+      }
+    </div>
+
     @if (nemawashiOpen() && nemawashiAction(); as action) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-950/70" (click)="closeNemawashi()"></div>
@@ -693,6 +747,14 @@ export class DashboardPage implements OnDestroy {
     return this.dashboard.watchdog();
   });
 
+  protected readonly historyEntries = computed(() => {
+    return this.dashboard.history();
+  });
+
+  protected readonly historyStatusFilter = computed(() => {
+    return this.dashboard.historyStatusFilter();
+  });
+
   protected proposalSummary(p: DashboardProposal): string {
     const { summary } = this.splitProposal(p.description);
     if (p.predictedFutureImpact) {
@@ -876,6 +938,18 @@ export class DashboardPage implements OnDestroy {
 
   protected reload(): void {
     void this.dashboard.load();
+  }
+
+  protected updateHistoryFilter(event: Event): void {
+    const value = (event.target as HTMLSelectElement | null)?.value ?? '';
+    void this.dashboard.setHistoryFilter(value ? value : null);
+  }
+
+  protected formatHistoryTime(value?: string | null): string {
+    if (!value) return '--';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString('ja-JP', { hour12: false });
   }
 
   protected openAlert(alert: DashboardAlert): void {

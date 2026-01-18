@@ -25,7 +25,7 @@ class BedrockStatusResponse(BaseModel):
 class BedrockInvokeRequest(BaseModel):
     prompt: str = Field(min_length=1)
     systemPrompt: str | None = None
-    allowMock: bool = True
+    allowMock: bool = False
 
 
 class BedrockInvokeResponse(BaseModel):
@@ -47,7 +47,7 @@ def bedrock_invoke(req: BedrockInvokeRequest) -> BedrockInvokeResponse:
         result: BedrockInvokeResult = invoke_text(
             req.prompt,
             system_prompt=req.systemPrompt,
-            allow_mock=req.allowMock,
+            allow_mock=False,
         )
     except BedrockError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -115,8 +115,12 @@ def send_approval_message(
     thread_id: str,
     summary: str | None,
     draft: str | None,
+    *,
+    channel: str | None = None,
+    thread_ts: str | None = None,
 ) -> SlackMeta | None:
-    if not SLACK_BOT_TOKEN or not SLACK_DEFAULT_CHANNEL:
+    target_channel = channel or SLACK_DEFAULT_CHANNEL
+    if not SLACK_BOT_TOKEN or not target_channel:
         return None
 
     title = summary or "Approval required"
@@ -176,20 +180,18 @@ def send_approval_message(
         }
     )
 
-    payload = {
-        "channel": SLACK_DEFAULT_CHANNEL,
-        "text": title,
-        "blocks": blocks,
-    }
+    payload = {"channel": target_channel, "text": title, "blocks": blocks}
+    if thread_ts:
+        payload["thread_ts"] = thread_ts
     response = _post_slack(payload)
     if not response:
         return None
 
-    channel = response.get("channel") or SLACK_DEFAULT_CHANNEL
+    channel = response.get("channel") or target_channel
     message_ts = response.get("ts") or response.get("message", {}).get("ts")
     if not message_ts:
         return None
-    return SlackMeta(channel=channel, message_ts=message_ts, thread_ts=message_ts)
+    return SlackMeta(channel=channel, message_ts=message_ts, thread_ts=thread_ts or message_ts)
 
 
 def post_thread_message(channel: str, thread_ts: str, text: str) -> None:

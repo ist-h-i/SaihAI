@@ -11,6 +11,7 @@ import {
   DashboardPendingAction,
   DashboardProposal,
   DashboardTimelineEntry,
+  HistoryEntry,
   Member,
 } from './types';
 
@@ -26,6 +27,8 @@ export class DashboardStore {
   readonly watchdog = signal<DashboardTimelineEntry[]>([]);
   readonly checkpointWaiting = signal(false);
   readonly lastUpdatedAt = signal<Date | null>(null);
+  readonly history = signal<HistoryEntry[]>([]);
+  readonly historyStatusFilter = signal<string | null>(null);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -47,6 +50,13 @@ export class DashboardStore {
       this.watchdog.set(response.watchdog ?? []);
       this.checkpointWaiting.set(Boolean(response.checkpointWaiting));
       this.lastUpdatedAt.set(new Date());
+      try {
+        await this.loadHistory();
+      } catch (err) {
+        if (!(err instanceof HttpErrorResponse)) {
+          this.error.set(err instanceof Error ? err.message : 'failed to load history');
+        }
+      }
     } catch (e) {
       if (!(e instanceof HttpErrorResponse)) {
         this.error.set(e instanceof Error ? e.message : 'failed to load');
@@ -66,5 +76,24 @@ export class DashboardStore {
 
   async rejectApproval(approvalId: string): Promise<{ status: string }> {
     return firstValueFrom(this.api.rejectApproval(approvalId));
+  }
+
+  async loadHistory(status?: string | null): Promise<void> {
+    const targetStatus = status ?? this.historyStatusFilter();
+    const entries = await firstValueFrom(
+      this.api.getHistory({ status: targetStatus ?? undefined, limit: 50 })
+    );
+    this.history.set(entries ?? []);
+  }
+
+  async setHistoryFilter(status: string | null): Promise<void> {
+    this.historyStatusFilter.set(status);
+    try {
+      await this.loadHistory(status);
+    } catch (err) {
+      if (!(err instanceof HttpErrorResponse)) {
+        this.error.set(err instanceof Error ? err.message : 'failed to load history');
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -10,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app.domain.external_actions import ExternalActionError, execute_external_action
-from app.integrations.slack import SlackMeta, send_approval_message
+from app.integrations.slack import SlackMeta, post_thread_message, send_approval_message
 
 
 @dataclass
@@ -38,6 +39,58 @@ HITL_STATUS_EXECUTING = "executing"
 HITL_STATUS_DONE = "executed"
 HITL_STATUS_FAILED = "failed"
 
+logger = logging.getLogger("saihai.hitl")
+
+
+def _idempotency_seen(metadata: dict[str, Any], key: str | None) -> bool:
+    if not key:
+        return False
+    keys = set(metadata.get("idempotency_keys") or [])
+    return key in keys
+
+
+def _record_idempotency_key(metadata: dict[str, Any], key: str | None) -> None:
+    if not key:
+        return
+    keys = list(metadata.get("idempotency_keys") or [])
+    if key in keys:
+        return
+    keys.append(key)
+    metadata["idempotency_keys"] = keys
+
+
+def _approval_result_from_metadata(
+    *,
+    thread_id: str,
+    action_id: int,
+    metadata: dict[str, Any],
+) -> ApprovalResult:
+    return ApprovalResult(
+        thread_id=thread_id,
+        approval_request_id=str(metadata.get("approval_request_id") or ""),
+        status=str(metadata.get("status") or HITL_STATUS_PENDING),
+        action_id=action_id,
+        slack=_slack_meta_from_metadata(metadata),
+    )
+
+
+def _execution_result_from_metadata(
+    *,
+    thread_id: str,
+    action_id: int,
+    metadata: dict[str, Any],
+) -> ExecutionJobResult | None:
+    job_id = metadata.get("execution_job_id")
+    status = metadata.get("execution_status") or metadata.get("status")
+    if status in {HITL_STATUS_EXECUTING, HITL_STATUS_DONE, HITL_STATUS_FAILED}:
+        return ExecutionJobResult(
+            job_id=str(job_id or f"job-{action_id}"),
+            status=str(status),
+            thread_id=thread_id,
+            action_id=action_id,
+        )
+    return None
+
 
 def request_approval(
     conn: Connection,
@@ -55,23 +108,19 @@ def request_approval(
     metadata = metadata or {}
 
     if metadata.get("status") == HITL_STATUS_PENDING and metadata.get("approval_request_id"):
-        return ApprovalResult(
+        return _approval_result_from_metadata(
             thread_id=thread_id,
-            approval_request_id=metadata["approval_request_id"],
-            status=metadata.get("status", HITL_STATUS_PENDING),
             action_id=action_id,
-            slack=_slack_meta_from_metadata(metadata),
+            metadata=metadata,
         )
 
-    if idempotency_key and idempotency_key in set(metadata.get("idempotency_keys") or []):
+    if idempotency_key and _idempotency_seen(metadata, idempotency_key):
         approval_request_id = str(metadata.get("approval_request_id") or "")
         if approval_request_id:
-            return ApprovalResult(
+            return _approval_result_from_metadata(
                 thread_id=thread_id,
-                approval_request_id=approval_request_id,
-                status=metadata.get("status", HITL_STATUS_PENDING),
                 action_id=action_id,
-                slack=_slack_meta_from_metadata(metadata),
+                metadata=metadata,
             )
 
     approval_request_id = f"apr-{uuid4().hex[:12]}"
@@ -83,10 +132,7 @@ def request_approval(
             "requested_at": datetime.now(timezone.utc).isoformat(),
         }
     )
-    if idempotency_key:
-        keys = list(metadata.get("idempotency_keys") or [])
-        keys.append(idempotency_key)
-        metadata["idempotency_keys"] = keys
+    _record_idempotency_key(metadata, idempotency_key)
 
     state = checkpoint or {}
     state.update(
@@ -106,12 +152,15 @@ def request_approval(
         detail={"action_id": action_id, "summary": summary},
     )
 
+    slack_existing = _slack_meta_from_metadata(metadata)
     slack_meta = send_approval_message(
         action_id=action_id,
         approval_request_id=approval_request_id,
         thread_id=thread_id,
         summary=summary,
         draft=action.get("draft_content"),
+        channel=slack_existing.channel if slack_existing else None,
+        thread_ts=slack_existing.thread_ts if slack_existing else None,
     )
     if slack_meta:
         metadata["slack"] = {
@@ -134,6 +183,13 @@ def request_approval(
         {"status": HITL_STATUS_PENDING, "action_id": action_id},
     )
 
+    logger.info(
+        "approval requested thread_id=%s action_id=%s approval_request_id=%s",
+        thread_id,
+        action_id,
+        approval_request_id,
+    )
+
     return ApprovalResult(
         thread_id=thread_id,
         approval_request_id=approval_request_id,
@@ -147,6 +203,7 @@ def approve_request(
     conn: Connection,
     approval_request_id: str,
     actor: str | None,
+    idempotency_key: str | None = None,
 ) -> ExecutionJobResult:
     thread_id, checkpoint, metadata = _find_by_approval_id(conn, approval_request_id)
     if not thread_id or not metadata:
@@ -155,6 +212,33 @@ def approve_request(
     action_id = int((checkpoint or {}).get("action_id") or 0)
     if not action_id:
         raise ValueError("action not found")
+
+    existing = _execution_result_from_metadata(
+        thread_id=thread_id,
+        action_id=action_id,
+        metadata=metadata,
+    )
+    if existing:
+        return existing
+
+    action = _load_action(conn, action_id)
+    if action and action.get("status") in {HITL_STATUS_EXECUTING, HITL_STATUS_DONE, HITL_STATUS_FAILED}:
+        return ExecutionJobResult(
+            job_id=str(metadata.get("execution_job_id") or f"job-{action_id}"),
+            status=str(action.get("status")),
+            thread_id=thread_id,
+            action_id=action_id,
+        )
+
+    if idempotency_key and _idempotency_seen(metadata, idempotency_key):
+        return ExecutionJobResult(
+            job_id=str(metadata.get("execution_job_id") or f"job-{action_id}"),
+            status=str(metadata.get("execution_status") or metadata.get("status") or HITL_STATUS_APPROVED),
+            thread_id=thread_id,
+            action_id=action_id,
+        )
+
+    _record_idempotency_key(metadata, idempotency_key)
 
     metadata["status"] = HITL_STATUS_APPROVED
     metadata = _append_audit(
@@ -178,15 +262,30 @@ def approve_request(
         {"status": HITL_STATUS_APPROVED, "action_id": action_id},
     )
 
+    logger.info(
+        "approval approved thread_id=%s action_id=%s approval_request_id=%s",
+        thread_id,
+        action_id,
+        approval_request_id,
+    )
+
     return process_execution_job(conn, action_id=action_id)
 
 
-def reject_request(conn: Connection, approval_request_id: str, actor: str | None) -> None:
+def reject_request(
+    conn: Connection,
+    approval_request_id: str,
+    actor: str | None,
+    idempotency_key: str | None = None,
+) -> None:
     thread_id, checkpoint, metadata = _find_by_approval_id(conn, approval_request_id)
     if not thread_id or not metadata:
         raise ValueError("approval request not found")
 
     action_id = int((checkpoint or {}).get("action_id") or 0)
+    if idempotency_key and _idempotency_seen(metadata, idempotency_key):
+        return
+    _record_idempotency_key(metadata, idempotency_key)
     metadata["status"] = HITL_STATUS_REJECTED
     metadata = _append_audit(
         metadata,
@@ -210,6 +309,13 @@ def reject_request(conn: Connection, approval_request_id: str, actor: str | None
             {"status": HITL_STATUS_REJECTED, "action_id": action_id},
         )
 
+    logger.info(
+        "approval rejected thread_id=%s action_id=%s approval_request_id=%s",
+        thread_id,
+        action_id,
+        approval_request_id,
+    )
+
 
 def apply_steer(
     conn: Connection,
@@ -226,6 +332,14 @@ def apply_steer(
     action_id = int((checkpoint or {}).get("action_id") or 0)
     if not action_id:
         raise ValueError("action not found")
+
+    if idempotency_key and _idempotency_seen(metadata, idempotency_key):
+        return _approval_result_from_metadata(
+            thread_id=thread_id,
+            action_id=action_id,
+            metadata=metadata,
+        )
+    _record_idempotency_key(metadata, idempotency_key)
 
     action = _load_action(conn, action_id)
     draft = action.get("draft_content") if action else ""
@@ -255,11 +369,18 @@ def apply_steer(
     )
     _upsert_checkpoint(conn, thread_id, checkpoint, metadata)
 
+    logger.info(
+        "steer applied thread_id=%s action_id=%s approval_request_id=%s",
+        thread_id,
+        action_id,
+        approval_request_id,
+    )
+
     return request_approval(
         conn,
         action_id=action_id,
         requested_by=actor,
-        idempotency_key=idempotency_key or f"{thread_id}:{approval_request_id}:steer",
+        idempotency_key=f"{thread_id}:{approval_request_id}:steer",
         summary="steer update",
     )
 
@@ -273,8 +394,28 @@ def process_execution_job(
     checkpoint, metadata = _load_checkpoint(conn, thread_id)
     metadata = metadata or {}
 
+    existing = _execution_result_from_metadata(
+        thread_id=thread_id,
+        action_id=action_id,
+        metadata=metadata,
+    )
+    if existing:
+        return existing
+
+    action = _load_action(conn, action_id)
+    if action and action.get("status") in {HITL_STATUS_EXECUTING, HITL_STATUS_DONE, HITL_STATUS_FAILED}:
+        status = str(action.get("status") or HITL_STATUS_EXECUTING)
+        return ExecutionJobResult(
+            job_id=str(metadata.get("execution_job_id") or f"job-{action_id}"),
+            status=status,
+            thread_id=thread_id,
+            action_id=action_id,
+        )
+
     job_id = f"job-{uuid4().hex[:12]}"
     metadata["status"] = HITL_STATUS_EXECUTING
+    metadata["execution_job_id"] = job_id
+    metadata["execution_status"] = HITL_STATUS_EXECUTING
     metadata = _append_audit(
         metadata,
         event_type="execution_started",
@@ -283,6 +424,17 @@ def process_execution_job(
         detail={"action_id": action_id},
     )
     _upsert_checkpoint(conn, thread_id, checkpoint, metadata)
+
+    conn.execute(
+        text(
+            """
+            UPDATE autonomous_actions
+            SET status = :status
+            WHERE action_id = :action_id
+            """
+        ),
+        {"status": HITL_STATUS_EXECUTING, "action_id": action_id},
+    )
 
     if simulate_failure:
         return _mark_failed(conn, thread_id, checkpoint, metadata, job_id, action_id, "simulated failure")
@@ -304,6 +456,7 @@ def process_execution_job(
     )
 
     metadata["status"] = HITL_STATUS_DONE
+    metadata["execution_status"] = HITL_STATUS_DONE
     metadata = _append_audit(
         metadata,
         event_type="execution_succeeded",
@@ -313,12 +466,68 @@ def process_execution_job(
     )
     _upsert_checkpoint(conn, thread_id, checkpoint, metadata)
 
+    _notify_execution_result(metadata, thread_id, action_id, job_id, HITL_STATUS_DONE, None)
+
+    logger.info("execution succeeded thread_id=%s action_id=%s job_id=%s", thread_id, action_id, job_id)
+
     return ExecutionJobResult(job_id=job_id, status=HITL_STATUS_DONE, thread_id=thread_id, action_id=action_id)
 
 
 def fetch_audit_logs(conn: Connection, thread_id: str) -> list[dict[str, Any]]:
     _, _, metadata = _load_checkpoint(conn, thread_id)
     return list(metadata.get("audit_events") or []) if metadata else []
+
+
+def fetch_history(
+    conn: Connection,
+    *,
+    status: str | None = None,
+    project_id: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        text("SELECT thread_id, checkpoint, metadata FROM langgraph_checkpoints")
+    ).mappings().all()
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        metadata = _deserialize_json(row.get("metadata"))
+        if not isinstance(metadata, dict):
+            continue
+        if project_id and str(metadata.get("project_id") or "") != project_id:
+            continue
+        current_status = str(metadata.get("status") or "")
+        if status and current_status != status:
+            continue
+
+        checkpoint = _deserialize_blob(row.get("checkpoint")) or {}
+        action_id = int(checkpoint.get("action_id") or 0)
+        action = _load_action(conn, action_id) if action_id else None
+        draft_summary = (action or {}).get("draft_content") or ""
+        if len(draft_summary) > 160:
+            draft_summary = draft_summary[:160] + "..."
+
+        events = list(metadata.get("audit_events") or [])
+        updated_at = ""
+        if events:
+            updated_at = str(events[-1].get("created_at") or "")
+        else:
+            updated_at = str(metadata.get("requested_at") or "")
+
+        results.append(
+            {
+                "thread_id": row.get("thread_id"),
+                "action_id": action_id,
+                "status": current_status or (action or {}).get("status"),
+                "summary": draft_summary,
+                "project_id": metadata.get("project_id"),
+                "severity": metadata.get("severity"),
+                "updated_at": updated_at,
+                "events": events,
+            }
+        )
+
+    results.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+    return results[:limit]
 
 
 def _load_action(conn: Connection, action_id: int) -> dict[str, Any] | None:
@@ -480,6 +689,7 @@ def _mark_failed(
     )
 
     metadata["status"] = HITL_STATUS_FAILED
+    metadata["execution_status"] = HITL_STATUS_FAILED
     metadata = _append_audit(
         metadata,
         event_type="execution_failed",
@@ -488,6 +698,14 @@ def _mark_failed(
         detail={"action_id": action_id, "error": error_message},
     )
     _upsert_checkpoint(conn, thread_id, checkpoint, metadata)
+    _notify_execution_result(metadata, thread_id, action_id, job_id, HITL_STATUS_FAILED, error_message)
+    logger.warning(
+        "execution failed thread_id=%s action_id=%s job_id=%s error=%s",
+        thread_id,
+        action_id,
+        job_id,
+        error_message,
+    )
     return ExecutionJobResult(job_id=job_id, status=HITL_STATUS_FAILED, thread_id=thread_id, action_id=action_id)
 
 
@@ -502,3 +720,22 @@ def _slack_meta_from_metadata(metadata: dict[str, Any]) -> SlackMeta | None:
         message_ts=str(message_ts),
         thread_ts=slack.get("thread_ts"),
     )
+
+
+def _notify_execution_result(
+    metadata: dict[str, Any],
+    thread_id: str,
+    action_id: int,
+    job_id: str,
+    status: str,
+    error_message: str | None,
+) -> None:
+    slack = _slack_meta_from_metadata(metadata)
+    if not slack:
+        return
+    thread_ts = slack.thread_ts or slack.message_ts
+    if status == HITL_STATUS_DONE:
+        text = f"Execution completed. job_id={job_id} action_id={action_id}"
+    else:
+        text = f"Execution failed. job_id={job_id} action_id={action_id} error={error_message}"
+    post_thread_message(channel=slack.channel, thread_ts=thread_ts, text=text)

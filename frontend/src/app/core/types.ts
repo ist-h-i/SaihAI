@@ -229,3 +229,22 @@ export interface ApprovalDecisionResponse {
   thread_id: string;
   action_id: number;
 }
+
+export interface HistoryEvent {
+  event_type: string;
+  actor?: string | null;
+  correlation_id?: string | null;
+  detail?: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface HistoryEntry {
+  thread_id: string;
+  action_id: number;
+  status?: string | null;
+  summary?: string | null;
+  project_id?: string | null;
+  severity?: string | null;
+  updated_at?: string | null;
+  events: HistoryEvent[];
+}

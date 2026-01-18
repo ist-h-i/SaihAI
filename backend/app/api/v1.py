@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,8 +25,17 @@ from app.db.repository import (
 )
 from app.domain.patterns import detect_pattern
 from app.domain.scoring import score
-from app.domain.external_actions import ACTION_TYPE_CALENDAR, ACTION_TYPE_EMAIL
-from app.domain.input_sources import fetch_ingestion_runs, ingest_weekly_reports
+from app.domain.external_actions import ACTION_TYPE_CALENDAR, ACTION_TYPE_EMAIL, ACTION_TYPE_HR
+from app.domain.input_sources import (
+    SOURCE_ATTENDANCE,
+    SOURCE_SLACK_LOGS,
+    SOURCE_WEEKLY_REPORTS,
+    fetch_ingestion_runs,
+    ingest_attendance,
+    ingest_slack_logs,
+    ingest_weekly_reports,
+)
+from app.domain.hitl import fetch_history
 
 router = APIRouter(prefix="/v1")
 
@@ -255,6 +264,13 @@ class ExternalCalendarActionRequest(BaseModel):
     proposalId: int | None = None
 
 
+class ExternalHrActionRequest(BaseModel):
+    employeeId: str = Field(min_length=1)
+    requestType: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    proposalId: int | None = None
+
+
 class ActionCreateResponse(BaseModel):
     actionId: int
     status: str
@@ -280,6 +296,25 @@ class InputIngestionRunResponse(BaseModel):
     startedAt: str
     finishedAt: str
     error: str | None = None
+
+
+class HistoryEventResponse(BaseModel):
+    event_type: str
+    actor: str | None = None
+    correlation_id: str | None = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+
+
+class HistoryEntryResponse(BaseModel):
+    thread_id: str
+    action_id: int
+    status: str | None = None
+    summary: str | None = None
+    project_id: str | None = None
+    severity: str | None = None
+    updated_at: str | None = None
+    events: list[HistoryEventResponse] = Field(default_factory=list)
 
 
 _simulations: dict[str, dict] = {}
@@ -746,13 +781,85 @@ def create_calendar_action(
     )
 
 
+@router.post(
+    "/actions/hr",
+    response_model=ActionCreateResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def create_hr_action(
+    req: ExternalHrActionRequest,
+    conn: Connection = Depends(get_db),
+) -> ActionCreateResponse:
+    payload = {
+        "employee_id": req.employeeId,
+        "request_type": req.requestType,
+        "summary": req.summary,
+    }
+    draft_content = f"HR request for {req.employeeId}: {req.summary}\n\n{json.dumps({'hr_request': payload})}"
+    conn.execute(
+        text(
+            """
+            INSERT INTO autonomous_actions (proposal_id, action_type, draft_content, status)
+            VALUES (:proposal_id, :action_type, :draft_content, 'pending')
+            """
+        ),
+        {
+            "proposal_id": req.proposalId,
+            "action_type": ACTION_TYPE_HR,
+            "draft_content": draft_content,
+        },
+    )
+    action_id = conn.execute(
+        text(
+            """
+            SELECT action_id
+            FROM autonomous_actions
+            ORDER BY action_id DESC
+            LIMIT 1
+            """
+        )
+    ).scalar()
+    return ActionCreateResponse(
+        actionId=int(action_id),
+        status="pending",
+        actionType=ACTION_TYPE_HR,
+    )
+
+
 @router.get(
     "/external-actions/runs",
     response_model=list[ExternalActionRunResponse],
     dependencies=[Depends(get_current_user)],
 )
 def list_external_action_runs(conn: Connection = Depends(get_db)) -> list[dict]:
-    return []
+    rows = conn.execute(
+        text(
+            """
+            SELECT run_id, action_type, status, job_id, action_id, provider, error, executed_at
+            FROM external_action_runs
+            ORDER BY run_id DESC
+            LIMIT 50
+            """
+        )
+    ).mappings().all()
+    results: list[dict] = []
+    for row in rows:
+        executed_at = row.get("executed_at")
+        if executed_at and hasattr(executed_at, "isoformat"):
+            executed_at = executed_at.isoformat()
+        results.append(
+            {
+                "runId": str(row.get("run_id")),
+                "jobId": str(row.get("job_id") or ""),
+                "actionId": int(row.get("action_id") or 0),
+                "actionType": row.get("action_type"),
+                "provider": row.get("provider"),
+                "status": row.get("status"),
+                "executedAt": executed_at,
+                "error": row.get("error"),
+            }
+        )
+    return results
 
 
 @router.post(
@@ -771,8 +878,62 @@ def ingest_weekly_reports_api(conn: Connection = Depends(get_db)) -> dict:
     dependencies=[Depends(get_current_user)],
 )
 def list_weekly_report_ingestion_runs(conn: Connection = Depends(get_db)) -> list[dict]:
-    runs = fetch_ingestion_runs(conn)
+    runs = fetch_ingestion_runs(conn, SOURCE_WEEKLY_REPORTS)
     return [_ingestion_response(run) for run in runs]
+
+
+@router.post(
+    "/input-sources/slack/ingest",
+    response_model=InputIngestionRunResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def ingest_slack_logs_api(conn: Connection = Depends(get_db)) -> dict:
+    result = ingest_slack_logs(conn)
+    return _ingestion_response(result)
+
+
+@router.get(
+    "/input-sources/slack/runs",
+    response_model=list[InputIngestionRunResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_slack_ingestion_runs(conn: Connection = Depends(get_db)) -> list[dict]:
+    runs = fetch_ingestion_runs(conn, SOURCE_SLACK_LOGS)
+    return [_ingestion_response(run) for run in runs]
+
+
+@router.post(
+    "/input-sources/attendance/ingest",
+    response_model=InputIngestionRunResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def ingest_attendance_api(conn: Connection = Depends(get_db)) -> dict:
+    result = ingest_attendance(conn)
+    return _ingestion_response(result)
+
+
+@router.get(
+    "/input-sources/attendance/runs",
+    response_model=list[InputIngestionRunResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_attendance_runs(conn: Connection = Depends(get_db)) -> list[dict]:
+    runs = fetch_ingestion_runs(conn, SOURCE_ATTENDANCE)
+    return [_ingestion_response(run) for run in runs]
+
+
+@router.get(
+    "/history",
+    response_model=list[HistoryEntryResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_history_api(
+    status: str | None = None,
+    project_id: str | None = None,
+    limit: int = 50,
+    conn: Connection = Depends(get_db),
+) -> list[dict]:
+    return fetch_history(conn, status=status, project_id=project_id, limit=limit)
 
 
 def _build_plans(simulation_id: str, risk_score: int) -> list[dict]:
