@@ -50,6 +50,7 @@ const dashboardPayload = {
     {
       id: 1,
       projectId: 'alpha',
+      projectName: 'Alpha',
       planType: 'Plan_B',
       description: 'Future growth plan',
       recommendationScore: 82,
@@ -67,6 +68,49 @@ const dashboardPayload = {
   ],
   watchdog: [{ t: '09:00', text: 'Analysis complete', dot: '#6366f1' }],
   checkpointWaiting: false,
+};
+
+const groupedDashboardPayload = {
+  ...dashboardPayload,
+  proposals: [
+    {
+      id: 1,
+      projectId: 'alpha',
+      projectName: 'Alpha',
+      planType: 'A',
+      description: 'Alpha steady plan',
+      recommendationScore: 90,
+      isRecommended: true,
+    },
+    {
+      id: 1,
+      projectId: 'alpha',
+      projectName: 'Alpha',
+      planType: 'A',
+      description: 'Alpha steady plan (duplicate)',
+      recommendationScore: 90,
+      isRecommended: true,
+    },
+    {
+      id: 2,
+      projectId: 'alpha',
+      projectName: 'Alpha',
+      planType: 'B',
+      description: 'Alpha growth plan',
+      recommendationScore: 70,
+      isRecommended: false,
+    },
+    {
+      id: 3,
+      projectId: 'beta',
+      projectName: 'Beta',
+      planType: 'C',
+      description: 'Beta safe plan',
+      recommendationScore: 76,
+      isRecommended: true,
+    },
+  ],
+  pendingActions: [],
 };
 
 const evaluationPayload = {
@@ -186,6 +230,33 @@ test('login -> dashboard -> simulator evaluate -> generate', async ({ page }) =>
   await expect(page.getByText('3プラン（A/B/C）')).toBeVisible();
   await expect(page.getByText('要件カバー率')).toBeVisible();
   await expect(page.getByText('Plan A')).toBeVisible();
+});
+
+test('dashboard groups proposals by project', async ({ page }) => {
+  await routeConfig(page);
+
+  await page.route('**/mock-api/auth/login', (route) => {
+    route.fulfill({ json: { access_token: 'token-123', token_type: 'bearer' } });
+  });
+  await page.route('**/mock-api/dashboard/initial', (route) => {
+    route.fulfill({ json: groupedDashboardPayload });
+  });
+
+  await page.goto('/login');
+  await page.getByPlaceholder('例: U001').fill('m1');
+  await page.getByPlaceholder('dev password').fill('saihai');
+  await page.getByRole('button', { name: 'ログイン' }).click();
+
+  await expect(page).toHaveURL(/dashboard/);
+  const aiPanel = page.locator('.ui-panel', { has: page.getByText('AI 提案') });
+  const alphaGroup = aiPanel.locator('[data-project-id="alpha"]');
+  const betaGroup = aiPanel.locator('[data-project-id="beta"]');
+
+  await expect(alphaGroup.getByText('Alpha')).toBeVisible();
+  await expect(betaGroup.getByText('Beta')).toBeVisible();
+  await expect(alphaGroup.getByText('他の提案（1）')).toBeVisible();
+  await expect(alphaGroup.getByText('Alpha / score 90')).toBeVisible();
+  await expect(betaGroup.getByText('Beta / score 76')).toBeVisible();
 });
 
 test('mobile flow supports input and approval', async ({ page }) => {

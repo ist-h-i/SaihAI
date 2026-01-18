@@ -75,6 +75,14 @@ interface ClusterAccumulator {
   risk: boolean;
 }
 
+interface ProposalGroup {
+  projectId: string;
+  projectName: string;
+  proposals: DashboardProposal[];
+  primary: DashboardProposal | null;
+  secondary: DashboardProposal[];
+}
+
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
@@ -107,6 +115,9 @@ interface ClusterAccumulator {
             } @else if (primaryProposal(); as proposal) {
               <div class="mt-2 text-sm font-semibold text-slate-100">推奨提案を確認</div>
               <div class="mt-1 text-xs text-slate-300">Plan {{ proposal.planType }}</div>
+              <div class="text-xs text-slate-400">
+                プロジェクト: {{ proposalProjectName(proposal) }}
+              </div>
               <div class="mt-3">
                 <button type="button" class="ui-button-primary" (click)="goSimulator()">
                   介入へ
@@ -232,6 +243,9 @@ interface ClusterAccumulator {
             <div>
               <div class="ui-kicker">AI Recommendation</div>
               <div class="text-base font-semibold text-slate-100">Plan {{ proposal.planType }}</div>
+              <div class="mt-1 text-xs text-slate-400">
+                プロジェクト: {{ proposalProjectName(proposal) }}
+              </div>
               <div class="mt-2 text-sm text-slate-300 whitespace-pre-line">
                 {{ proposalSummary(proposal) }}
               </div>
@@ -260,57 +274,73 @@ interface ClusterAccumulator {
         <div class="flex items-center justify-between gap-3">
           <div class="ui-section-title">AI 提案</div>
         </div>
-        @if (dashboard.proposals().length) {
-          <div class="mt-3 space-y-3">
-            @if (primaryProposal(); as p) {
-              <app-haisa-speech
-                [tone]="'success'"
-                [title]="'Plan ' + p.planType"
-                [tag]="'推奨'"
-                [meta]="'score ' + p.recommendationScore"
-                [message]="proposalSummary(p)"
-                [compact]="true"
-                [showAvatar]="true"
-                [reserveAvatarSpace]="true"
-                [highlight]="true"
-              />
-              @if (proposalDetail(p); as detail) {
-                <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                  <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                    詳細
-                  </summary>
-                  <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
-                </details>
-              }
-            }
-
-            @if (secondaryProposals().length) {
-              <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                  他の提案（{{ secondaryProposals().length }}）
-                </summary>
+        @if (proposalGroups().length) {
+          <div class="mt-3 space-y-4">
+            @for (group of proposalGroups(); track group.projectId) {
+              <div
+                class="rounded-lg border border-slate-800/70 bg-slate-950/30 p-3"
+                [attr.data-project-id]="group.projectId"
+              >
+                <div class="text-[11px] text-slate-400 font-semibold">プロジェクト</div>
+                <div class="text-sm font-semibold text-slate-100">{{ group.projectName }}</div>
                 <div class="mt-3 space-y-3">
-                  @for (p of secondaryProposals(); track p.id) {
+                  @if (group.primary; as p) {
                     <app-haisa-speech
-                      [tone]="'info'"
+                      [tone]="p.isRecommended ? 'success' : 'info'"
                       [title]="'Plan ' + p.planType"
-                      [meta]="'score ' + p.recommendationScore"
+                      [tag]="p.isRecommended ? '推奨' : null"
+                      [meta]="proposalMeta(p)"
                       [message]="proposalSummary(p)"
                       [compact]="true"
-                      [showAvatar]="false"
+                      [showAvatar]="true"
                       [reserveAvatarSpace]="true"
+                      [highlight]="p.isRecommended"
                     />
                     @if (proposalDetail(p); as detail) {
                       <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
                         <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
                           詳細
                         </summary>
-                        <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
+                        <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">
+                          {{ detail }}
+                        </div>
                       </details>
                     }
                   }
+
+                  @if (group.secondary.length) {
+                    <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+                      <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                        他の提案（{{ group.secondary.length }}）
+                      </summary>
+                      <div class="mt-3 space-y-3">
+                        @for (p of group.secondary; track p.id) {
+                          <app-haisa-speech
+                            [tone]="p.isRecommended ? 'success' : 'info'"
+                            [title]="'Plan ' + p.planType"
+                            [tag]="p.isRecommended ? '推奨' : null"
+                            [meta]="proposalMeta(p)"
+                            [message]="proposalSummary(p)"
+                            [compact]="true"
+                            [showAvatar]="false"
+                            [reserveAvatarSpace]="true"
+                          />
+                          @if (proposalDetail(p); as detail) {
+                            <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+                              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                                詳細
+                              </summary>
+                              <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">
+                                {{ detail }}
+                              </div>
+                            </details>
+                          }
+                        }
+                      </div>
+                    </details>
+                  }
                 </div>
-              </details>
+              </div>
             }
           </div>
         } @else {
@@ -593,15 +623,18 @@ export class DashboardPage implements OnDestroy {
     return this.alertFeed()[0] ?? null;
   });
 
+  private readonly dedupedProposals = computed(() => {
+    return this.dedupeProposals(this.dashboard.proposals());
+  });
+
   protected readonly primaryProposal = computed(() => {
-    const proposals = this.dashboard.proposals();
+    const proposals = this.dedupedProposals();
     if (!proposals.length) return null;
     return proposals.find((p) => p.isRecommended) ?? proposals[0] ?? null;
   });
 
-  protected readonly secondaryProposals = computed(() => {
-    const primary = this.primaryProposal();
-    return this.dashboard.proposals().filter((p) => p !== primary);
+  protected readonly proposalGroups = computed<ProposalGroup[]>(() => {
+    return this.groupProposals(this.dedupedProposals());
   });
 
   protected readonly pendingLabel = computed(() => {
@@ -701,6 +734,15 @@ export class DashboardPage implements OnDestroy {
     return `理由: ${summary}`;
   }
 
+  protected proposalProjectName(p: DashboardProposal): string {
+    const name = (p.projectName ?? '').trim();
+    return name || p.projectId;
+  }
+
+  protected proposalMeta(p: DashboardProposal): string {
+    return `${this.proposalProjectName(p)} / score ${p.recommendationScore}`;
+  }
+
   protected proposalDetail(p: DashboardProposal): string | null {
     const detail = this.splitProposal(p.description).detail;
     if (p.predictedFutureImpact) {
@@ -710,6 +752,54 @@ export class DashboardPage implements OnDestroy {
       return `影響予測: ${p.predictedFutureImpact}`;
     }
     return detail;
+  }
+
+  private dedupeProposals(proposals: DashboardProposal[]): DashboardProposal[] {
+    if (!proposals.length) return [];
+    const seenByProject = new Map<string, Set<number>>();
+    const unique: DashboardProposal[] = [];
+    for (const proposal of proposals) {
+      const projectId = proposal.projectId;
+      let seen = seenByProject.get(projectId);
+      if (!seen) {
+        seen = new Set<number>();
+        seenByProject.set(projectId, seen);
+      }
+      if (seen.has(proposal.id)) continue;
+      seen.add(proposal.id);
+      unique.push(proposal);
+    }
+    return unique;
+  }
+
+  private groupProposals(proposals: DashboardProposal[]): ProposalGroup[] {
+    if (!proposals.length) return [];
+    const groups = new Map<string, { name: string; proposals: DashboardProposal[] }>();
+    for (const proposal of proposals) {
+      const projectId = proposal.projectId;
+      const projectName = this.proposalProjectName(proposal);
+      const entry = groups.get(projectId);
+      if (entry) {
+        if (entry.name === projectId && projectName !== projectId) {
+          entry.name = projectName;
+        }
+        entry.proposals.push(proposal);
+      } else {
+        groups.set(projectId, { name: projectName, proposals: [proposal] });
+      }
+    }
+
+    return Array.from(groups.entries()).map(([projectId, group]) => {
+      const primary = group.proposals.find((p) => p.isRecommended) ?? group.proposals[0] ?? null;
+      const secondary = primary ? group.proposals.filter((p) => p !== primary) : [];
+      return {
+        projectId,
+        projectName: group.name,
+        proposals: group.proposals,
+        primary,
+        secondary,
+      };
+    });
   }
 
   private splitProposal(description: string): { summary: string; detail: string | null } {
