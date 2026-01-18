@@ -60,12 +60,7 @@ interface ChatEntry {
 
     @if (store.error(); as err) {
       <div class="mb-3 mt-4">
-        <app-haisa-speech
-          [tone]="'error'"
-          [message]="err"
-          [compact]="true"
-          [showAvatar]="false"
-        />
+        <app-haisa-speech [tone]="'error'" [message]="err" [compact]="true" [showAvatar]="false" />
       </div>
     }
 
@@ -125,7 +120,9 @@ interface ChatEntry {
           }
         </div>
 
-        <div class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
+        <div
+          class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0"
+        >
           @for (m of store.members(); track m.id) {
             <label
               class="flex items-start gap-3 rounded border border-slate-800 bg-slate-900/40 px-3 py-2"
@@ -223,13 +220,16 @@ interface ChatEntry {
           }
         </div>
 
-        @if (store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length) {
-          <details class="mb-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3" [open]="store.streaming()">
+        @if (
+          store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length
+        ) {
+          <details
+            class="mb-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3"
+            [open]="store.streaming()"
+          >
             <summary class="cursor-pointer list-none flex items-center justify-between gap-3">
               <span class="text-sm font-semibold">AI進捗ストリーム</span>
-              <span class="text-xs text-slate-300"
-                >{{ store.planProgress()?.progress ?? 0 }}%</span
-              >
+              <span class="text-xs text-slate-300">{{ store.planProgress()?.progress ?? 0 }}%</span>
             </summary>
             <div class="mt-3">
               <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
@@ -350,7 +350,9 @@ interface ChatEntry {
 
           <div class="mt-4">
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-sm font-semibold">未来タイムライン</summary>
+              <summary class="cursor-pointer list-none text-sm font-semibold">
+                未来タイムライン
+              </summary>
               <ul class="mt-2 space-y-2 timeline-list">
                 @for (t of r.timeline; track $index) {
                   <li
@@ -375,7 +377,9 @@ interface ChatEntry {
 
           <div class="mt-4">
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-sm font-semibold">エージェント所見</summary>
+              <summary class="cursor-pointer list-none text-sm font-semibold">
+                エージェント所見
+              </summary>
               <div class="mt-2 grid gap-2 sm:grid-cols-2">
                 <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
                   <div class="flex items-center justify-between">
@@ -422,18 +426,66 @@ interface ChatEntry {
           </div>
 
           <div class="mt-4">
-            <div class="text-sm font-semibold">推奨プラン</div>
-            @if (recommendedPlan(); as plan) {
-              <div class="mt-2 rounded border border-emerald-500/50 bg-emerald-500/10 p-3">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold">プラン選択</div>
+                <div class="mt-1 text-xs text-slate-400">
+                  AI推奨: Plan {{ recommendedPlan()?.planType ?? '-' }}
+                </div>
+              </div>
+              @if (activePlanType(); as selected) {
+                <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100">
+                  選択中 Plan {{ selected }}
+                </span>
+              }
+            </div>
+
+            <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-3">
+              @for (p of r.plans; track p.id) {
+                <button
+                  type="button"
+                  class="relative text-left rounded-xl border bg-slate-900/30 px-3 pb-3 pt-8 transition hover:border-slate-500 ui-focus-ring"
+                  [class.border-indigo-500/70]="activePlanType() === p.planType"
+                  [class.bg-indigo-500/10]="activePlanType() === p.planType"
+                  [class.border-slate-800]="activePlanType() !== p.planType"
+                  [attr.aria-pressed]="activePlanType() === p.planType"
+                  (click)="setActivePlan(p.planType)"
+                >
+                  @if (p.recommended) {
+                    <div
+                      class="absolute right-2 top-2 text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 font-bold"
+                    >
+                      AI推奨
+                    </div>
+                  }
+                  @if (activePlanType() === p.planType) {
+                    <div
+                      class="absolute left-2 top-2 text-[10px] px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-100 font-bold"
+                    >
+                      選択中
+                    </div>
+                  }
+                  <div class="font-semibold text-slate-100 leading-tight">
+                    Plan {{ p.planType }}
+                  </div>
+                  <div class="mt-1 text-xs text-slate-300 break-words">{{ p.summary }}</div>
+                </button>
+              }
+            </div>
+
+            @if (activePlan(); as plan) {
+              <div class="mt-3 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
                 <div class="flex items-center justify-between gap-2">
                   <div class="font-semibold text-slate-100">
                     Plan {{ plan.planType }}: {{ plan.summary }}
                   </div>
-                  <span
-                    class="text-[10px] font-bold tracking-wider rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
-                  >
-                    AI推奨
-                  </span>
+                  @if (plan.recommended) {
+                    <span
+                      class="text-[10px] font-bold tracking-wider rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
+                    >
+                      AI推奨
+                    </span>
+                  }
                 </div>
                 <div class="mt-2 text-xs text-slate-300">
                   pros: {{ plan.prosCons.pros.join(' / ') }}
@@ -443,34 +495,7 @@ interface ChatEntry {
                 </div>
               </div>
             } @else {
-              <div class="mt-2 text-xs text-slate-400">推奨プランがありません。</div>
-            }
-
-            @if (secondaryPlans().length) {
-              <details class="mt-3 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-                <summary class="cursor-pointer list-none text-sm font-semibold">他のプラン</summary>
-                <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  @for (p of secondaryPlans(); track p.id) {
-                    <div
-                      class="relative rounded border border-slate-800 bg-slate-900/30 p-3 transition hover:border-slate-500"
-                    >
-                      <div class="font-semibold text-slate-100 leading-tight">
-                        Plan {{ p.planType }}: {{ p.summary }}
-                      </div>
-                      <div class="mt-3 text-xs text-slate-300 space-y-1">
-                        <div class="flex items-baseline gap-1">
-                          <span class="text-slate-400">pros:</span>
-                          <span class="text-slate-200">{{ p.prosCons.pros.join(' / ') }}</span>
-                        </div>
-                        <div class="flex items-baseline gap-1">
-                          <span class="text-slate-400">cons:</span>
-                          <span class="text-slate-200">{{ p.prosCons.cons.join(' / ') }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </details>
+              <div class="mt-3 text-xs text-slate-400">プランがありません。</div>
             }
           </div>
         } @else {
@@ -487,9 +512,9 @@ interface ChatEntry {
       <div class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/70" (click)="closeOverlay()"></div>
         <div
-          class="absolute inset-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full h-full sm:w-[min(1120px,calc(100vw-3rem))] sm:h-[min(780px,calc(100vh-3rem))] rounded-none sm:rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
+          class="absolute inset-0 sm:inset-6 lg:inset-8 xl:inset-10 rounded-none sm:rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
         >
-          <app-neural-orb class="absolute inset-0 opacity-30"></app-neural-orb>
+          <app-neural-orb class="absolute inset-0 opacity-30 pointer-events-none"></app-neural-orb>
 
           <div class="relative h-full flex flex-col">
             <div
@@ -506,6 +531,11 @@ interface ChatEntry {
                   {{ overlayMode() === 'alert' ? 'ALERT ACTIVE' : 'MANUAL MODE' }}
                 </div>
                 <div class="font-bold text-slate-100 leading-tight">介入チェックポイント</div>
+                @if (activePlanType(); as selected) {
+                  <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100">
+                    選択中 Plan {{ selected }}
+                  </span>
+                }
               </div>
               <button
                 type="button"
@@ -516,9 +546,13 @@ interface ChatEntry {
               </button>
             </div>
 
-            <div class="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden" data-overlay-scroll>
-              <div class="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,40%)] lg:gap-0 min-h-full">
-                <div class="border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
+            <div class="flex-1 min-h-0 overflow-y-auto" data-overlay-scroll>
+              <div
+                class="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,40%)] lg:gap-0 min-h-full"
+              >
+                <div
+                  class="border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col min-h-0 overflow-visible lg:overflow-hidden"
+                >
                   <div class="p-4 sm:p-5 border-b border-slate-800/80 bg-white/5">
                     <div class="ui-kicker">{{ overlayKpiLabel() }}</div>
                     <div
@@ -553,7 +587,9 @@ interface ChatEntry {
                     >
                       根拠ログ（Agent Log）
                     </summary>
-                    <div class="p-4 sm:p-5 space-y-2 font-mono text-xs min-h-0 lg:flex-1 lg:overflow-auto">
+                    <div
+                      class="p-4 sm:p-5 space-y-2 font-mono text-xs min-h-0 lg:flex-1 lg:overflow-auto"
+                    >
                       @for (l of overlayLog(); track $index) {
                         <div class="flex items-start gap-3">
                           <span
@@ -565,7 +601,9 @@ interface ChatEntry {
                           >
                             {{ l.agent }}
                           </span>
-                          <span class="text-slate-200 flex-1 min-w-0 break-words">{{ l.text }}</span>
+                          <span class="text-slate-200 flex-1 min-w-0 break-words">{{
+                            l.text
+                          }}</span>
                         </div>
                       }
                     </div>
@@ -581,22 +619,23 @@ interface ChatEntry {
                         @for (p of r.plans; track p.id) {
                           <button
                             type="button"
-                            class="relative text-left rounded-xl border bg-slate-900/40 p-4 hover:bg-slate-900/55 status-plan"
-                            [class.border-emerald-500]="p.recommended || selectedPlanId() === p.planType"
-                            [class.border-slate-800]="!p.recommended && selectedPlanId() !== p.planType"
-                            [class.status-recommended]="p.recommended"
+                            class="relative text-left rounded-xl border bg-slate-900/40 px-4 pb-4 pt-8 hover:bg-slate-900/55 status-plan ui-focus-ring"
+                            [class.border-indigo-500]="activePlanType() === p.planType"
+                            [class.bg-indigo-500/10]="activePlanType() === p.planType"
+                            [class.border-slate-800]="activePlanType() !== p.planType"
+                            [attr.aria-pressed]="activePlanType() === p.planType"
                             (click)="selectPlan(p.planType)"
                           >
                             @if (p.recommended) {
                               <div
-                                class="absolute right-3 top-3 text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 font-bold"
+                                class="absolute right-2 top-2 text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 font-bold"
                               >
                                 AI推奨
                               </div>
                             }
-                            @if (selectedPlanId() === p.planType) {
+                            @if (activePlanType() === p.planType) {
                               <div
-                                class="absolute left-3 top-3 text-[10px] px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-100 font-bold"
+                                class="absolute left-2 top-2 text-[10px] px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-100 font-bold"
                               >
                                 選択中
                               </div>
@@ -667,7 +706,9 @@ interface ChatEntry {
                           />
                         </div>
                         <div class="min-w-0">
-                          <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                          <div
+                            class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider"
+                          >
                             サイハイくん
                           </div>
                           <div class="text-xs text-slate-300">指示をまとめて共有します。</div>
@@ -692,11 +733,7 @@ interface ChatEntry {
                         >
                           指示を送信
                         </button>
-                        <button
-                          type="button"
-                          class="ui-button-primary"
-                          (click)="approvePlan()"
-                        >
+                        <button type="button" class="ui-button-primary" (click)="approvePlan()">
                           承認して実行
                         </button>
                       </div>
@@ -752,11 +789,20 @@ export class SimulatorPage implements OnDestroy {
     return result.plans.find((p) => p.recommended) ?? result.plans[0] ?? null;
   });
 
-  protected readonly secondaryPlans = computed<SimulationPlan[]>(() => {
+  protected readonly activePlanType = computed<'A' | 'B' | 'C' | null>(() => {
+    return this.selectedPlanId() ?? this.recommendedPlan()?.planType ?? null;
+  });
+
+  protected readonly activePlan = computed<SimulationPlan | null>(() => {
     const result = this.store.simulationResult();
-    if (!result?.plans?.length) return [];
-    const recommended = this.recommendedPlan();
-    return result.plans.filter((p) => p !== recommended);
+    if (!result?.plans?.length) return null;
+    const selected = this.activePlanType();
+    return (
+      result.plans.find((p) => p.planType === selected) ??
+      this.recommendedPlan() ??
+      result.plans[0] ??
+      null
+    );
   });
 
   protected readonly budgetUsed = computed(() =>
@@ -833,7 +879,7 @@ export class SimulatorPage implements OnDestroy {
     this.overlayMode.set(mode);
     this.overlayOpen.set(true);
     this.overlayLog.set([]);
-    this.selectedPlanId.set(this.recommendedPlan()?.planType ?? null);
+    this.selectedPlanId.set(this.activePlanType());
 
     const initialEmotion = this.emotionForOverlay(mode, r);
     this.overlayChat.set([
@@ -910,6 +956,10 @@ export class SimulatorPage implements OnDestroy {
   protected closeOverlay(): void {
     this.overlayOpen.set(false);
     this.timers.splice(0).forEach((t) => window.clearTimeout(t));
+  }
+
+  protected setActivePlan(id: 'A' | 'B' | 'C'): void {
+    this.selectedPlanId.set(id);
   }
 
   protected selectPlan(id: 'A' | 'B' | 'C'): void {
