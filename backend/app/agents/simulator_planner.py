@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +11,63 @@ from app.integrations.bedrock import BedrockInvocationError, invoke_json
 logger = logging.getLogger("saihai.simulator_planner")
 
 _DEFAULT_PLAN_TYPES = ("A", "B", "C")
+
+_LOG_BEDROCK_CONTEXT = os.getenv("LOG_BEDROCK_CONTEXT", "").lower() in {"1", "true", "yes", "on"}
+_LOG_BEDROCK_CONTEXT_FULL = os.getenv("LOG_BEDROCK_CONTEXT_FULL", "").lower() in {"1", "true", "yes", "on"}
+_LOG_BEDROCK_CONTEXT_MAX_CHARS = max(0, int(os.getenv("LOG_BEDROCK_CONTEXT_MAX_CHARS", "8000") or "8000"))
+_LOG_BEDROCK_CONTEXT_NOTES_MAX_CHARS = max(
+    0, int(os.getenv("LOG_BEDROCK_CONTEXT_NOTES_MAX_CHARS", "200") or "200")
+)
+
+
+def _truncate(text: str, max_chars: int) -> str:
+    if max_chars <= 0:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}...(truncated,{len(text)}chars)"
+
+
+def _safe_json_dumps(payload: Any, *, max_chars: int) -> str:
+    try:
+        dumped = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
+    except Exception:
+        dumped = "{unserializable_json}"
+    return _truncate(dumped, max_chars)
+
+
+def _sanitize_bedrock_context(context: dict[str, Any]) -> dict[str, Any]:
+    if _LOG_BEDROCK_CONTEXT_FULL:
+        return context
+
+    sanitized: dict[str, Any] = dict(context)
+
+    project = sanitized.get("project")
+    if isinstance(project, dict):
+        project_copy = dict(project)
+        description = project_copy.get("description")
+        if isinstance(description, str) and description:
+            project_copy["description"] = _truncate(description, _LOG_BEDROCK_CONTEXT_NOTES_MAX_CHARS)
+        sanitized["project"] = project_copy
+
+    team = sanitized.get("team")
+    if isinstance(team, list):
+        sanitized_team: list[Any] = []
+        for member in team:
+            if not isinstance(member, dict):
+                sanitized_team.append(member)
+                continue
+            member_copy = dict(member)
+            notes = member_copy.get("notes")
+            if isinstance(notes, str) and notes:
+                member_copy["notes"] = _truncate(notes, _LOG_BEDROCK_CONTEXT_NOTES_MAX_CHARS)
+            aspiration = member_copy.get("careerAspiration")
+            if isinstance(aspiration, str) and aspiration:
+                member_copy["careerAspiration"] = _truncate(aspiration, _LOG_BEDROCK_CONTEXT_NOTES_MAX_CHARS)
+            sanitized_team.append(member_copy)
+        sanitized["team"] = sanitized_team
+
+    return sanitized
 
 
 def _normalize_plan_type(value: Any) -> str:
@@ -82,6 +140,11 @@ def generate_simulation_plans(context: dict[str, Any]) -> SimulationPlansResult:
         "[INPUT_JSON]\n"
         f"{json.dumps(context, ensure_ascii=False)}"
     )
+    if _LOG_BEDROCK_CONTEXT:
+        logger.warning(
+            "Bedrock plan generation context=%s",
+            _safe_json_dumps(_sanitize_bedrock_context(context), max_chars=_LOG_BEDROCK_CONTEXT_MAX_CHARS),
+        )
     try:
         payload = invoke_json(prompt, system_prompt=system_prompt, max_tokens=1400, temperature=0.2, retries=1)
     except BedrockInvocationError:
