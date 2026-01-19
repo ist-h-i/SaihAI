@@ -10,6 +10,7 @@ def get_database_url() -> str:
     url = (os.getenv("DATABASE_URL") or "").strip()
     return url or "sqlite:///./saihai.db"
 
+
 def _normalize_database_url(database_url: str) -> str:
     database_url = (database_url or "").strip()
 
@@ -31,9 +32,28 @@ def _normalize_database_url(database_url: str) -> str:
 def create_db_engine() -> Engine:
     database_url = _normalize_database_url(get_database_url())
     connect_args: dict[str, object] = {}
+    engine_kwargs: dict[str, object] = {
+        "future": True,
+        "pool_pre_ping": True,
+        "connect_args": connect_args,
+    }
+
     if database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
-    return create_engine(database_url, future=True, pool_pre_ping=True, connect_args=connect_args)
+    else:
+        connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT", "5") or "5")
+        if connect_timeout > 0:
+            connect_args["connect_timeout"] = connect_timeout
+
+        application_name = (os.getenv("DB_APPLICATION_NAME") or "saihai-backend").strip()
+        if application_name:
+            connect_args["application_name"] = application_name
+
+        pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800") or "1800")
+        if pool_recycle > 0:
+            engine_kwargs["pool_recycle"] = pool_recycle
+
+    return create_engine(database_url, **engine_kwargs)
 
 
 engine = create_db_engine()

@@ -7,7 +7,7 @@ from app.auth import get_current_user
 from app.integrations.bedrock import (
     BedrockError,
     BedrockInvokeResult,
-    bedrock_model_id,
+    bedrock_invoke_id,
     bedrock_region,
     invoke_text,
 )
@@ -37,7 +37,7 @@ class BedrockInvokeResponse(BaseModel):
 @router.get("/bedrock/status", response_model=BedrockStatusResponse, dependencies=[Depends(get_current_user)])
 def bedrock_status() -> BedrockStatusResponse:
     region = bedrock_region()
-    model_id = bedrock_model_id()
+    model_id = bedrock_invoke_id()
     return BedrockStatusResponse(configured=bool(region and model_id), region=region, model_id=model_id)
 
 

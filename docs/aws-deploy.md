@@ -24,7 +24,7 @@ PoC の staging は **開発メンバーのみがアクセス**できればよ�
 
 - `docs/aws-setup.md` を完了しており、以下が揃っている
   - `DATABASE_URL`
-  - `AWS_REGION`, `AWS_BEDROCK_MODEL_ID`, `AWS_BEARER_TOKEN_BEDROCK`
+  - `AWS_REGION`, `AWS_BEDROCK_MODEL_ID`, `AWS_BEDROCK_INFERENCE_PROFILE_ID`（任意）, `AWS_BEARER_TOKEN_BEDROCK`
 - 開発メンバーのアクセス元グローバルIPが把握できる（固定IPが無い場合は VPN / Client VPN 等を検討）
 
 ---
@@ -112,6 +112,7 @@ LOG_HTTP_REQUESTS=1
 
 AWS_REGION=ap-northeast-1
 AWS_BEDROCK_MODEL_ID=...
+AWS_BEDROCK_INFERENCE_PROFILE_ID=...
 AWS_BEARER_TOKEN_BEDROCK=...
 ```
 

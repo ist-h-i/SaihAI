@@ -34,7 +34,7 @@
 
 取得値は表（例: スプレッドシート）で管理し、環境変数/Secrets への対応を明確にします。
 
-- Bedrock: `AWS_REGION` / `AWS_BEDROCK_MODEL_ID` / `AWS_BEARER_TOKEN_BEDROCK`
+- Bedrock: `AWS_REGION` / `AWS_BEDROCK_MODEL_ID` / `AWS_BEDROCK_INFERENCE_PROFILE_ID`（任意） / `AWS_BEARER_TOKEN_BEDROCK`
 - DB: `DbEndpoint` / `DbName` / `DbUser` / `DbPassword` → `DATABASE_URL`
 - API: `SAIHAI_API_BASE_URL`（staging の API base URL）
 
@@ -49,6 +49,7 @@
 
 - `AWS_REGION`
 - `AWS_BEDROCK_MODEL_ID`
+- `AWS_BEDROCK_INFERENCE_PROFILE_ID`（任意）
 - `AWS_BEARER_TOKEN_BEDROCK`
 
 動作確認（任意）:
@@ -139,6 +140,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 DATABASE_URL=postgresql+psycopg://<DbUser>:<DbPassword>@<DbEndpoint>:5432/<DbName>?sslmode=require
 AWS_REGION=ap-northeast-1
 AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
+AWS_BEDROCK_INFERENCE_PROFILE_ID=<inference-profile-id-or-arn>
 AWS_BEARER_TOKEN_BEDROCK=your-api-key-here
 ```
 
@@ -174,6 +176,7 @@ bash dev-start.sh
 
 - `AWS_REGION`: Bedrock/RDS の利用リージョン
 - `AWS_BEDROCK_MODEL_ID`: 利用モデル ID
+- `AWS_BEDROCK_INFERENCE_PROFILE_ID`: Inference profile の ID/ARN（任意）
 - `AWS_BEARER_TOKEN_BEDROCK`: Bedrock 利用の資格情報（運用ポリシーに従う）
 - `DATABASE_URL`: PostgreSQL + pgvector の接続文字列
 - `SAIHAI_API_BASE_URL`: Frontend が参照する API base URL

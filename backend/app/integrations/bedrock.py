@@ -40,13 +40,35 @@ def bedrock_model_id() -> str | None:
     return model_id or None
 
 
+def bedrock_inference_profile_id() -> str | None:
+    profile_id = _env("AWS_BEDROCK_INFERENCE_PROFILE_ID") or _env("AWS_BEDROCK_INFERENCE_PROFILE_ARN")
+    return profile_id or None
+
+
+def bedrock_invoke_id() -> str | None:
+    return bedrock_inference_profile_id() or bedrock_model_id()
+
+
 def bedrock_region() -> str | None:
-    region = _env("AWS_REGION")
+    region = _env("AWS_REGION") or _env("AWS_DEFAULT_REGION")
     return region or None
 
 
 def is_bedrock_configured() -> bool:
-    return bool(bedrock_model_id() and bedrock_region())
+    return bool(bedrock_invoke_id() and bedrock_region())
+
+
+_ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE = re.compile(r"on-demand throughput\\s+isnt supported", flags=re.IGNORECASE)
+
+
+def _with_inference_profile_hint(message: str) -> str:
+    if not _ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE.search(message):
+        return message
+    return (
+        f"{message}\n"
+        "Hint: This model cannot be invoked with on-demand throughput. Create an inference profile that contains this model "
+        "and set AWS_BEDROCK_INFERENCE_PROFILE_ID (or AWS_BEDROCK_INFERENCE_PROFILE_ARN)."
+    )
 
 
 def invoke_bedrock_text(
@@ -56,10 +78,12 @@ def invoke_bedrock_text(
     max_tokens: int = 1024,
     temperature: float = 0.2,
 ) -> BedrockInvokeResult:
-    model_id = bedrock_model_id()
+    model_id = bedrock_invoke_id()
     region = bedrock_region()
     if not model_id or not region:
-        raise BedrockNotConfiguredError("Set AWS_REGION and AWS_BEDROCK_MODEL_ID.")
+        raise BedrockNotConfiguredError(
+            "Set AWS_REGION (or AWS_DEFAULT_REGION) and AWS_BEDROCK_MODEL_ID (or AWS_BEDROCK_INFERENCE_PROFILE_ID)."
+        )
 
     try:
         import boto3  # type: ignore
@@ -83,7 +107,7 @@ def invoke_bedrock_text(
                 },
             )
         except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
-            raise BedrockInvocationError(str(exc)) from exc
+            raise BedrockInvocationError(_with_inference_profile_hint(str(exc))) from exc
 
         try:
             content = response["output"]["message"]["content"]
@@ -119,7 +143,7 @@ def invoke_bedrock_text(
             accept="application/json",
         )
     except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
-        raise BedrockInvocationError(str(exc)) from exc
+        raise BedrockInvocationError(_with_inference_profile_hint(str(exc))) from exc
 
     try:
         body = response.get("body")
@@ -181,7 +205,8 @@ def invoke_text(
         return BedrockInvokeResult(provider="mock", model_id=None, text=text)
 
     raise BedrockNotConfiguredError(
-        "Bedrock is required and not configured. Set AWS_REGION and AWS_BEDROCK_MODEL_ID (and auth such as AWS_BEARER_TOKEN_BEDROCK)."
+        "Bedrock is required and not configured. Set AWS_REGION (or AWS_DEFAULT_REGION) and AWS_BEDROCK_MODEL_ID "
+        "(or AWS_BEDROCK_INFERENCE_PROFILE_ID). Auth uses boto3 credential resolution (e.g., AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY)."
     )
 
 
