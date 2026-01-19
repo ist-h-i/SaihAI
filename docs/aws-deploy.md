@@ -116,6 +116,14 @@ AWS_BEDROCK_INFERENCE_PROFILE_ID=...
 AWS_BEARER_TOKEN_BEDROCK=...
 ```
 
+Inference profile check:
+
+```bash
+aws bedrock list-inference-profiles --type-equals SYSTEM_DEFINED --output table
+```
+
+NOTE: `ValidationException ... on-demand throughput isn't supported` が出る場合、指定している ID が **foundation model ID** の可能性があります。`AWS_BEDROCK_INFERENCE_PROFILE_ID`（ID/ARN）を設定するか、`AWS_BEDROCK_MODEL_ID` を system-defined inference profile（例: `global.<foundation-model-id>`）に変更してください。
+
 ### 3.4 DB 初期化（migration / seed）
 
 ```bash
