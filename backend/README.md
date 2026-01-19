@@ -59,8 +59,9 @@ uv run python scripts/db_tool.py down
 
 Environment variables:
 
-- `AWS_REGION`
+- `AWS_REGION` (or `AWS_DEFAULT_REGION`)
 - `AWS_BEDROCK_MODEL_ID`
+- `AWS_BEDROCK_INFERENCE_PROFILE_ID` (or `AWS_BEDROCK_INFERENCE_PROFILE_ARN`, optional; takes precedence over `AWS_BEDROCK_MODEL_ID`)
 
 Auth:
 
