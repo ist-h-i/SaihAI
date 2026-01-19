@@ -48,6 +48,24 @@ try:
 except Exception:
     startup_logger.exception("Failed to resolve database URL for startup log")
 
+try:
+    from app.integrations.bedrock import (
+        bedrock_inference_profile_id,
+        bedrock_invoke_id,
+        bedrock_model_id,
+        bedrock_region,
+    )
+
+    startup_logger.info(
+        "Bedrock target: region=%s invoke_id=%s base_model_id=%s inference_profile_id=%s",
+        bedrock_region(),
+        bedrock_invoke_id(),
+        bedrock_model_id(),
+        bedrock_inference_profile_id(),
+    )
+except Exception:
+    startup_logger.exception("Failed to resolve Bedrock settings for startup log")
+
 app = FastAPI(title="SaihAI API", version="0.1.0")
 
 @app.middleware("http")
