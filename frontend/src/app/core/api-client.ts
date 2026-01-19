@@ -9,6 +9,8 @@ import {
   DashboardInitialResponse,
   HistoryEntry,
   Member,
+  PlanChatRequest,
+  PlanChatResponse,
   ProjectTeamResponse,
   Project,
   SimulationEvaluation,
@@ -49,6 +51,17 @@ export class ApiClient {
     return this.http.post<SimulationPlan[]>(
       this.buildUrl(`/simulations/${simulationId}/plans/generate`),
       {}
+    );
+  }
+
+  chatSimulationPlan(
+    simulationId: string,
+    planType: 'A' | 'B' | 'C',
+    req: PlanChatRequest
+  ): Observable<PlanChatResponse> {
+    return this.http.post<PlanChatResponse>(
+      this.buildUrl(`/simulations/${simulationId}/plans/${planType}/chat`),
+      req
     );
   }
 

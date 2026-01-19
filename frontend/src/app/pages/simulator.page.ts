@@ -1,6 +1,7 @@
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 import { EmptyStateComponent } from '../components/empty-state.component';
 import { HaisaSpeechComponent } from '../components/haisa-speech.component';
@@ -12,6 +13,7 @@ import {
   haisaEmotionForRisk,
   haisaEmotionLabel as resolveHaisaEmotionLabel,
 } from '../core/haisa-emotion';
+import { ApiClient } from '../core/api-client';
 import { SimulatorStore } from '../core/simulator-store';
 import { Member, ProjectTeamMember, SimulationPlan, SimulationResult } from '../core/types';
 
@@ -29,11 +31,6 @@ interface MemberBadge {
   tone: BadgeTone;
 }
 
-interface MemberCostInfo {
-  value: number;
-  original: number | null;
-  adjusted: boolean;
-}
 
 const LEADER_NAME_TOKENS = ['sato', '佐藤'];
 const VETERAN_NAME_TOKENS = ['tanaka', '田中'];
@@ -886,6 +883,7 @@ const COMPRESSED_COST = 30;
 export class SimulatorPage implements OnDestroy {
   protected readonly store = inject(SimulatorStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(ApiClient);
 
   protected readonly overlayOpen = signal(false);
   protected readonly overlayMode = signal<'alert' | 'manual'>('alert');
@@ -897,6 +895,7 @@ export class SimulatorPage implements OnDestroy {
     { agent: string; tone: 'pm' | 'hr' | 'risk' | 'gunshi'; text: string }[]
   >([]);
   protected readonly overlayChat = signal<ChatEntry[]>([]);
+  protected readonly chatSending = signal(false);
 
   protected readonly selectedPlanId = signal<'A' | 'B' | 'C' | null>(null);
 
@@ -1298,14 +1297,67 @@ export class SimulatorPage implements OnDestroy {
     this.timers.push(t);
   }
 
-  protected sendChat(text: string): void {
+  protected async sendChat(text: string): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed) {
       this.approvePlan();
       return;
     }
 
+    if (this.chatSending()) {
+      this.overlayChat.update((curr) => [
+        ...curr,
+        { from: 'ai', emotion: 'effort', text: '送信中です。少し待ってください。' },
+      ]);
+      return;
+    }
+
     this.overlayChat.update((curr) => [...curr, { from: 'user', text: trimmed }]);
+
+    const simulation = this.store.simulationResult();
+    const planType = this.activePlanType();
+    if (simulation && planType) {
+      this.chatSending.set(true);
+      try {
+        const response = await firstValueFrom(
+          this.api.chatSimulationPlan(simulation.id, planType, { message: trimmed })
+        );
+
+        this.store.simulationResult.update((curr) => {
+          if (!curr) return curr;
+          const plans = curr.plans.map((p) =>
+            p.planType === response.plan.planType ? response.plan : p
+          );
+          return { ...curr, plans };
+        });
+
+        this.overlayChat.update((curr) => [
+          ...curr,
+          {
+            from: 'ai',
+            emotion: this.emotionFromChatRequest(trimmed),
+            text: response.message,
+          },
+        ]);
+      } catch (e) {
+        const detail =
+          e instanceof HttpErrorResponse
+            ? typeof e.error === 'object' && e.error && 'detail' in e.error
+              ? String((e.error as { detail?: unknown }).detail ?? e.message)
+              : e.message
+            : e instanceof Error
+              ? e.message
+              : 'unknown error';
+
+        this.overlayChat.update((curr) => [
+          ...curr,
+          { from: 'ai', emotion: 'haste', text: `送信に失敗しました: ${detail}` },
+        ]);
+      } finally {
+        this.chatSending.set(false);
+      }
+      return;
+    }
     const tone = this.emotionFromChatRequest(trimmed);
     const t = window.setTimeout(() => {
       this.overlayChat.update((curr) => [

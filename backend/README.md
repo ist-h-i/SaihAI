@@ -25,6 +25,8 @@ Environment variables:
 - `LOG_LEVEL` (default: `INFO`)
 - `LOG_FILE` (optional: file path to write logs, daily rotation, keep 3 days)
 - `LOG_HTTP_REQUESTS` (default: `1`)
+- `LOG_HTTP_BODIES` (default: same as `LOG_HTTP_REQUESTS`)
+- `LOG_HTTP_BODY_MAX_CHARS` (default: `8000`)
 
 Migrations and seed:
 
@@ -51,6 +53,7 @@ uv run python scripts/db_tool.py down
 - `POST /api/v1/logs/frontend`
 - `GET /api/v1/bedrock/status`
 - `POST /api/v1/bedrock/invoke`
+- `POST /api/v1/simulations/{simulation_id}/plans/{plan_type}/chat`
 
 ## Bedrock (optional)
 

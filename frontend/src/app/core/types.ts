@@ -90,6 +90,16 @@ export interface SimulationPlan {
   recommended: boolean;
 }
 
+export interface PlanChatRequest {
+  message: string;
+  allowMock?: boolean;
+}
+
+export interface PlanChatResponse {
+  plan: SimulationPlan;
+  message: string;
+}
+
 export type PlanStreamTone = 'pm' | 'hr' | 'risk' | 'gunshi';
 
 export interface PlanStreamProgress {
