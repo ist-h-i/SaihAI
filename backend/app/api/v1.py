@@ -37,6 +37,7 @@ from app.domain.input_sources import (
 )
 from app.domain.hitl import fetch_history
 from app.integrations.bedrock import BedrockError, is_bedrock_configured
+from app.agents.plan_chat import update_plan_via_chat
 from app.agents.simulator_planner import build_simulation_plan_logs, generate_simulation_plans
 
 router = APIRouter(prefix="/v1")
@@ -195,6 +196,16 @@ class SimulationPlan(BaseModel):
     recommended: bool
 
 
+class PlanChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    allowMock: bool = False
+
+
+class PlanChatResponse(BaseModel):
+    plan: SimulationPlan
+    message: str
+
+
 class DashboardKpi(BaseModel):
     label: str
     value: int
@@ -323,6 +334,7 @@ class HistoryEntryResponse(BaseModel):
 
 _simulations: dict[str, dict] = {}
 _plans: dict[str, dict] = {}
+_plan_chats: dict[str, list[dict[str, str]]] = {}
 
 
 @router.post("/auth/login", response_model=LoginResponse)
@@ -666,6 +678,79 @@ def generate_plans(simulation_id: str) -> list[dict]:
 
     risk_score = int(simulation.get("riskScore", 0))
     return _build_plans_fallback(simulation_id, risk_score)
+
+
+@router.post(
+    "/simulations/{simulation_id}/plans/{plan_type}/chat",
+    response_model=PlanChatResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def chat_plan(simulation_id: str, plan_type: str, req: PlanChatRequest) -> PlanChatResponse:
+    simulation = _simulations.get(simulation_id)
+    if not simulation:
+        raise HTTPException(status_code=404, detail="simulation not found")
+
+    normalized = (plan_type or "").strip().upper()
+    if normalized not in {"A", "B", "C"}:
+        raise HTTPException(status_code=400, detail="invalid plan type")
+
+    plan_id = f"plan-{simulation_id}-{normalized}"
+    plan = _plans.get(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="plan not found")
+
+    message = req.message.strip()
+    history = _plan_chats.setdefault(plan_id, [])
+    history.append({"role": "user", "text": message})
+    if len(history) > 40:
+        history[:] = history[-40:]
+
+    if not is_bedrock_configured():
+        if req.allowMock:
+            assistant_message = "Bedrock が未設定のため、モック応答です。（プランは変更していません）"
+            history.append({"role": "assistant", "text": assistant_message})
+            if len(history) > 40:
+                history[:] = history[-40:]
+            return PlanChatResponse(plan=plan, message=assistant_message)
+        raise HTTPException(status_code=400, detail="Bedrock is not configured.")
+
+    evaluation = simulation.get("evaluation") or {}
+    context = {
+        "simulation_id": simulation_id,
+        "project": simulation.get("project") or evaluation.get("project") or {},
+        "team": simulation.get("team") or evaluation.get("team") or [],
+        "metrics": evaluation.get("metrics") or {},
+        "pattern": evaluation.get("pattern") or "",
+        "requirement_result": evaluation.get("requirementResult") or [],
+    }
+
+    try:
+        update = update_plan_via_chat(
+            plan_type=normalized,
+            plan=plan,
+            simulation_context=context,
+            history=history[:-1],
+            user_message=message,
+        )
+        plan["summary"] = update.summary
+        pros_cons = plan.get("prosCons")
+        if not isinstance(pros_cons, dict):
+            pros_cons = {}
+            plan["prosCons"] = pros_cons
+        pros_cons["pros"] = update.pros
+        pros_cons["cons"] = update.cons
+        plan["score"] = update.score
+        _plans[plan_id] = plan
+        assistant_message = update.assistant_message
+    except BedrockError:
+        logger.exception("Bedrock plan chat failed simulation_id=%s plan_type=%s", simulation_id, normalized)
+        assistant_message = "AI サービスへの接続に失敗しました。もう一度お試しください。（プランは変更していません）"
+
+    history.append({"role": "assistant", "text": assistant_message})
+    if len(history) > 40:
+        history[:] = history[-40:]
+
+    return PlanChatResponse(plan=plan, message=assistant_message)
 
 
 @router.get("/simulations/{simulation_id}/plans/stream")
