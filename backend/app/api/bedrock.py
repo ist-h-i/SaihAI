@@ -7,7 +7,9 @@ from app.auth import get_current_user
 from app.integrations.bedrock import (
     BedrockError,
     BedrockInvokeResult,
+    bedrock_inference_profile_id,
     bedrock_invoke_id,
+    bedrock_model_id,
     bedrock_region,
     invoke_text,
 )
@@ -20,6 +22,8 @@ class BedrockStatusResponse(BaseModel):
     configured: bool
     region: str | None = None
     model_id: str | None = None
+    inference_profile_id: str | None = None
+    base_model_id: str | None = None
 
 
 class BedrockInvokeRequest(BaseModel):
@@ -38,7 +42,13 @@ class BedrockInvokeResponse(BaseModel):
 def bedrock_status() -> BedrockStatusResponse:
     region = bedrock_region()
     model_id = bedrock_invoke_id()
-    return BedrockStatusResponse(configured=bool(region and model_id), region=region, model_id=model_id)
+    return BedrockStatusResponse(
+        configured=bool(region and model_id),
+        region=region,
+        model_id=model_id,
+        inference_profile_id=bedrock_inference_profile_id(),
+        base_model_id=bedrock_model_id(),
+    )
 
 
 @router.post("/bedrock/invoke", response_model=BedrockInvokeResponse, dependencies=[Depends(get_current_user)])

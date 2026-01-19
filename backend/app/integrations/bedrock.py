@@ -58,7 +58,7 @@ def is_bedrock_configured() -> bool:
     return bool(bedrock_invoke_id() and bedrock_region())
 
 
-_ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE = re.compile(r"on-demand throughput\\s+isnt supported", flags=re.IGNORECASE)
+_ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE = re.compile(r"on-demand throughput\s+isnt supported", flags=re.IGNORECASE)
 
 
 def _with_inference_profile_hint(message: str) -> str:
