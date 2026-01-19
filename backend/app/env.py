@@ -47,4 +47,6 @@ def load_env() -> None:
                 continue
             if value and value[0] == value[-1] and value[0] in {"'", '"'}:
                 value = value[1:-1]
-            os.environ.setdefault(key, value)
+            current = os.getenv(key)
+            if current is None or not current.strip():
+                os.environ[key] = value
