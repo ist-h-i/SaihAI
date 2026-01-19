@@ -58,16 +58,40 @@ def is_bedrock_configured() -> bool:
     return bool(bedrock_invoke_id() and bedrock_region())
 
 
-_ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE = re.compile(r"on-demand throughput\s+isnt supported", flags=re.IGNORECASE)
+_ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE = re.compile(
+    r"on-demand throughput\s+isn['’]?t supported",
+    flags=re.IGNORECASE,
+)
 
 
-def _with_inference_profile_hint(message: str) -> str:
+_SYSTEM_INFERENCE_PROFILE_PREFIXES = ("global.", "us.", "eu.", "apac.")
+
+
+def _should_try_global_inference_profile(model_id: str) -> bool:
+    if not model_id or model_id.startswith("arn:"):
+        return False
+    if model_id.startswith(_SYSTEM_INFERENCE_PROFILE_PREFIXES):
+        return False
+    return ":" in model_id and "." in model_id
+
+
+def _with_inference_profile_hint(message: str, *, model_id: str | None = None) -> str:
     if not _ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE.search(message):
         return message
+    hint = (
+        "Hint: This model cannot be invoked with on-demand throughput. "
+        "Create/use an inference profile that contains this model and set AWS_BEDROCK_INFERENCE_PROFILE_ID "
+        "(or AWS_BEDROCK_INFERENCE_PROFILE_ARN)."
+    )
+    if model_id and _should_try_global_inference_profile(model_id):
+        hint = (
+            hint
+            + f" For system-defined inference profiles, try setting AWS_BEDROCK_MODEL_ID=global.{model_id} "
+            f"or AWS_BEDROCK_INFERENCE_PROFILE_ID=global.{model_id}."
+        )
     return (
         f"{message}\n"
-        "Hint: This model cannot be invoked with on-demand throughput. Create an inference profile that contains this model "
-        "and set AWS_BEDROCK_INFERENCE_PROFILE_ID (or AWS_BEDROCK_INFERENCE_PROFILE_ARN)."
+        f"{hint}"
     )
 
 
@@ -96,9 +120,10 @@ def invoke_bedrock_text(
         if system_prompt:
             system.append({"text": system_prompt})
 
+        effective_model_id = model_id
         try:
             response = client.converse(
-                modelId=model_id,
+                modelId=effective_model_id,
                 system=system,
                 messages=[{"role": "user", "content": [{"text": prompt}]}],
                 inferenceConfig={
@@ -107,7 +132,28 @@ def invoke_bedrock_text(
                 },
             )
         except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
-            raise BedrockInvocationError(_with_inference_profile_hint(str(exc))) from exc
+            error_message = str(exc)
+            if _ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE.search(error_message) and _should_try_global_inference_profile(
+                effective_model_id
+            ):
+                fallback_model_id = f"global.{effective_model_id}"
+                try:
+                    response = client.converse(
+                        modelId=fallback_model_id,
+                        system=system,
+                        messages=[{"role": "user", "content": [{"text": prompt}]}],
+                        inferenceConfig={
+                            "maxTokens": max_tokens,
+                            "temperature": temperature,
+                        },
+                    )
+                    effective_model_id = fallback_model_id
+                except Exception as retry_exc:  # pragma: no cover - depends on AWS credentials/runtime
+                    raise BedrockInvocationError(
+                        _with_inference_profile_hint(error_message, model_id=effective_model_id)
+                    ) from retry_exc
+            else:
+                raise BedrockInvocationError(_with_inference_profile_hint(error_message, model_id=effective_model_id)) from exc
 
         try:
             content = response["output"]["message"]["content"]
@@ -116,7 +162,7 @@ def invoke_bedrock_text(
         except Exception as exc:
             raise BedrockInvocationError(f"Unexpected Bedrock response shape: {exc}") from exc
 
-        return BedrockInvokeResult(provider="bedrock", model_id=model_id, text=text)
+        return BedrockInvokeResult(provider="bedrock", model_id=effective_model_id, text=text)
 
     if not hasattr(client, "invoke_model"):
         raise BedrockInvocationError("boto3 bedrock-runtime client does not support converse() or invoke_model().")
@@ -135,15 +181,32 @@ def invoke_bedrock_text(
     if system_prompt:
         request_body["system"] = system_prompt
 
+    effective_model_id = model_id
     try:
         response = client.invoke_model(
-            modelId=model_id,
+            modelId=effective_model_id,
             body=json.dumps(request_body),
             contentType="application/json",
             accept="application/json",
         )
     except Exception as exc:  # pragma: no cover - depends on AWS credentials/runtime
-        raise BedrockInvocationError(_with_inference_profile_hint(str(exc))) from exc
+        error_message = str(exc)
+        if _ON_DEMAND_THROUGHPUT_UNSUPPORTED_RE.search(error_message) and _should_try_global_inference_profile(
+            effective_model_id
+        ):
+            fallback_model_id = f"global.{effective_model_id}"
+            try:
+                response = client.invoke_model(
+                    modelId=fallback_model_id,
+                    body=json.dumps(request_body),
+                    contentType="application/json",
+                    accept="application/json",
+                )
+                effective_model_id = fallback_model_id
+            except Exception as retry_exc:  # pragma: no cover - depends on AWS credentials/runtime
+                raise BedrockInvocationError(_with_inference_profile_hint(error_message, model_id=effective_model_id)) from retry_exc
+        else:
+            raise BedrockInvocationError(_with_inference_profile_hint(error_message, model_id=effective_model_id)) from exc
 
     try:
         body = response.get("body")
@@ -184,7 +247,7 @@ def invoke_bedrock_text(
     except Exception as exc:
         raise BedrockInvocationError(f"Unexpected Bedrock invoke_model response shape: {exc}") from exc
 
-    return BedrockInvokeResult(provider="bedrock", model_id=model_id, text=text)
+    return BedrockInvokeResult(provider="bedrock", model_id=effective_model_id, text=text)
 
 
 def invoke_text(

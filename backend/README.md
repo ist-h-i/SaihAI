@@ -63,6 +63,11 @@ Environment variables:
 - `AWS_BEDROCK_MODEL_ID`
 - `AWS_BEDROCK_INFERENCE_PROFILE_ID` (or `AWS_BEDROCK_INFERENCE_PROFILE_ARN`, optional; takes precedence over `AWS_BEDROCK_MODEL_ID`)
 
+Recommended:
+
+- Prefer a system-defined inference profile via `AWS_BEDROCK_INFERENCE_PROFILE_ID` (e.g. `global.anthropic.claude-opus-4-5-20251101-v1:0`).
+- If you see `ValidationException ... on-demand throughput isn't supported`, you're likely invoking a foundation model ID directly; switch to an inference profile ID/ARN.
+
 Auth:
 
 - Uses `boto3` credential resolution (e.g., `AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`).

@@ -139,9 +139,20 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ```bash
 DATABASE_URL=postgresql+psycopg://<DbUser>:<DbPassword>@<DbEndpoint>:5432/<DbName>?sslmode=require
 AWS_REGION=ap-northeast-1
-AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
-AWS_BEDROCK_INFERENCE_PROFILE_ID=<inference-profile-id-or-arn>
+# Recommended: system-defined inference profile
+AWS_BEDROCK_INFERENCE_PROFILE_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
+# Optional (tools/scripts): AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
 AWS_BEARER_TOKEN_BEDROCK=your-api-key-here
+```
+
+NOTE: `ValidationException ... on-demand throughput isn't supported` が出る場合、モデル直指定（foundation model ID）ではなく inference profile の指定が必要です。`AWS_BEDROCK_INFERENCE_PROFILE_ID` に inference profile の ID/ARN を設定するか、`AWS_BEDROCK_MODEL_ID` を `global.<foundation-model-id>` の形式にしてください。
+
+Inference profile の探し方（system-defined）:
+
+```bash
+aws bedrock list-inference-profiles --type-equals SYSTEM_DEFINED \
+  --query "inferenceProfileSummaries[?contains(inferenceProfileId, 'claude')].[inferenceProfileId,inferenceProfileArn,inferenceProfileName]" \
+  --output table
 ```
 
 ### 3.2 マイグレーション/seed

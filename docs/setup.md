@@ -32,10 +32,13 @@ bash dev-setup.sh
 ```bash
 DATABASE_URL=postgresql+psycopg://<DbUser>:<DbPassword>@<DbEndpoint>:5432/<DbName>?sslmode=require
 AWS_REGION=ap-northeast-1
-AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
-AWS_BEDROCK_INFERENCE_PROFILE_ID=<inference-profile-id-or-arn>
+# Recommended: system-defined inference profile (works even when on-demand is unsupported)
+AWS_BEDROCK_INFERENCE_PROFILE_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
+# Optional (on-demand only): AWS_BEDROCK_MODEL_ID=anthropic.claude-haiku-4-5-20251001-v1:0
 AWS_BEARER_TOKEN_BEDROCK=your-api-key-here
 ```
+
+NOTE: `ValidationException ... on-demand throughput isn't supported` が出る場合、`AWS_BEDROCK_MODEL_ID` に foundation model ID（例: `anthropic...`）を指定している可能性があります。system-defined inference profile（例: `global.<foundation-model-id>`）を指定するか、inference profile の ID/ARN を `AWS_BEDROCK_INFERENCE_PROFILE_ID` に設定してください。
 
 3) DB の初期化（必須）
 
@@ -92,9 +95,13 @@ PoC の機能要件として Bedrock を利用します。セットアップ手�
 ```
 AWS_BEARER_TOKEN_BEDROCK=your-api-key-here
 AWS_REGION=ap-northeast-1
+# Recommended (backend): inference profile id
+AWS_BEDROCK_INFERENCE_PROFILE_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
+# Optional (tools/scripts): model id can also point to the same system profile id
 AWS_BEDROCK_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
-AWS_BEDROCK_INFERENCE_PROFILE_ID=<inference-profile-id-or-arn>
 ```
+
+NOTE: `ValidationException ... on-demand throughput isn't supported` が出る場合、`AWS_BEDROCK_MODEL_ID` に inference profile（例: `global.<foundation-model-id>`）ではなく foundation model ID を指定している可能性があります。inference profile の ID/ARN を指定して再実行してください。
 
 手順
 - Backend は `backend/app/env.py` の `load_env()` で `.env` を読み込み（python-dotenv は不要）
