@@ -35,6 +35,11 @@
     "assertText": "介入チェックポイント"
   },
   {
+    "name": "ui_simulator_progress_stream",
+    "url": "/simulator?demo=manual",
+    "assertText": "AI進捗ストリーム"
+  },
+  {
     "name": "ui_simulator_split_view",
     "url": "/simulator",
     "assertText": "Split View"

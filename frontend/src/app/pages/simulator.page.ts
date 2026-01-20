@@ -15,7 +15,13 @@ import {
 } from '../core/haisa-emotion';
 import { ApiClient } from '../core/api-client';
 import { SimulatorStore } from '../core/simulator-store';
-import { Member, ProjectTeamMember, SimulationPlan, SimulationResult } from '../core/types';
+import {
+  Member,
+  PlanStreamTone,
+  ProjectTeamMember,
+  SimulationPlan,
+  SimulationResult,
+} from '../core/types';
 
 interface ChatEntry {
   from: 'ai' | 'user';
@@ -35,6 +41,12 @@ interface MemberBadge {
 const LEADER_NAME_TOKENS = ['sato', '佐藤'];
 const VETERAN_NAME_TOKENS = ['tanaka', '田中'];
 const COMPRESSED_COST = 30;
+const PLAN_STREAM_LABEL_COLORS: Record<PlanStreamTone, string> = {
+  pm: '#2563EB',
+  hr: '#16A34A',
+  risk: '#D97706',
+  gunshi: '#7C3AED',
+};
 
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
@@ -416,11 +428,8 @@ const COMPRESSED_COST = 30;
                       @for (entry of store.planDiscussionLog(); track $index) {
                         <li class="flex items-start gap-2">
                           <span
-                            class="shrink-0 px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60"
-                            [class.border-rose-500/40]="entry.tone === 'risk'"
-                            [class.border-emerald-500/40]="entry.tone === 'hr'"
-                            [class.border-indigo-500/40]="entry.tone === 'pm'"
-                            [class.border-amber-500/40]="entry.tone === 'gunshi'"
+                            class="shrink-0 w-[7ch] px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-left"
+                            [style.color]="planStreamLabelColors[entry.tone]"
                           >
                             {{ entry.agent }}
                           </span>
@@ -967,6 +976,7 @@ export class SimulatorPage implements OnDestroy {
   protected readonly store = inject(SimulatorStore);
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(ApiClient);
+  protected readonly planStreamLabelColors = PLAN_STREAM_LABEL_COLORS;
 
   protected readonly overlayOpen = signal(false);
   protected readonly overlayMode = signal<'alert' | 'manual'>('alert');
