@@ -669,7 +669,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
                     <div class="flex items-center justify-between">
                       <span class="font-semibold">Gunshi</span>
-                      <span class="text-indigo-300">{{ r.agents.gunshi.recommend }}</span>
+                      <span class="text-indigo-300">{{ recommendedPlan()?.planType ?? '-' }}</span>
                     </div>
                     <div class="text-xs text-slate-300 mt-1">{{ r.agents.gunshi.note }}</div>
                   </div>
@@ -704,7 +704,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   [attr.aria-pressed]="activePlanType() === p.planType"
                   (click)="setActivePlan(p.planType)"
                 >
-                  @if (p.recommended) {
+                  @if (p.planType === recommendedPlan()?.planType) {
                     <div
                       class="absolute right-2 top-2 text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 font-bold"
                     >
@@ -732,7 +732,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="font-semibold text-slate-100">
                     Plan {{ plan.planType }}: {{ plan.summary }}
                   </div>
-                  @if (plan.recommended) {
+                  @if (plan.planType === recommendedPlan()?.planType) {
                     <span
                       class="text-[10px] font-bold tracking-wider rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-emerald-200"
                     >
@@ -822,7 +822,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                     <div class="ui-kicker">Step 1: 見る</div>
                     @if (store.simulationResult(); as r) {
                       <div class="mt-2 text-sm text-slate-200 font-semibold">
-                        推奨 Plan {{ recommendedPlan()?.planType ?? r.agents.gunshi.recommend }}
+                        推奨 Plan {{ recommendedPlan()?.planType ?? '-' }}
                       </div>
                       <ul class="mt-2 space-y-1 text-xs text-slate-400">
                         <li>risk: {{ r.metrics.riskPct }}%</li>
@@ -879,7 +879,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                             [attr.aria-pressed]="activePlanType() === p.planType"
                             (click)="selectPlan(p.planType)"
                           >
-                            @if (p.recommended) {
+                            @if (p.planType === recommendedPlan()?.planType) {
                               <div
                                 class="absolute right-2 top-2 text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 font-bold"
                               >
@@ -1043,7 +1043,12 @@ export class SimulatorPage implements OnDestroy {
   protected readonly recommendedPlan = computed<SimulationPlan | null>(() => {
     const result = this.store.simulationResult();
     if (!result?.plans?.length) return null;
-    return result.plans.find((p) => p.recommended) ?? result.plans[0] ?? null;
+    const recommendedType = result.agents?.gunshi?.recommend ?? null;
+    const recommended =
+      recommendedType != null
+        ? result.plans.find((p) => p.planType === recommendedType)
+        : null;
+    return recommended ?? result.plans[0] ?? null;
   });
 
   protected readonly activePlanType = computed<'A' | 'B' | 'C' | null>(() => {
@@ -1317,6 +1322,7 @@ export class SimulatorPage implements OnDestroy {
     this.overlayOpen.set(true);
     this.overlayLog.set([]);
     this.selectedPlanId.set(this.activePlanType());
+    const recommendedLabel = this.recommendedPlan()?.planType ?? '-';
 
     const initialEmotion = this.emotionForOverlay(mode, r);
     this.overlayChat.set([
@@ -1324,7 +1330,7 @@ export class SimulatorPage implements OnDestroy {
         from: 'ai',
         emotion: initialEmotion,
         text: r
-          ? `状況を整理しました。推奨プランは「${r.agents.gunshi.recommend}」です。プラン選択後、必要なら指示を追加し、最後に承認してください。`
+          ? `状況を整理しました。推奨プランは「${recommendedLabel}」です。プラン選択後、必要なら指示を追加し、最後に承認してください。`
           : 'まずシミュレーションを実行してください。',
       },
     ]);
@@ -1383,7 +1389,7 @@ export class SimulatorPage implements OnDestroy {
             {
               agent: 'Gunshi',
               tone: 'gunshi',
-              text: `結論: Plan ${r.agents.gunshi.recommend}（${r.agents.gunshi.note}）`,
+              text: `結論: Plan ${recommendedLabel}（${r.agents.gunshi.note}）`,
             },
           ];
       this.playLog(script);
