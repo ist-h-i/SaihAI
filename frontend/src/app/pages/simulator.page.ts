@@ -73,9 +73,32 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             <div class="mt-1 text-sm font-semibold text-slate-100">AIが編成中</div>
             <div class="mt-1 text-xs text-slate-400">進捗ストリームを更新中。</div>
             <div class="mt-3">
-              <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100"
-                >processing</span
+              <span
+                class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100 inline-flex items-center gap-2"
+                role="status"
               >
+                <svg
+                  class="h-3 w-3 animate-spin text-indigo-200"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    class="opacity-30"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                  ></circle>
+                  <path
+                    class="opacity-90"
+                    fill="currentColor"
+                    d="M12 2a10 10 0 0 1 9.54 6.5l-2.8 1.1A7 7 0 0 0 12 5V2z"
+                  ></path>
+                </svg>
+                <span>processing / waiting</span>
+              </span>
             </div>
           } @else if (store.simulationResult()) {
             <div class="mt-1 text-sm font-semibold text-slate-100">結果の確認へ</div>
