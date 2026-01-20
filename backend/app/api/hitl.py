@@ -47,8 +47,20 @@ class SteerRequest(BaseModel):
     idempotencyKey: str | None = None
 
 
+class CalendarExecuteRequest(BaseModel):
+    ownerEmail: str | None = None
+    attendee: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    startAt: str = Field(min_length=1)
+    endAt: str = Field(min_length=1)
+    timezone: str | None = None
+    description: str | None = None
+    meetingUrl: str | None = None
+
+
 class ExecuteRequest(BaseModel):
     simulateFailure: bool = False
+    calendar: CalendarExecuteRequest | None = None
 
 
 @router.post(
@@ -139,8 +151,26 @@ def execute_api(
     user: AuthUser = Depends(get_current_user),
     conn: Connection = Depends(get_db),
 ) -> ApprovalDecisionResponse:
+    payload_override = None
+    if req.calendar:
+        payload_override = {
+            "owner_email": req.calendar.ownerEmail,
+            "owner_user_id": user.user_id,
+            "attendee": req.calendar.attendee,
+            "title": req.calendar.title,
+            "start_at": req.calendar.startAt,
+            "end_at": req.calendar.endAt,
+            "timezone": req.calendar.timezone,
+            "description": req.calendar.description,
+            "meeting_url": req.calendar.meetingUrl,
+        }
     try:
-        job = process_execution_job(conn, action_id=draft_id, simulate_failure=req.simulateFailure)
+        job = process_execution_job(
+            conn,
+            action_id=draft_id,
+            simulate_failure=req.simulateFailure,
+            payload_override=payload_override,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

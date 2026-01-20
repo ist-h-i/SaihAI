@@ -185,7 +185,7 @@
     - `backend/migrations/*.sql`（必要なら action_type/履歴テーブル整備）
 
 - [ ] **AC-FR6-003 Gmail API 送信予約 / AC-FR6-004 カレンダー作成**
-  - 現状: `EMAIL_PROVIDER` / `CALENDAR_PROVIDER` は `mock` のみ
+  - 現状: `EMAIL_PROVIDER` は `mock` のみ / `CALENDAR_PROVIDER` は `google` 対応済み
   - PoC採用:
     - `mock` のままデモする（「予約日時が反映された」ことを payload/監査ログ/Slack 通知で示す）
   - Post-PoC:

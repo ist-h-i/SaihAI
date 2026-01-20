@@ -270,12 +270,14 @@ class ExternalEmailActionRequest(BaseModel):
 
 
 class ExternalCalendarActionRequest(BaseModel):
+    ownerEmail: str | None = None
     attendee: str = Field(min_length=1)
     title: str = Field(min_length=1)
     startAt: str = Field(min_length=1)
     endAt: str = Field(min_length=1)
     timezone: str | None = None
     description: str | None = None
+    meetingUrl: str | None = None
     proposalId: int | None = None
 
 
@@ -851,19 +853,22 @@ def create_email_action(
 @router.post(
     "/actions/calendar",
     response_model=ActionCreateResponse,
-    dependencies=[Depends(get_current_user)],
 )
 def create_calendar_action(
     req: ExternalCalendarActionRequest,
+    user: AuthUser = Depends(get_current_user),
     conn: Connection = Depends(get_db),
 ) -> ActionCreateResponse:
     payload = {
+        "owner_email": req.ownerEmail,
+        "owner_user_id": user.user_id,
         "attendee": req.attendee,
         "title": req.title,
         "start_at": req.startAt,
         "end_at": req.endAt,
         "timezone": req.timezone,
         "description": req.description,
+        "meeting_url": req.meetingUrl,
     }
     draft_content = (
         f"Calendar booking: {req.title} ({req.startAt} - {req.endAt})\n\n"

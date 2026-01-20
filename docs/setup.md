@@ -195,6 +195,11 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - INTERNAL_API_TOKEN: Watchdog の内部実行 API に付与するトークン（未設定の場合は無効）
 - EMAIL_PROVIDER / CALENDAR_PROVIDER: 外部アクションのプロバイダ（既定 `mock`）
 - EMAIL_DEFAULT_TO / EMAIL_DEFAULT_FROM / CALENDAR_DEFAULT_ATTENDEE / CALENDAR_DEFAULT_TIMEZONE: 外部アクションの既定値（任意）
+- CALENDAR_DEFAULT_OWNER_EMAIL: カレンダー作成の既定オーナーEmail（任意）
+- GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REDIRECT_URI: Google OAuth のクライアント設定
+- GOOGLE_OAUTH_SCOPES: OAuth スコープ（既定 `https://www.googleapis.com/auth/calendar.events`）
+- GOOGLE_OAUTH_TOKEN_SECRET: OAuth トークン暗号化キー
+- GOOGLE_OAUTH_STATE_SECRET / GOOGLE_OAUTH_STATE_TTL_SECONDS: OAuth state 署名キーとTTL（任意）
 
 保存先
 - ローカル開発（Backend）: `backend/.env`（または作業ディレクトリの `.env` / リポジトリルートの `.env` のいずれか 1 つ）
@@ -211,6 +216,14 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - アプリ
   - Backend: `cd backend && uvicorn app.main:app --reload` で `GET /api/health` が `{"status":"ok"}` を返す
   - Frontend: `cd frontend && npm i && npm start` でローカル起動
+
+## Google Calendar OAuth (Backend)
+
+- 事前に Google Cloud Console で OAuth 同意画面を作成し、`GOOGLE_OAUTH_*` を設定する。
+- `CALENDAR_PROVIDER=google` を設定する。
+- `GET /api/v1/integrations/google/oauth/start` を呼ぶと `authUrl` が返る。
+- 返った URL をブラウザで開き、許可後は `GOOGLE_OAUTH_REDIRECT_URI` にリダイレクトされる。
+- `GET /api/v1/integrations/google/oauth/callback` が呼ばれるとトークンがDBへ保存される。
 
 ## ドキュメントの配置/参照
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -11,6 +12,14 @@ from uuid import uuid4
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
+
+from app.db.repository import (
+    GoogleOAuthToken,
+    fetch_google_oauth_token_by_email,
+    fetch_google_oauth_token_by_user,
+    upsert_google_oauth_token,
+)
+from app.integrations.google_calendar import create_google_calendar_event, refresh_google_access_token
 
 ACTION_TYPE_EMAIL = "mail_draft"
 ACTION_TYPE_CALENDAR = "meeting_request"
@@ -25,6 +34,9 @@ DEFAULT_EMAIL_TO = os.getenv("EMAIL_DEFAULT_TO", "manager@example.com")
 DEFAULT_EMAIL_FROM = os.getenv("EMAIL_DEFAULT_FROM", "no-reply@saihai.local")
 DEFAULT_CALENDAR_ATTENDEE = os.getenv("CALENDAR_DEFAULT_ATTENDEE", DEFAULT_EMAIL_TO)
 DEFAULT_CALENDAR_TIMEZONE = os.getenv("CALENDAR_DEFAULT_TIMEZONE", "Asia/Tokyo")
+DEFAULT_CALENDAR_OWNER_EMAIL = os.getenv("CALENDAR_DEFAULT_OWNER_EMAIL", "")
+
+logger = logging.getLogger("saihai.external_actions")
 
 
 @dataclass(frozen=True)
@@ -43,6 +55,9 @@ class CalendarPayload:
     end_at: str
     timezone: str
     description: str | None = None
+    meeting_url: str | None = None
+    owner_email: str | None = None
+    owner_user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +81,7 @@ def execute_external_action(
     conn: Connection,
     job_id: str,
     action_id: int,
+    payload_override: dict[str, Any] | None = None,
 ) -> ExternalActionRun | list[ExternalActionRun] | None:
     action = conn.execute(
         text(
@@ -89,7 +105,19 @@ def execute_external_action(
     if isinstance(raw_payload.get("actions"), list):
         return _execute_batch_actions(conn, job_id, action_id, raw_payload.get("actions") or [])
 
-    payload = _build_payload(action_type, draft_content)
+    if payload_override:
+        payload = _coerce_payload(action_type, payload_override)
+    else:
+        payload = _build_payload(action_type, draft_content)
+
+    if action_type == ACTION_TYPE_CALENDAR:
+        run = _execute_single_action(
+            conn, job_id, action_id, action_type, payload, raise_on_error=False
+        )
+        if run.status != "succeeded":
+            _log_calendar_failure(action_id, job_id, payload, run.error)
+        return run
+
     return _execute_single_action(conn, job_id, action_id, action_type, payload)
 
 
@@ -104,29 +132,34 @@ def _build_payload(
         to = str(payload.get("to") or DEFAULT_EMAIL_TO)
         sender = str(payload.get("from") or DEFAULT_EMAIL_FROM)
         return EmailPayload(to=to, subject=subject, body=body, sender=sender)
-
-    now = datetime.now(timezone.utc)
-    default_start = now + timedelta(days=1)
-    default_end = default_start + timedelta(hours=1)
-    attendee = str(payload.get("attendee") or DEFAULT_CALENDAR_ATTENDEE)
-    title = str(payload.get("title") or f"Approval action {action_type}")
-    start_at = str(payload.get("start_at") or payload.get("startAt") or default_start.isoformat())
-    end_at = str(payload.get("end_at") or payload.get("endAt") or default_end.isoformat())
-    timezone_value = str(payload.get("timezone") or DEFAULT_CALENDAR_TIMEZONE)
-    description = payload.get("description") or draft_content
-    return CalendarPayload(
-        attendee=attendee,
-        title=title,
-        start_at=start_at,
-        end_at=end_at,
-        timezone=timezone_value,
-        description=description,
-    )
-
+    if action_type == ACTION_TYPE_CALENDAR:
+        now = datetime.now(timezone.utc)
+        default_start = now + timedelta(days=1)
+        default_end = default_start + timedelta(hours=1)
+        attendee = str(payload.get("attendee") or DEFAULT_CALENDAR_ATTENDEE)
+        title = str(payload.get("title") or f"Approval action {action_type}")
+        start_at = str(payload.get("start_at") or payload.get("startAt") or default_start.isoformat())
+        end_at = str(payload.get("end_at") or payload.get("endAt") or default_end.isoformat())
+        timezone_value = str(payload.get("timezone") or DEFAULT_CALENDAR_TIMEZONE)
+        description = payload.get("description") or draft_content
+        meeting_url = _normalize_meeting_url(payload)
+        owner_email, owner_user_id = _resolve_calendar_owner(payload)
+        return CalendarPayload(
+            attendee=attendee,
+            title=title,
+            start_at=start_at,
+            end_at=end_at,
+            timezone=timezone_value,
+            description=description,
+            meeting_url=meeting_url,
+            owner_email=owner_email,
+            owner_user_id=owner_user_id,
+        )
     if action_type == ACTION_TYPE_HR:
         if isinstance(payload.get("hr_request"), dict):
             return payload.get("hr_request") or {}
         return payload or {"request": draft_content or ""}
+    return payload
 
 
 def _send_email(payload: EmailPayload) -> dict[str, Any]:
@@ -141,18 +174,21 @@ def _send_email(payload: EmailPayload) -> dict[str, Any]:
     }
 
 
-def _create_calendar_event(payload: CalendarPayload) -> dict[str, Any]:
-    if CALENDAR_PROVIDER != "mock":
-        raise RuntimeError(f"unsupported CALENDAR_PROVIDER={CALENDAR_PROVIDER}")
-    return {
-        "event_id": f"cal-{uuid4().hex[:10]}",
-        "attendee": payload.attendee,
-        "title": payload.title,
-        "start_at": payload.start_at,
-        "end_at": payload.end_at,
-        "timezone": payload.timezone,
-        "status": "confirmed",
-    }
+def _create_calendar_event(conn: Connection, payload: CalendarPayload) -> dict[str, Any]:
+    if CALENDAR_PROVIDER == "mock":
+        return {
+            "event_id": f"cal-{uuid4().hex[:10]}",
+            "attendee": payload.attendee,
+            "title": payload.title,
+            "start_at": payload.start_at,
+            "end_at": payload.end_at,
+            "timezone": payload.timezone,
+            "meeting_url": payload.meeting_url,
+            "status": "confirmed",
+        }
+    if CALENDAR_PROVIDER == "google":
+        return _create_google_calendar_event(conn, payload)
+    raise RuntimeError(f"unsupported CALENDAR_PROVIDER={CALENDAR_PROVIDER}")
 
 
 def _send_hr_request(payload: dict[str, Any]) -> dict[str, Any]:
@@ -176,6 +212,102 @@ def _send_hr_request(payload: dict[str, Any]) -> dict[str, Any]:
         except json.JSONDecodeError:
             return {"status": "accepted", "raw": body}
     return {"request_id": f"hr-{uuid4().hex[:10]}", "status": "submitted"}
+
+
+def _normalize_meeting_url(payload: dict[str, Any]) -> str | None:
+    raw = payload.get("meeting_url") or payload.get("meetingUrl")
+    if not raw:
+        return None
+    value = str(raw).strip()
+    return value or None
+
+
+def _resolve_calendar_owner(payload: dict[str, Any]) -> tuple[str | None, str | None]:
+    owner_email = payload.get("owner_email") or payload.get("ownerEmail") or payload.get("owner")
+    owner_user_id = payload.get("owner_user_id") or payload.get("ownerUserId")
+    resolved_email = str(owner_email).strip() if owner_email else ""
+    resolved_user = str(owner_user_id).strip() if owner_user_id else ""
+    if not resolved_email and DEFAULT_CALENDAR_OWNER_EMAIL:
+        resolved_email = DEFAULT_CALENDAR_OWNER_EMAIL.strip()
+    return (resolved_email or None, resolved_user or None)
+
+
+def _create_google_calendar_event(conn: Connection, payload: CalendarPayload) -> dict[str, Any]:
+    token = _resolve_google_oauth_token(conn, payload)
+    access_token = token.access_token
+    expires_at = token.expires_at
+    if expires_at and expires_at <= datetime.now(timezone.utc) + timedelta(seconds=60):
+        access_token, expires_at = _refresh_google_token(conn, token)
+
+    event_payload = _payload_to_dict(payload)
+    event_payload.pop("owner_email", None)
+    event_payload.pop("owner_user_id", None)
+    return create_google_calendar_event(access_token, event_payload)
+
+
+def _resolve_google_oauth_token(conn: Connection, payload: CalendarPayload) -> GoogleOAuthToken:
+    token: GoogleOAuthToken | None = None
+    if payload.owner_user_id:
+        token = fetch_google_oauth_token_by_user(conn, payload.owner_user_id)
+    if not token and payload.owner_email:
+        token = fetch_google_oauth_token_by_email(conn, payload.owner_email)
+    if not token and DEFAULT_CALENDAR_OWNER_EMAIL:
+        token = fetch_google_oauth_token_by_email(conn, DEFAULT_CALENDAR_OWNER_EMAIL)
+    if not token:
+        raise RuntimeError("google oauth token not found for calendar owner")
+    return token
+
+
+def _refresh_google_token(
+    conn: Connection,
+    token: GoogleOAuthToken,
+) -> tuple[str, datetime | None]:
+    refreshed = refresh_google_access_token(token.refresh_token)
+    access_token = refreshed.get("access_token")
+    if not access_token:
+        raise RuntimeError("google oauth refresh failed")
+    expires_in = refreshed.get("expires_in")
+    expires_at = None
+    if expires_in is not None:
+        try:
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
+        except (TypeError, ValueError):
+            expires_at = None
+    upsert_google_oauth_token(
+        conn,
+        user_id=token.user_id,
+        google_email=token.google_email,
+        access_token=str(access_token),
+        refresh_token=None,
+        token_type=refreshed.get("token_type") or token.token_type,
+        scope=refreshed.get("scope") or token.scope,
+        expires_at=expires_at,
+    )
+    return str(access_token), expires_at
+
+
+def _log_calendar_failure(
+    action_id: int,
+    job_id: str,
+    payload: EmailPayload | CalendarPayload | dict[str, Any],
+    error: str | None,
+) -> None:
+    owner_email = None
+    attendee = None
+    if isinstance(payload, CalendarPayload):
+        owner_email = payload.owner_email
+        attendee = payload.attendee
+    elif isinstance(payload, dict):
+        owner_email = payload.get("owner_email") or payload.get("ownerEmail")
+        attendee = payload.get("attendee")
+    logger.error(
+        "calendar event failed action_id=%s job_id=%s owner=%s attendee=%s error=%s",
+        action_id,
+        job_id,
+        owner_email,
+        attendee,
+        error or "unknown error",
+    )
 
 
 def _execute_single_action(
@@ -204,7 +336,7 @@ def _execute_single_action(
         elif action_type == ACTION_TYPE_HR:
             response = _send_hr_request(payload)
         else:
-            response = _create_calendar_event(payload)
+            response = _create_calendar_event(conn, payload)
     except Exception as exc:
         status = "failed"
         error = str(exc)
@@ -249,13 +381,17 @@ def _coerce_payload(
         now = datetime.now(timezone.utc)
         default_start = now + timedelta(days=1)
         default_end = default_start + timedelta(hours=1)
+        owner_email, owner_user_id = _resolve_calendar_owner(payload)
         return CalendarPayload(
             attendee=str(payload.get("attendee") or DEFAULT_CALENDAR_ATTENDEE),
             title=str(payload.get("title") or "Meeting"),
-            start_at=str(payload.get("start_at") or default_start.isoformat()),
-            end_at=str(payload.get("end_at") or default_end.isoformat()),
+            start_at=str(payload.get("start_at") or payload.get("startAt") or default_start.isoformat()),
+            end_at=str(payload.get("end_at") or payload.get("endAt") or default_end.isoformat()),
             timezone=str(payload.get("timezone") or DEFAULT_CALENDAR_TIMEZONE),
             description=payload.get("description"),
+            meeting_url=_normalize_meeting_url(payload),
+            owner_email=owner_email,
+            owner_user_id=owner_user_id,
         )
     return payload
 
@@ -284,7 +420,10 @@ def _execute_batch_actions(
             )
             results.append(run)
             if run.status != "succeeded":
-                errors.append(run.error or "unknown error")
+                if run.action_type == ACTION_TYPE_CALENDAR:
+                    _log_calendar_failure(action_id, job_id, payload, run.error)
+                else:
+                    errors.append(run.error or "unknown error")
         except Exception as exc:
             errors.append(str(exc))
     if errors:
@@ -303,6 +442,9 @@ def _payload_to_dict(payload: EmailPayload | CalendarPayload | dict[str, Any]) -
             "end_at": payload.end_at,
             "timezone": payload.timezone,
             "description": payload.description,
+            "meeting_url": payload.meeting_url,
+            "owner_email": payload.owner_email,
+            "owner_user_id": payload.owner_user_id,
         }
     return payload
 
