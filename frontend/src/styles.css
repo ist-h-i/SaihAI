@@ -122,6 +122,42 @@ app-root {
     @apply text-[10px] font-semibold uppercase tracking-wider rounded-full border px-2 py-1;
   }
 
+  .ui-accordion__summary {
+    @apply list-none cursor-pointer w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-200 transition;
+  }
+
+  .ui-accordion__summary:hover {
+    @apply bg-slate-900/60 text-slate-100;
+  }
+
+  details[open] .ui-accordion__summary {
+    @apply bg-slate-900/70;
+  }
+
+  .ui-accordion__meta {
+    @apply flex items-center gap-2 text-slate-300;
+  }
+
+  .ui-accordion__icon {
+    @apply h-4 w-4 text-slate-400 transition-transform;
+  }
+
+  details[open] .ui-accordion__icon {
+    @apply rotate-180 text-slate-200;
+  }
+
+  .ui-accordion__content {
+    @apply mt-3;
+  }
+
+  .ui-flow-panel {
+    @apply border-dashed border-slate-700/70 bg-slate-950/30;
+  }
+
+  .ui-flow-label {
+    @apply inline-flex items-center rounded-full border border-slate-700/70 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-slate-500;
+  }
+
   .member-card {
     @apply rounded-xl border border-slate-800 bg-slate-900/30 p-4 flex flex-col gap-2 min-h-[220px];
   }
