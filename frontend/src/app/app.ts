@@ -55,7 +55,7 @@ import { ToastCenterComponent } from './core/toast-center.component';
               routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
               class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
             >
-              <span class="text-sm">Genome DB</span>
+              <span class="text-sm">人材データベース</span>
             </a>
           </div>
 
@@ -161,7 +161,7 @@ import { ToastCenterComponent } from './core/toast-center.component';
                   class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
                   (click)="closeMobileNav()"
                 >
-                  <span class="text-sm">Genome DB</span>
+                  <span class="text-sm">人材データベース</span>
                 </a>
               </div>
 
@@ -197,7 +197,7 @@ export class App {
       case '/simulator':
         return '戦術シミュレーター';
       case '/genome':
-        return 'Genome DB';
+        return '人材データベース';
       default:
         return 'SaihAI';
     }

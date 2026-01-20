@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
@@ -437,7 +437,9 @@
       .budget-bar-fill {
         height: 100%;
         background: var(--cyan);
-        transition: width 0.5s ease-out, background 0.3s;
+        transition:
+          width 0.5s ease-out,
+          background 0.3s;
       }
 
       /* --- Modal (Overlay) --- */
@@ -754,7 +756,7 @@
           戦術シミュレーター
         </div>
         <div class="nav-item" onclick="app.nav('genome', this)">
-          <i class="fas fa-dna" style="width: 20px"></i> Genome DB
+          <i class="fas fa-dna" style="width: 20px"></i> 人材データベース
         </div>
 
         <div class="nav-cat">Debug & Demo</div>
@@ -1338,16 +1340,15 @@
           const titles = {
             dash: "経営ダッシュボード",
             sim: "戦術シミュレーター",
-            genome: "Genome DB",
+            genome: "人材データベース",
           };
           const icons = {
             dash: "chart-line",
             sim: "chess-board",
             genome: "dna",
           };
-          document.getElementById(
-            "page-title"
-          ).innerHTML = `<i class="fas fa-${icons[id]}" style="color:var(--primary);"></i> ${titles[id]}`;
+          document.getElementById("page-title").innerHTML =
+            `<i class="fas fa-${icons[id]}" style="color:var(--primary);"></i> ${titles[id]}`;
         },
 
         /* Simulator Logic */
@@ -1358,7 +1359,7 @@
       <div class="selectable-item" id="pj-${p.id}" onclick="app.selectProject('${p.id}')">
         <div style="font-size:13px; font-weight:bold;">${p.name}</div>
       </div>
-    `
+    `,
             )
             .join("");
           document.getElementById("sim-member-list").innerHTML = members
@@ -1368,7 +1369,7 @@
         <div style="width:24px; height:24px; background:${m.color}; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:10px;">${m.name[0]}</div>
         <div><div style="font-size:13px; font-weight:bold;">${m.name}</div><div style="font-size:10px; color:var(--text-sub);">¥${m.cost}万</div></div>
       </div>
-    `
+    `,
             )
             .join("");
         },
@@ -1418,13 +1419,12 @@
           const p = projects.find((x) => x.id === app.selectedPid);
           const totalCost = app.team.reduce(
             (sum, mid) => sum + members.find((x) => x.id === mid).cost,
-            0
+            0,
           );
           const budgetPct = Math.min((totalCost / p.budget) * 100, 100);
 
-          document.getElementById(
-            "sim-budget-text"
-          ).innerText = `¥${totalCost}万 / ¥${p.budget}万`;
+          document.getElementById("sim-budget-text").innerText =
+            `¥${totalCost}万 / ¥${p.budget}万`;
           const bar = document.getElementById("sim-budget-bar");
           bar.style.width = `${budgetPct}%`;
           bar.style.background =
@@ -1451,13 +1451,13 @@
           <div style="width:36px; height:36px; background:${
             m.color
           }; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">${
-                m.name[0]
-              }</div>
+            m.name[0]
+          }</div>
           <div><div style="font-weight:bold;">${
             m.name
           }</div><div style="font-size:11px; color:var(--text-sub);">${
-                m.role
-              } / ¥${m.cost}万</div></div>
+            m.role
+          } / ¥${m.cost}万</div></div>
         </div>
         <div style="margin-bottom:8px;">${m.skills
           .map((s) => `<span class="tag">${s}</span>`)
@@ -1466,7 +1466,7 @@
           m.desc
         }</div>
       </div>
-    `
+    `,
             )
             .join("");
         },
@@ -1572,7 +1572,7 @@
             "ai",
             `プラン${
               id === 1 ? "A" : id === 2 ? "B" : "C"
-            } が選択されました。詳細設定を行いますか？`
+            } が選択されました。詳細設定を行いますか？`,
           );
         },
 
