@@ -15,6 +15,7 @@ from typing import Any, Mapping
 SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
 SLACK_DEFAULT_CHANNEL = os.getenv("SLACK_DEFAULT_CHANNEL", "")
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "").strip()
 SLACK_REQUEST_TTL_SECONDS = int(os.getenv("SLACK_REQUEST_TTL_SECONDS", "300"))
 SLACK_ALLOW_UNSIGNED = os.getenv("SLACK_ALLOW_UNSIGNED", "").lower() in {"1", "true", "yes"}
 
@@ -79,11 +80,17 @@ def parse_action_value(value: str) -> dict[str, str]:
     return result
 
 
-def _post_slack(payload: dict[str, Any]) -> dict[str, Any] | None:
-    if not SLACK_BOT_TOKEN or not SLACK_DEFAULT_CHANNEL:
+def _post_slack_api(payload: dict[str, Any]) -> dict[str, Any] | None:
+    if not SLACK_BOT_TOKEN:
         return None
 
-    data = json.dumps(payload).encode("utf-8")
+    send_payload = dict(payload)
+    if not send_payload.get("channel"):
+        if not SLACK_DEFAULT_CHANNEL:
+            return None
+        send_payload["channel"] = SLACK_DEFAULT_CHANNEL
+
+    data = json.dumps(send_payload).encode("utf-8")
     request = urllib.request.Request(
         "https://slack.com/api/chat.postMessage",
         data=data,
@@ -109,6 +116,26 @@ def _post_slack(payload: dict[str, Any]) -> dict[str, Any] | None:
     return payload
 
 
+def _post_slack_webhook(payload: dict[str, Any]) -> bool:
+    if not SLACK_WEBHOOK_URL:
+        return False
+
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        SLACK_WEBHOOK_URL,
+        data=data,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            body = response.read().decode("utf-8")
+    except urllib.error.URLError:
+        return False
+
+    return body.strip().lower() == "ok"
+
+
 def send_approval_message(
     action_id: int,
     approval_request_id: str,
@@ -120,8 +147,6 @@ def send_approval_message(
     thread_ts: str | None = None,
 ) -> SlackMeta | None:
     target_channel = channel or SLACK_DEFAULT_CHANNEL
-    if not SLACK_BOT_TOKEN or not target_channel:
-        return None
 
     title = summary or "Approval required"
     value = build_action_value(thread_id, approval_request_id, action_id)
@@ -180,22 +205,35 @@ def send_approval_message(
         }
     )
 
-    payload = {"channel": target_channel, "text": title, "blocks": blocks}
+    payload: dict[str, Any] = {"text": title, "blocks": blocks}
+    if target_channel:
+        payload["channel"] = target_channel
     if thread_ts:
         payload["thread_ts"] = thread_ts
-    response = _post_slack(payload)
-    if not response:
+    response = _post_slack_api(payload)
+    if response:
+        resolved_channel = response.get("channel") or target_channel
+        message_ts = response.get("ts") or response.get("message", {}).get("ts")
+        if not message_ts or not resolved_channel:
+            return None
+        return SlackMeta(
+            channel=resolved_channel,
+            message_ts=message_ts,
+            thread_ts=thread_ts or message_ts,
+        )
+
+    if _post_slack_webhook(payload):
+        if thread_ts and target_channel:
+            return SlackMeta(channel=target_channel, message_ts=thread_ts, thread_ts=thread_ts)
         return None
 
-    channel = response.get("channel") or target_channel
-    message_ts = response.get("ts") or response.get("message", {}).get("ts")
-    if not message_ts:
-        return None
-    return SlackMeta(channel=channel, message_ts=message_ts, thread_ts=thread_ts or message_ts)
+    return None
 
 
 def post_thread_message(channel: str, thread_ts: str, text: str) -> None:
-    if not SLACK_BOT_TOKEN or not channel or not thread_ts:
+    if not channel or not thread_ts:
         return
     payload = {"channel": channel, "text": text, "thread_ts": thread_ts}
-    _post_slack(payload)
+    if _post_slack_api(payload):
+        return
+    _post_slack_webhook(payload)
