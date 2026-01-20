@@ -101,9 +101,14 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 <span>processing / waiting</span>
               </span>
             </div>
-          } @else if (store.simulationResult()) {
-            <div class="mt-1 text-sm font-semibold text-slate-100">結果の確認へ</div>
-            <div class="mt-1 text-xs text-slate-400">結果セクションで介入に進みます。</div>
+          } @else if (validSimulationResult()) {
+            @if (interventionCompleted()) {
+              <div class="mt-1 text-sm font-semibold text-slate-100">介入完了</div>
+              <div class="mt-1 text-xs text-slate-400">プランの実行を反映しました。</div>
+            } @else {
+              <div class="mt-1 text-sm font-semibold text-slate-100">介入へ</div>
+              <div class="mt-1 text-xs text-slate-400">結果セクションで介入に進みます。</div>
+            }
           } @else if (canRunSimulation()) {
             <div class="mt-1 text-sm font-semibold text-slate-100">実行準備完了</div>
             <div class="mt-1 text-xs text-slate-400">入力を確認して AI を実行します。</div>
@@ -360,7 +365,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           </div>
         </div>
 
-        @if (store.simulationResult()) {
+        @if (validSimulationResult()) {
           <button
             type="button"
             class="mt-4 w-full ui-button-secondary disabled:opacity-60"
@@ -387,7 +392,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
       <section class="ui-panel">
         <div class="flex items-center justify-between gap-3 mb-3">
           <div class="font-semibold">2. 結果</div>
-          @if (store.simulationResult()) {
+          @if (validSimulationResult()) {
             <button type="button" class="ui-button-primary text-xs" (click)="openOverlay('manual')">
               介入へ
             </button>
@@ -480,7 +485,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           </details>
         }
 
-        @if (store.simulationResult(); as r) {
+        @if (validSimulationResult(); as r) {
           <div class="ui-panel-muted">
             <div class="ui-kicker">Summary</div>
             <div class="mt-2 text-sm text-slate-300">
@@ -827,7 +832,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
 
                   <div class="p-4 sm:p-5 border-b border-slate-800/80">
                     <div class="ui-kicker">Step 1: 見る</div>
-                    @if (store.simulationResult(); as r) {
+                    @if (validSimulationResult(); as r) {
                       <div class="mt-2 text-sm text-slate-200 font-semibold">
                         推奨 Plan {{ recommendedPlan()?.planType ?? '-' }}
                       </div>
@@ -874,7 +879,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="p-4 sm:p-5 border-b border-slate-800/80">
                     <div class="ui-kicker">Step 2: 選ぶ</div>
                     <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
-                    @if (store.simulationResult(); as r) {
+                    @if (validSimulationResult(); as r) {
                       <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
                         @for (p of r.plans; track p.id) {
                           <button
@@ -1028,6 +1033,23 @@ export class SimulatorPage implements OnDestroy {
   protected readonly chatSending = signal(false);
 
   protected readonly selectedPlanId = signal<'A' | 'B' | 'C' | null>(null);
+  private readonly approvedSimulationId = signal<string | null>(null);
+
+  protected readonly validSimulationResult = computed<SimulationResult | null>(() => {
+    const result = this.store.simulationResult();
+    if (!result) return null;
+    const projectId = this.store.selectedProjectId();
+    if (!projectId || result.project.id !== projectId) return null;
+    const selectedIds = this.store.selectedMemberIds();
+    if (!selectedIds.length) return null;
+    const teamIds = result.team.map((member) => member.id);
+    if (teamIds.length !== selectedIds.length) return null;
+    const teamSet = new Set(teamIds);
+    for (const memberId of selectedIds) {
+      if (!teamSet.has(memberId)) return null;
+    }
+    return result;
+  });
 
   protected readonly steps = [
     { id: 1, label: '対象選択' },
@@ -1037,10 +1059,17 @@ export class SimulatorPage implements OnDestroy {
   ];
 
   protected readonly currentStep = computed(() => {
-    if (this.overlayOpen()) return 4;
-    if (this.store.simulationResult()) return 3;
     if (this.store.loading() || this.store.streaming()) return 2;
+    if (this.validSimulationResult()) {
+      return this.interventionCompleted() ? 5 : 4;
+    }
     return 1;
+  });
+
+  protected readonly interventionCompleted = computed(() => {
+    const result = this.validSimulationResult();
+    if (!result) return false;
+    return this.approvedSimulationId() === result.id;
   });
 
   protected readonly canRunSimulation = computed(() => {
@@ -1048,7 +1077,7 @@ export class SimulatorPage implements OnDestroy {
   });
 
   protected readonly recommendedPlan = computed<SimulationPlan | null>(() => {
-    const result = this.store.simulationResult();
+    const result = this.validSimulationResult();
     if (!result?.plans?.length) return null;
     const recommendedType = result.agents?.gunshi?.recommend ?? null;
     const recommended =
@@ -1063,7 +1092,7 @@ export class SimulatorPage implements OnDestroy {
   });
 
   protected readonly activePlan = computed<SimulationPlan | null>(() => {
-    const result = this.store.simulationResult();
+    const result = this.validSimulationResult();
     if (!result?.plans?.length) return null;
     const selected = this.activePlanType();
     return (
@@ -1323,7 +1352,7 @@ export class SimulatorPage implements OnDestroy {
   }
 
   protected openOverlay(mode: 'alert' | 'manual'): void {
-    const r = this.store.simulationResult();
+    const r = this.validSimulationResult();
     this.timers.splice(0).forEach((t) => window.clearTimeout(t));
     this.overlayMode.set(mode);
     this.overlayOpen.set(true);
@@ -1425,6 +1454,10 @@ export class SimulatorPage implements OnDestroy {
   }
 
   protected approvePlan(): void {
+    const simulation = this.validSimulationResult();
+    if (simulation) {
+      this.approvedSimulationId.set(simulation.id);
+    }
     this.overlayChat.update((curr) => [
       ...curr,
       { from: 'ai', emotion: 'relief', text: '承認されました。実行します。' },
@@ -1450,7 +1483,7 @@ export class SimulatorPage implements OnDestroy {
 
     this.overlayChat.update((curr) => [...curr, { from: 'user', text: trimmed }]);
 
-    const simulation = this.store.simulationResult();
+    const simulation = this.validSimulationResult();
     const planType = this.activePlanType();
     if (simulation && planType) {
       this.chatSending.set(true);
