@@ -79,8 +79,8 @@ const COMPRESSED_COST = 30;
       </div>
     }
 
-    <div class="mt-4 ui-panel-muted">
-      <div class="ui-kicker">Flow</div>
+    <div class="mt-4 ui-panel-muted ui-flow-panel">
+      <div class="ui-flow-label">Flow</div>
       <ol class="mt-3 grid gap-2 sm:grid-cols-4 text-xs">
         @for (step of steps; track step.id) {
           <li
@@ -356,14 +356,35 @@ const COMPRESSED_COST = 30;
           store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length
         ) {
           <details
+            #progressDetails
             class="mb-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3"
             [open]="store.streaming()"
           >
-            <summary class="cursor-pointer list-none flex items-center justify-between gap-3">
+            <summary
+              class="ui-accordion__summary ui-focus-ring"
+              [attr.aria-expanded]="progressDetails.open"
+              aria-controls="progress-stream-panel"
+            >
               <span class="text-sm font-semibold">AI進捗ストリーム</span>
-              <span class="text-xs text-slate-300">{{ store.planProgress()?.progress ?? 0 }}%</span>
+              <span class="ui-accordion__meta">
+                <span class="text-xs text-slate-300">
+                  {{ store.planProgress()?.progress ?? 0 }}%
+                </span>
+                <svg
+                  class="ui-accordion__icon"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.24 4.37a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </span>
             </summary>
-            <div class="mt-3">
+            <div id="progress-stream-panel" class="ui-accordion__content">
               <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
                 <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
                 <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
@@ -456,102 +477,164 @@ const COMPRESSED_COST = 30;
           </div>
 
           <div class="mt-4">
-            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-sm font-semibold">要件カバー率</summary>
-              @if (r.requirementResult.length) {
-                <div class="mt-2 flex flex-wrap gap-2">
-                  @for (req of r.requirementResult; track req.name) {
-                    <span
-                      class="text-[11px] px-2 py-1 rounded-full border"
-                      [class.border-emerald-500/40]="req.fulfilled"
-                      [class.bg-emerald-500/10]="req.fulfilled"
-                      [class.text-emerald-200]="req.fulfilled"
-                      [class.border-rose-500/40]="!req.fulfilled"
-                      [class.bg-rose-500/10]="!req.fulfilled"
-                      [class.text-rose-200]="!req.fulfilled"
-                    >
-                      {{ req.name }} {{ req.fulfilled ? 'OK' : 'NG' }}
-                    </span>
-                  }
-                </div>
-              } @else {
-                <div class="mt-2 text-xs text-slate-400">requiredSkills 未登録</div>
-              }
-            </details>
-          </div>
-
-          <div class="mt-4">
-            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-sm font-semibold">
-                未来タイムライン
-              </summary>
-              <ul class="mt-2 space-y-2 timeline-list">
-                @for (t of r.timeline; track $index) {
-                  <li
-                    class="text-sm timeline-entry"
-                    [class.status-growth]="t.level === 'good'"
-                    [class.status-stable]="t.level === 'ok'"
-                    [class.status-alert]="t.level === 'bad'"
+            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #coverageDetails>
+              <summary
+                class="ui-accordion__summary ui-focus-ring"
+                [attr.aria-expanded]="coverageDetails.open"
+                aria-controls="requirement-coverage-panel"
+              >
+                <span>要件カバー率</span>
+                <span class="ui-accordion__meta">
+                  <svg
+                    class="ui-accordion__icon"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
                   >
-                    <span class="text-xs text-slate-400">{{ t.t }}</span>
-                    <span
-                      class="ml-2"
-                      [class.text-emerald-300]="t.level === 'good'"
-                      [class.text-amber-300]="t.level === 'ok'"
-                      [class.text-rose-300]="t.level === 'bad'"
-                      >{{ t.text }}</span
-                    >
-                  </li>
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.24 4.37a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </span>
+              </summary>
+              <div id="requirement-coverage-panel" class="ui-accordion__content">
+                @if (r.requirementResult.length) {
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    @for (req of r.requirementResult; track req.name) {
+                      <span
+                        class="text-[11px] px-2 py-1 rounded-full border"
+                        [class.border-emerald-500/40]="req.fulfilled"
+                        [class.bg-emerald-500/10]="req.fulfilled"
+                        [class.text-emerald-200]="req.fulfilled"
+                        [class.border-rose-500/40]="!req.fulfilled"
+                        [class.bg-rose-500/10]="!req.fulfilled"
+                        [class.text-rose-200]="!req.fulfilled"
+                      >
+                        {{ req.name }} {{ req.fulfilled ? 'OK' : 'NG' }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <div class="mt-2 text-xs text-slate-400">requiredSkills 未登録</div>
                 }
-              </ul>
+              </div>
             </details>
           </div>
 
           <div class="mt-4">
-            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-sm font-semibold">
-                エージェント所見
+            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #timelineDetails>
+              <summary
+                class="ui-accordion__summary ui-focus-ring"
+                [attr.aria-expanded]="timelineDetails.open"
+                aria-controls="future-timeline-panel"
+              >
+                <span>未来タイムライン</span>
+                <span class="ui-accordion__meta">
+                  <svg
+                    class="ui-accordion__icon"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.24 4.37a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </span>
               </summary>
-              <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold">PM</span>
-                    <span
-                      [class.text-emerald-300]="r.agents.pm.vote === 'ok'"
-                      [class.text-rose-300]="r.agents.pm.vote === 'ng'"
-                      >{{ r.agents.pm.vote }}</span
+              <div id="future-timeline-panel" class="ui-accordion__content">
+                <ul class="mt-2 space-y-2 timeline-list">
+                  @for (t of r.timeline; track $index) {
+                    <li
+                      class="text-sm timeline-entry"
+                      [class.status-growth]="t.level === 'good'"
+                      [class.status-stable]="t.level === 'ok'"
+                      [class.status-alert]="t.level === 'bad'"
                     >
+                      <span class="text-xs text-slate-400">{{ t.t }}</span>
+                      <span
+                        class="ml-2"
+                        [class.text-emerald-300]="t.level === 'good'"
+                        [class.text-amber-300]="t.level === 'ok'"
+                        [class.text-rose-300]="t.level === 'bad'"
+                        >{{ t.text }}</span
+                      >
+                    </li>
+                  }
+                </ul>
+              </div>
+            </details>
+          </div>
+
+          <div class="mt-4">
+            <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #agentDetails>
+              <summary
+                class="ui-accordion__summary ui-focus-ring"
+                [attr.aria-expanded]="agentDetails.open"
+                aria-controls="agent-insights-panel"
+              >
+                <span>エージェント所見</span>
+                <span class="ui-accordion__meta">
+                  <svg
+                    class="ui-accordion__icon"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.24 4.37a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </span>
+              </summary>
+              <div id="agent-insights-panel" class="ui-accordion__content">
+                <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold">PM</span>
+                      <span
+                        [class.text-emerald-300]="r.agents.pm.vote === 'ok'"
+                        [class.text-rose-300]="r.agents.pm.vote === 'ng'"
+                        >{{ r.agents.pm.vote }}</span
+                      >
+                    </div>
+                    <div class="text-xs text-slate-300 mt-1">{{ r.agents.pm.note }}</div>
                   </div>
-                  <div class="text-xs text-slate-300 mt-1">{{ r.agents.pm.note }}</div>
-                </div>
-                <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold">HR</span>
-                    <span
-                      [class.text-emerald-300]="r.agents.hr.vote === 'ok'"
-                      [class.text-rose-300]="r.agents.hr.vote === 'ng'"
-                      >{{ r.agents.hr.vote }}</span
-                    >
+                  <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold">HR</span>
+                      <span
+                        [class.text-emerald-300]="r.agents.hr.vote === 'ok'"
+                        [class.text-rose-300]="r.agents.hr.vote === 'ng'"
+                        >{{ r.agents.hr.vote }}</span
+                      >
+                    </div>
+                    <div class="text-xs text-slate-300 mt-1">{{ r.agents.hr.note }}</div>
                   </div>
-                  <div class="text-xs text-slate-300 mt-1">{{ r.agents.hr.note }}</div>
-                </div>
-                <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold">Risk</span>
-                    <span
-                      [class.text-emerald-300]="r.agents.risk.vote === 'ok'"
-                      [class.text-rose-300]="r.agents.risk.vote === 'ng'"
-                      >{{ r.agents.risk.vote }}</span
-                    >
+                  <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold">Risk</span>
+                      <span
+                        [class.text-emerald-300]="r.agents.risk.vote === 'ok'"
+                        [class.text-rose-300]="r.agents.risk.vote === 'ng'"
+                        >{{ r.agents.risk.vote }}</span
+                      >
+                    </div>
+                    <div class="text-xs text-slate-300 mt-1">{{ r.agents.risk.note }}</div>
                   </div>
-                  <div class="text-xs text-slate-300 mt-1">{{ r.agents.risk.note }}</div>
-                </div>
-                <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold">Gunshi</span>
-                    <span class="text-indigo-300">{{ r.agents.gunshi.recommend }}</span>
+                  <div class="rounded border border-slate-800 bg-slate-900/30 p-3 text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold">Gunshi</span>
+                      <span class="text-indigo-300">{{ r.agents.gunshi.recommend }}</span>
+                    </div>
+                    <div class="text-xs text-slate-300 mt-1">{{ r.agents.gunshi.note }}</div>
                   </div>
-                  <div class="text-xs text-slate-300 mt-1">{{ r.agents.gunshi.note }}</div>
                 </div>
               </div>
             </details>
