@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -55,7 +56,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
 };
 
 @Component({
-  imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
+  imports: [DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
@@ -159,7 +160,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         >
           <option value="" disabled>選択してください</option>
           @for (p of store.projects(); track p.id) {
-            <option [value]="p.id">{{ p.name }}（予算 {{ p.budget }}）</option>
+            <option [value]="p.id">{{ p.name }}（予算 {{ p.budget | number:'1.0-0' }}）</option>
           }
         </select>
 
@@ -184,7 +185,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="text-xs text-slate-400 truncate">{{ memberRoleLabel(m) }}</div>
                 </div>
                 <div class="text-right shrink-0">
-                  <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                  <div class="text-sm text-slate-200 font-bold">¥{{ m.cost | number:'1.0-0' }}</div>
                   <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
                 </div>
               </div>
@@ -237,7 +238,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                           </div>
                         </div>
                         <div class="text-right shrink-0">
-                          <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                          <div class="text-sm text-slate-200 font-bold">¥{{ m.cost | number:'1.0-0' }}</div>
                           <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
                         </div>
                       </div>
@@ -297,10 +298,12 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                         </div>
                         <div class="text-right shrink-0">
                           <div class="text-sm text-slate-200 font-bold">
-                            ¥{{ memberCostValue(m, store.selectedMembers(), true) }}
+                            ¥{{ memberCostValue(m, store.selectedMembers(), true) | number:'1.0-0' }}
                           </div>
                           @if (memberCostAdjusted(m, store.selectedMembers())) {
-                            <div class="text-[10px] text-slate-500 line-through">¥{{ m.cost }}</div>
+                            <div class="text-[10px] text-slate-500 line-through">
+                              ¥{{ m.cost | number:'1.0-0' }}
+                            </div>
                           } @else {
                             <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
                           }
@@ -337,7 +340,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             <div class="flex items-center justify-between text-xs text-slate-400">
               <span>予算消化率</span>
               <span class="text-slate-200"
-                >{{ budgetUsed() }} / {{ store.selectedProject()?.budget ?? 0 }}</span
+                >{{ budgetUsed() | number:'1.0-0' }} / {{
+                  (store.selectedProject()?.budget ?? 0) | number:'1.0-0'
+                }}</span
               >
             </div>
             @if (compressionActive()) {
@@ -499,7 +504,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             <div class="rounded border border-slate-800 bg-slate-900/30 p-3">
               <div class="text-xs text-slate-400">予算</div>
               <div class="mt-1 text-sm">
-                {{ r.metrics.budgetUsed }} / {{ r.project.budget }}（{{ r.metrics.budgetPct }}%）
+                {{ r.metrics.budgetUsed | number:'1.0-0' }} / {{
+                  r.project.budget | number:'1.0-0'
+                }}（{{ r.metrics.budgetPct }}%）
               </div>
               <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
                 <div class="h-2 bg-emerald-500" [style.width.%]="r.metrics.budgetPct"></div>

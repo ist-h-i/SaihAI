@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { EmptyStateComponent } from '../components/empty-state.component';
@@ -16,7 +17,7 @@ function hasAny(haystack: string, words: readonly string[]): boolean {
 const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '噂', '炎上'] as const;
 
 @Component({
-  imports: [NeuralOrbComponent, EmptyStateComponent],
+  imports: [DecimalPipe, NeuralOrbComponent, EmptyStateComponent],
   template: `
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
@@ -74,7 +75,7 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                   <td class="py-2 pr-4">
                     <div class="font-semibold text-slate-100">{{ m.name }}</div>
                     <div class="text-[11px] text-slate-400">
-                      ¥{{ m.cost }} / {{ m.availability }}%
+                      ¥{{ m.cost | number:'1.0-0' }} / {{ m.availability }}%
                     </div>
                   </td>
                   @for (s of topSkills(); track s) {
@@ -162,7 +163,9 @@ const RISK_HINTS = ['疲労', '燃え尽き', '飽き', '対人トラブル', '�
                     </div>
                   </div>
                   <div class="text-right shrink-0">
-                    <div class="text-sm text-slate-200 font-bold">¥{{ m.cost }}</div>
+                    <div class="text-sm text-slate-200 font-bold">
+                      ¥{{ m.cost | number:'1.0-0' }}
+                    </div>
                     <div class="text-xs text-slate-400">{{ m.availability }}%</div>
                   </div>
                 </div>
