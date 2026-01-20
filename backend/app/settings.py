@@ -16,6 +16,8 @@ settings = Settings(
     cors_origins=[
         "http://localhost:4200",
         "http://127.0.0.1:4200",
+        "http://localhost:4201",
+        "http://127.0.0.1:4201",
     ],
     log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     log_file=(os.getenv("LOG_FILE") or "").strip() or None,

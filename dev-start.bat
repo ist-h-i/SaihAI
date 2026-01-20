@@ -31,6 +31,12 @@ if not errorlevel 1 (
   )
 )
 
+set "DB_CMD=python scripts/db_tool.py"
+where uv >nul 2>nul
+if not errorlevel 1 (
+  set "DB_CMD=uv run python scripts/db_tool.py"
+)
+
 set "BACKEND_PORT=%BACKEND_PORT%"
 if "%BACKEND_PORT%"=="" set "BACKEND_PORT=8000"
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr /r /c:":%BACKEND_PORT% .*LISTENING"') do set "BACKEND_PORT_IN_USE=1"
@@ -49,6 +55,7 @@ if "%FRONTEND_PORT_IN_USE%"=="1" if "%FRONTEND_PORT%"=="4200" if "%FRONTEND_PORT
 )
 set "FRONTEND_PORT_IN_USE="
 
+set "DATABASE_URL=sqlite:///./saihai.db"
 if "%SAIHAI_API_BASE_URL%"=="" set "SAIHAI_API_BASE_URL=http://localhost:%BACKEND_PORT%/api/v1"
 
 if not exist "%ROOT%\frontend\node_modules" (
@@ -64,6 +71,13 @@ pushd "%ROOT%\backend" >nul
 if errorlevel 1 (
   echo [ERROR] backend directory not found: "%ROOT%\backend"
   goto :pause_on_error
+)
+if /i not "%SKIP_DB_INIT%"=="1" (
+  echo Initializing local database...
+  %DB_CMD% up
+  if errorlevel 1 goto :pause_on_error
+  %DB_CMD% seed
+  if errorlevel 1 goto :pause_on_error
 )
 if /i "%NO_NEW_WINDOW%"=="1" (
   start "" /b cmd /c %BACKEND_CMD% --port %BACKEND_PORT%
