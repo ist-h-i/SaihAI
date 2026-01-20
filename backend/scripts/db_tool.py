@@ -48,7 +48,30 @@ def _split_sql(sql: str) -> list[str]:
 
 def _apply_sql(conn, sql: str) -> None:
     for stmt in _split_sql(sql):
-        conn.execute(text(stmt))
+        for expanded in _expand_sqlite_alter_table(stmt):
+            conn.execute(text(expanded))
+
+
+def _expand_sqlite_alter_table(stmt: str) -> list[str]:
+    if not is_sqlite_engine(engine):
+        return [stmt]
+    normalized = stmt.strip()
+    if not normalized.upper().startswith("ALTER TABLE"):
+        return [stmt]
+    if "ADD COLUMN" not in normalized.upper() or "," not in normalized:
+        return [stmt]
+    match = re.match(
+        r"(?is)^ALTER TABLE\s+([A-Za-z_][A-Za-z0-9_]*)\s+ADD COLUMN\s+(.+)$",
+        normalized,
+    )
+    if not match:
+        return [stmt]
+    table = match.group(1)
+    remainder = match.group(2).strip()
+    parts = re.split(r",\s*ADD COLUMN\s+", remainder, flags=re.I)
+    if len(parts) <= 1:
+        return [stmt]
+    return [f"ALTER TABLE {table} ADD COLUMN {part.strip()}" for part in parts if part.strip()]
 
 
 def _load_migrations(suffix: str) -> list[Path]:
