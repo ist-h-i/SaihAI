@@ -3,7 +3,7 @@
     {
       "id": "P001",
       "name": "EC基盤刷新・分割導入",
-      "budget": 28000000,
+      "budget": 5500000,
       "requiredSkills": ["angular", "tailwind", "fastapi", "api"],
       "status": "稼働中",
       "difficulty": "L3",
@@ -13,7 +13,7 @@
     {
       "id": "P002",
       "name": "運用自動化・可観測性強化",
-      "budget": 16000000,
+      "budget": 2600000,
       "requiredSkills": ["python", "fastapi", "api", "testing"],
       "status": "稼働中",
       "difficulty": "L2",
