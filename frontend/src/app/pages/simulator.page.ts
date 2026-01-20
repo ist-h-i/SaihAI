@@ -389,7 +389,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           <div class="font-semibold">2. 結果</div>
           @if (store.simulationResult()) {
             <button type="button" class="ui-button-primary text-xs" (click)="openOverlay('manual')">
-              介入（HITL）を開く
+              介入へ
             </button>
           } @else {
             <button type="button" class="ui-button-secondary text-xs" disabled>

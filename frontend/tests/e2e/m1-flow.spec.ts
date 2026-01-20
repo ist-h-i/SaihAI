@@ -303,7 +303,7 @@ test('mobile flow supports input and approval', async ({ page }) => {
   await page.getByRole('main').getByRole('button', { name: 'AI自動編成', exact: true }).click();
 
   await expect(page.getByText('3プラン（A/B/C）')).toBeVisible();
-  await page.getByRole('button', { name: '介入（HITL）を開く' }).click();
+  await page.getByRole('button', { name: '介入へ' }).click();
   await expect(page.getByText('介入チェックポイント')).toBeVisible();
   const overlay = page.locator('.surface-overlay');
   const scrollArea = overlay.locator('[data-overlay-scroll]');
