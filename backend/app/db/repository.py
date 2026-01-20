@@ -2,11 +2,25 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Connection
+
+from app.security import decrypt_value, encrypt_value
+
+
+@dataclass(frozen=True)
+class GoogleOAuthToken:
+    user_id: str
+    google_email: str
+    access_token: str
+    refresh_token: str
+    token_type: str | None = None
+    scope: str | None = None
+    expires_at: datetime | None = None
 
 
 def _parse_text_array(value: Any) -> list[str]:
@@ -34,6 +48,116 @@ def _parse_text_array(value: Any) -> list[str]:
             return [v.strip() for v in inner.split(",") if v.strip()]
         return [v.strip() for v in raw.split(",") if v.strip()]
     return [str(value)]
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _to_google_oauth_token(row: dict[str, Any]) -> GoogleOAuthToken:
+    access_token = decrypt_value(row.get("access_token"))
+    refresh_token = decrypt_value(row.get("refresh_token"))
+    if not access_token or not refresh_token:
+        raise ValueError("google oauth token missing encrypted values")
+    return GoogleOAuthToken(
+        user_id=str(row.get("user_id")),
+        google_email=str(row.get("google_email")),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type=row.get("token_type"),
+        scope=row.get("scope"),
+        expires_at=_parse_timestamp(row.get("expires_at")),
+    )
+
+
+def fetch_google_oauth_token_by_user(conn: Connection, user_id: str) -> GoogleOAuthToken | None:
+    row = conn.execute(
+        text(
+            """
+            SELECT user_id, google_email, access_token, refresh_token, token_type, scope, expires_at
+            FROM google_oauth_tokens
+            WHERE user_id = :user_id
+            """
+        ),
+        {"user_id": user_id},
+    ).mappings().first()
+    if not row:
+        return None
+    return _to_google_oauth_token(row)
+
+
+def fetch_google_oauth_token_by_email(conn: Connection, email: str) -> GoogleOAuthToken | None:
+    row = conn.execute(
+        text(
+            """
+            SELECT user_id, google_email, access_token, refresh_token, token_type, scope, expires_at
+            FROM google_oauth_tokens
+            WHERE google_email = :email
+            """
+        ),
+        {"email": email},
+    ).mappings().first()
+    if not row:
+        return None
+    return _to_google_oauth_token(row)
+
+
+def upsert_google_oauth_token(
+    conn: Connection,
+    *,
+    user_id: str,
+    google_email: str,
+    access_token: str,
+    refresh_token: str | None,
+    token_type: str | None,
+    scope: str | None,
+    expires_at: datetime | None,
+) -> None:
+    if not refresh_token:
+        existing = fetch_google_oauth_token_by_user(conn, user_id)
+        if existing:
+            refresh_token = existing.refresh_token
+    if not refresh_token:
+        raise ValueError("refresh token is required for google oauth")
+    encrypted_access = encrypt_value(access_token)
+    encrypted_refresh = encrypt_value(refresh_token)
+    conn.execute(
+        text(
+            """
+            INSERT INTO google_oauth_tokens
+              (user_id, google_email, access_token, refresh_token, token_type, scope, expires_at, updated_at)
+            VALUES
+              (:user_id, :google_email, :access_token, :refresh_token, :token_type, :scope, :expires_at, :updated_at)
+            ON CONFLICT (user_id) DO UPDATE SET
+              google_email = excluded.google_email,
+              access_token = excluded.access_token,
+              refresh_token = excluded.refresh_token,
+              token_type = excluded.token_type,
+              scope = excluded.scope,
+              expires_at = excluded.expires_at,
+              updated_at = excluded.updated_at
+            """
+        ),
+        {
+            "user_id": user_id,
+            "google_email": google_email,
+            "access_token": encrypted_access,
+            "refresh_token": encrypted_refresh,
+            "token_type": token_type,
+            "scope": scope,
+            "expires_at": expires_at,
+            "updated_at": datetime.now(timezone.utc),
+        },
+    )
 
 
 def fetch_projects(conn: Connection) -> list[dict[str, Any]]:

@@ -389,6 +389,7 @@ def process_execution_job(
     conn: Connection,
     action_id: int,
     simulate_failure: bool = False,
+    payload_override: dict[str, Any] | None = None,
 ) -> ExecutionJobResult:
     thread_id = f"action-{action_id}"
     checkpoint, metadata = _load_checkpoint(conn, thread_id)
@@ -440,7 +441,7 @@ def process_execution_job(
         return _mark_failed(conn, thread_id, checkpoint, metadata, job_id, action_id, "simulated failure")
 
     try:
-        execute_external_action(conn, job_id=job_id, action_id=action_id)
+        execute_external_action(conn, job_id=job_id, action_id=action_id, payload_override=payload_override)
     except (ExternalActionError, ValueError) as exc:
         return _mark_failed(conn, thread_id, checkpoint, metadata, job_id, action_id, str(exc))
 

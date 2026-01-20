@@ -144,6 +144,7 @@ def _wipe_tables(conn) -> None:
         "watchdog_jobs",
         "user_skills",
         "user_profiles",
+        "google_oauth_tokens",
         "langgraph_checkpoints",
         "project_health_snapshots",
         "user_motivation_history",
