@@ -47,6 +47,12 @@ const PLAN_STREAM_LABEL_COLORS: Record<PlanStreamTone, string> = {
   risk: '#D97706',
   gunshi: '#7C3AED',
 };
+const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
+  pm: 'PM',
+  hr: 'HR',
+  risk: 'RISK',
+  gunshi: '軍師',
+};
 
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
@@ -431,7 +437,7 @@ const PLAN_STREAM_LABEL_COLORS: Record<PlanStreamTone, string> = {
                             class="shrink-0 w-[7ch] px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-left"
                             [style.color]="planStreamLabelColors[entry.tone]"
                           >
-                            {{ entry.agent }}
+                            {{ planStreamLabels[entry.tone] }}
                           </span>
                           <span class="text-slate-200">{{ entry.message }}</span>
                         </li>
@@ -977,6 +983,7 @@ export class SimulatorPage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(ApiClient);
   protected readonly planStreamLabelColors = PLAN_STREAM_LABEL_COLORS;
+  protected readonly planStreamLabels = PLAN_STREAM_LABELS;
 
   protected readonly overlayOpen = signal(false);
   protected readonly overlayMode = signal<'alert' | 'manual'>('alert');
