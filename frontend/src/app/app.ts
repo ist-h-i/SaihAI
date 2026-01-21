@@ -5,6 +5,7 @@ import { Title } from '@angular/platform-browser';
 import { filter } from 'rxjs';
 
 import { ToastCenterComponent } from './core/toast-center.component';
+import { ThemeService } from './core/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -67,17 +68,71 @@ import { ToastCenterComponent } from './core/toast-center.component';
             </a>
           </div>
 
-          <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
-            <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
-            <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
-              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-              Active
+          <div class="mt-auto flex flex-col gap-3">
+            <div class="rounded-lg border border-slate-800 bg-white/5 p-3 flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="text-[10px] text-slate-400 font-semibold">表示モード</div>
+                <div class="mt-1 text-[12px] font-bold text-slate-200">
+                  {{ isDarkTheme() ? 'ダーク' : 'ライト' }}
+                </div>
+              </div>
+              <button
+                type="button"
+                class="h-10 w-10 rounded-lg border border-slate-800 bg-white/5 grid place-items-center hover:bg-white/10 ui-focus-ring"
+                data-testid="theme-toggle"
+                (click)="toggleTheme()"
+                [attr.aria-label]="isDarkTheme() ? 'ライトモードに切り替え' : 'ダークモードに切り替え'"
+              >
+                @if (isDarkTheme()) {
+                  <svg
+                    viewBox="0 0 24 24"
+                    class="h-5 w-5 text-amber-300"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2" />
+                    <path d="M12 20v2" />
+                    <path d="M4.93 4.93l1.41 1.41" />
+                    <path d="M17.66 17.66l1.41 1.41" />
+                    <path d="M2 12h2" />
+                    <path d="M20 12h2" />
+                    <path d="M4.93 19.07l1.41-1.41" />
+                    <path d="M17.66 6.34l1.41-1.41" />
+                  </svg>
+                } @else {
+                  <svg
+                    viewBox="0 0 24 24"
+                    class="h-5 w-5 text-indigo-300"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+                  </svg>
+                }
+              </button>
+            </div>
+
+            <div class="rounded-lg border border-slate-800 bg-white/5 p-3">
+              <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
+              <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
+                <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                Active
+              </div>
             </div>
           </div>
         </aside>
 
         <div
-          class="flex-1 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,#1e293b_0%,#0b1022_55%)]"
+          class="flex-1 flex flex-col overflow-hidden app-shell"
         >
           <header
             class="h-14 sm:h-16 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-3"
@@ -194,11 +249,67 @@ import { ToastCenterComponent } from './core/toast-center.component';
                 </a>
               </div>
 
-              <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
-                <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
-                <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
-                  <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-                  Active
+              <div class="mt-auto flex flex-col gap-3">
+                <div
+                  class="rounded-lg border border-slate-800 bg-white/5 p-3 flex items-center justify-between gap-3"
+                >
+                  <div class="min-w-0">
+                    <div class="text-[10px] text-slate-400 font-semibold">表示モード</div>
+                    <div class="mt-1 text-[12px] font-bold text-slate-200">
+                      {{ isDarkTheme() ? 'ダーク' : 'ライト' }}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="h-10 w-10 rounded-lg border border-slate-800 bg-white/5 grid place-items-center hover:bg-white/10 ui-focus-ring"
+                    data-testid="theme-toggle"
+                    (click)="toggleTheme()"
+                    [attr.aria-label]="isDarkTheme() ? 'ライトモードに切り替え' : 'ダークモードに切り替え'"
+                  >
+                    @if (isDarkTheme()) {
+                      <svg
+                        viewBox="0 0 24 24"
+                        class="h-5 w-5 text-amber-300"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 2v2" />
+                        <path d="M12 20v2" />
+                        <path d="M4.93 4.93l1.41 1.41" />
+                        <path d="M17.66 17.66l1.41 1.41" />
+                        <path d="M2 12h2" />
+                        <path d="M20 12h2" />
+                        <path d="M4.93 19.07l1.41-1.41" />
+                        <path d="M17.66 6.34l1.41-1.41" />
+                      </svg>
+                    } @else {
+                      <svg
+                        viewBox="0 0 24 24"
+                        class="h-5 w-5 text-indigo-300"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+                      </svg>
+                    }
+                  </button>
+                </div>
+
+                <div class="rounded-lg border border-slate-800 bg-white/5 p-3">
+                  <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
+                  <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
+                    <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                    Active
+                  </div>
                 </div>
               </div>
             </aside>
@@ -215,10 +326,12 @@ export class App {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly titleService = inject(Title);
+  private readonly themeService = inject(ThemeService);
   private readonly activePath = signal('/dashboard');
   protected readonly isLoginRoute = computed(() => this.activePath() === '/login');
   protected readonly mobileNavOpen = signal(false);
   protected readonly desktopNavOpen = signal(true);
+  protected readonly isDarkTheme = computed(() => this.themeService.theme() === 'dark');
 
   protected readonly pageTitle = computed(() => {
     switch (this.activePath()) {
@@ -265,5 +378,9 @@ export class App {
 
   protected closeMobileNav(): void {
     this.mobileNavOpen.set(false);
+  }
+
+  protected toggleTheme(): void {
+    this.themeService.toggle();
   }
 }

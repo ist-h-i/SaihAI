@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: dark;
+  --app-background: radial-gradient(circle at top right, #1e2a6d 0%, #0b1022 55%), #020617;
+  --app-shell-background: radial-gradient(circle at top right, #1e293b 0%, #0b1022 55%);
+  --app-text: #f8fafc;
   --brand-primary: #4f46e5;
   --brand-accent: #22d3ee;
   --brand-ember: #fbbf24;
@@ -19,6 +22,20 @@
   --shadow-panel-hover: 0 35px 60px rgba(2, 6, 23, 0.55);
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-background: radial-gradient(circle at top right, #dbeafe 0%, #ffffff 60%), #f8fafc;
+  --app-shell-background: radial-gradient(circle at top right, #dbeafe 0%, #f8fafc 62%);
+  --app-text: #0f172a;
+  --focus-ring: rgba(37, 99, 235, 0.28);
+  --surface-panel: rgba(255, 255, 255, 0.94);
+  --surface-muted: rgba(248, 250, 252, 0.92);
+  --surface-border: rgba(148, 163, 184, 0.75);
+  --surface-overlay: rgba(255, 255, 255, 0.92);
+  --shadow-panel: 0 18px 40px rgba(15, 23, 42, 0.12);
+  --shadow-panel-hover: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+
 html,
 body {
   height: 100%;
@@ -26,14 +43,17 @@ body {
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top right, #1e2a6d 0%, #0b1022 55%), #020617;
-  color: #f8fafc;
-  @apply text-slate-100;
+  background: var(--app-background);
+  color: var(--app-text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 app-root {
   height: 100%;
+}
+
+.app-shell {
+  background: var(--app-shell-background);
 }
 
 .perspective-1000 {
@@ -197,6 +217,201 @@ app-root {
   .member-badge.badge-neutral {
     @apply border-slate-700 bg-white/5 text-slate-300;
   }
+}
+
+:root[data-theme='light'] .ui-button-ghost {
+  color: rgb(51 65 85);
+}
+
+:root[data-theme='light'] .ui-button-ghost:hover {
+  color: rgb(15 23 42);
+  background-color: rgb(15 23 42 / 0.06);
+}
+
+:root[data-theme='light'] .ui-focus-ring:focus-visible {
+  --tw-ring-offset-color: rgb(248 250 252 / 0.95);
+}
+
+:root[data-theme='light'] .bg-slate-950 {
+  background-color: rgb(255 255 255);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/80 {
+  background-color: rgb(255 255 255 / 0.92);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/70 {
+  background-color: rgb(255 255 255 / 0.88);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/60 {
+  background-color: rgb(255 255 255 / 0.85);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/50 {
+  background-color: rgb(255 255 255 / 0.82);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/40 {
+  background-color: rgb(255 255 255 / 0.78);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/30 {
+  background-color: rgb(255 255 255 / 0.72);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/25 {
+  background-color: rgb(255 255 255 / 0.68);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/20 {
+  background-color: rgb(255 255 255 / 0.64);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/15 {
+  background-color: rgb(255 255 255 / 0.6);
+}
+
+:root[data-theme='light'] .bg-slate-950\\/10 {
+  background-color: rgb(255 255 255 / 0.56);
+}
+
+:root[data-theme='light'] .bg-slate-900 {
+  background-color: rgb(241 245 249);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/80 {
+  background-color: rgb(241 245 249 / 0.9);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/70 {
+  background-color: rgb(241 245 249 / 0.86);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/60 {
+  background-color: rgb(241 245 249 / 0.82);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/55 {
+  background-color: rgb(241 245 249 / 0.8);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/50 {
+  background-color: rgb(241 245 249 / 0.78);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/40 {
+  background-color: rgb(241 245 249 / 0.74);
+}
+
+:root[data-theme='light'] .bg-slate-900\\/30 {
+  background-color: rgb(241 245 249 / 0.7);
+}
+
+:root[data-theme='light'] .bg-slate-800\\/80 {
+  background-color: rgb(226 232 240 / 0.88);
+}
+
+:root[data-theme='light'] .bg-slate-800\\/70 {
+  background-color: rgb(226 232 240 / 0.84);
+}
+
+:root[data-theme='light'] .border-slate-800 {
+  border-color: rgb(226 232 240);
+}
+
+:root[data-theme='light'] .border-slate-800\\/80 {
+  border-color: rgb(226 232 240 / 0.9);
+}
+
+:root[data-theme='light'] .border-slate-800\\/70 {
+  border-color: rgb(226 232 240 / 0.84);
+}
+
+:root[data-theme='light'] .border-slate-800\\/60 {
+  border-color: rgb(226 232 240 / 0.8);
+}
+
+:root[data-theme='light'] .border-slate-700 {
+  border-color: rgb(203 213 225);
+}
+
+:root[data-theme='light'] .border-slate-700\\/70 {
+  border-color: rgb(203 213 225 / 0.82);
+}
+
+:root[data-theme='light'] .border-slate-700\\/60 {
+  border-color: rgb(203 213 225 / 0.78);
+}
+
+:root[data-theme='light'] .border-slate-600 {
+  border-color: rgb(148 163 184);
+}
+
+:root[data-theme='light'] .text-slate-100 {
+  color: rgb(15 23 42);
+}
+
+:root[data-theme='light'] .text-slate-200 {
+  color: rgb(30 41 59);
+}
+
+:root[data-theme='light'] .text-slate-300 {
+  color: rgb(51 65 85);
+}
+
+:root[data-theme='light'] .text-slate-400 {
+  color: rgb(71 85 105);
+}
+
+:root[data-theme='light'] .text-slate-500 {
+  color: rgb(100 116 139);
+}
+
+:root[data-theme='light'] .text-indigo-100,
+:root[data-theme='light'] .text-indigo-200,
+:root[data-theme='light'] .text-indigo-300 {
+  color: rgb(55 48 163);
+}
+
+:root[data-theme='light'] .text-emerald-200,
+:root[data-theme='light'] .text-emerald-300 {
+  color: rgb(4 120 87);
+}
+
+:root[data-theme='light'] .text-amber-200,
+:root[data-theme='light'] .text-amber-300 {
+  color: rgb(180 83 9);
+}
+
+:root[data-theme='light'] .text-rose-100,
+:root[data-theme='light'] .text-rose-200,
+:root[data-theme='light'] .text-rose-300 {
+  color: rgb(190 18 60);
+}
+
+:root[data-theme='light'] .bg-white\\/5 {
+  background-color: rgb(15 23 42 / 0.04);
+}
+
+:root[data-theme='light'] .bg-white\\/10 {
+  background-color: rgb(15 23 42 / 0.06);
+}
+
+:root[data-theme='light'] .bg-white\\/15 {
+  background-color: rgb(15 23 42 / 0.08);
+}
+
+:root[data-theme='light'] .hover\\:bg-white\\/5:hover {
+  background-color: rgb(15 23 42 / 0.04);
+}
+
+:root[data-theme='light'] .hover\\:bg-white\\/10:hover {
+  background-color: rgb(15 23 42 / 0.06);
+}
+
+:root[data-theme='light'] .placeholder\\:text-slate-500::placeholder {
+  color: rgb(100 116 139);
 }
 
 .debate-stream-shell {
