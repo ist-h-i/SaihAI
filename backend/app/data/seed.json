@@ -19,6 +19,36 @@
       "difficulty": "L2",
       "description": "日次/週次の運用作業を自動化し、障害検知から復旧までの平均時間を30%短縮する。既存ワークフローの標準化とテスト整備が前提。",
       "managerId": "U002"
+    },
+    {
+      "id": "P003",
+      "name": "AIチャットサポート導入",
+      "budget": 3200000,
+      "requiredSkills": ["llm", "nlp", "fastapi", "api", "ui"],
+      "status": "計画中",
+      "difficulty": "L2",
+      "description": "一次対応を自動化するAIチャットサポートを導入し、問い合わせの自己解決率を20%向上させる。FAQ整備と運用フローの再設計を含む。",
+      "managerId": "U006"
+    },
+    {
+      "id": "P004",
+      "name": "データ基盤統合とBI刷新",
+      "budget": 4800000,
+      "requiredSkills": ["data-engineering", "etl", "python", "analytics", "db"],
+      "status": "稼働中",
+      "difficulty": "L3",
+      "description": "分散しているデータ基盤を統合し、BIレポートの鮮度と可視性を改善する。主要KPIの更新遅延を半減することが目標。",
+      "managerId": "U007"
+    },
+    {
+      "id": "P005",
+      "name": "モバイルアプリ改善とCX向上",
+      "budget": 3000000,
+      "requiredSkills": ["mobile", "flutter", "ux", "analytics"],
+      "status": "準備中",
+      "difficulty": "L2",
+      "description": "モバイルアプリの体験改善と離脱率低下を目指す。オンボーディングの再設計と行動分析の導入が中心。",
+      "managerId": "U008"
     }
   ],
   "members": [
@@ -76,6 +106,116 @@
       "projectId": "P001",
       "notes": "週報: 顧問として週1レビューなら可能。高単価だがリスク低減に強い。アーキレビューと技術意思決定の場に限定して関与希望。",
       "careerAspiration": "組織横断の技術顧問として貢献したい。複数案件の技術リスク評価と育成支援を進めたい。"
+    },
+    {
+      "id": "U006",
+      "name": "中村 遥",
+      "role": "PM",
+      "unitId": "Unit-A",
+      "cost": 1500000,
+      "availability": 80,
+      "projectId": "P003",
+      "notes": "週報: 新規導入案件に意欲。関係者調整の初動は得意だが、運用設計の詰めが課題。",
+      "careerAspiration": "プロダクトと運用の両輪で成果を出したい。中長期はAI活用の体制づくりをリードしたい。"
+    },
+    {
+      "id": "U007",
+      "name": "斎藤 航",
+      "role": "DataEngineer",
+      "unitId": "Unit-C",
+      "cost": 1700000,
+      "availability": 60,
+      "projectId": "P004",
+      "notes": "週報: 基盤統合に強い関心。既存DWHの負債解消を進めたい。",
+      "careerAspiration": "データ基盤の標準化と分析基盤の整備を主導したい。"
+    },
+    {
+      "id": "U008",
+      "name": "藤井 真央",
+      "role": "PM",
+      "unitId": "Unit-B",
+      "cost": 1450000,
+      "availability": 70,
+      "projectId": "P005",
+      "notes": "週報: CX改善に強い関心。ユーザーリサーチの経験を活かしたい。",
+      "careerAspiration": "モバイル領域の成長とプロダクト体験の向上を推進したい。"
+    },
+    {
+      "id": "U009",
+      "name": "高橋 凪",
+      "role": "Frontend",
+      "unitId": "Unit-A",
+      "cost": 1200000,
+      "availability": 90,
+      "projectId": "P003",
+      "notes": "週報: UI改善に意欲。デザインレビューへの参加を希望。",
+      "careerAspiration": "ユーザー体験の改善とフロント品質の向上をリードしたい。"
+    },
+    {
+      "id": "U010",
+      "name": "井上 拓",
+      "role": "Backend",
+      "unitId": "Unit-B",
+      "cost": 1250000,
+      "availability": 80,
+      "projectId": "P003",
+      "notes": "週報: API設計の整備に関心。監視と性能改善を強化したい。",
+      "careerAspiration": "堅牢なAPI基盤を構築し、運用の自動化にも取り組みたい。"
+    },
+    {
+      "id": "U011",
+      "name": "森 玲奈",
+      "role": "Designer",
+      "unitId": "Unit-A",
+      "cost": 1100000,
+      "availability": 60,
+      "projectId": "P005",
+      "notes": "週報: ユーザー調査の機会を希望。仮説検証の場が欲しい。",
+      "careerAspiration": "リサーチ起点のUX改善を継続的に回せる仕組みを作りたい。"
+    },
+    {
+      "id": "U012",
+      "name": "佐々木 駿",
+      "role": "Mobile",
+      "unitId": "Unit-B",
+      "cost": 1300000,
+      "availability": 80,
+      "projectId": "P005",
+      "notes": "週報: モバイル性能改善に意欲。計測基盤の導入に関心。",
+      "careerAspiration": "アプリのパフォーマンス改善と品質向上をリードしたい。"
+    },
+    {
+      "id": "U013",
+      "name": "石井 慧",
+      "role": "SRE",
+      "unitId": "Unit-C",
+      "cost": 1400000,
+      "availability": 70,
+      "projectId": "P002",
+      "notes": "週報: 運用改善の施策を進めたい。SLI/SLOの整備を希望。",
+      "careerAspiration": "信頼性指標を定着させ、運用負荷を継続的に下げたい。"
+    },
+    {
+      "id": "U014",
+      "name": "松本 佳奈",
+      "role": "QA",
+      "unitId": "Unit-B",
+      "cost": 950000,
+      "availability": 100,
+      "projectId": "P004",
+      "notes": "週報: 自動化のスキルを伸ばしたい。データ品質の観点を強化したい。",
+      "careerAspiration": "テスト自動化とデータ品質の両面から改善を支えたい。"
+    },
+    {
+      "id": "U015",
+      "name": "岡田 優",
+      "role": "Analyst",
+      "unitId": "Unit-C",
+      "cost": 1150000,
+      "availability": 80,
+      "projectId": "P004",
+      "notes": "週報: KPI設計と可視化に関心。経営向けレポートの改善を進めたい。",
+      "careerAspiration": "意思決定を支える分析基盤を整備し、データ活用を推進したい。"
     }
   ]
 }
