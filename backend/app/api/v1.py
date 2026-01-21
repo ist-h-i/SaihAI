@@ -1144,11 +1144,11 @@ def update_saved_plan(
 
     payload["updated_at"] = datetime.now(timezone.utc)
     updates.append("updated_at = :updated_at")
-    stmt = f\"\"\"
+    stmt = f"""
         UPDATE saved_plans
         SET {', '.join(updates)}
         WHERE plan_id = :plan_id AND user_id = :user_id
-    \"\"\"
+    """
     conn.execute(text(stmt), payload)
 
     row = _fetch_saved_plan_row(conn, user.user_id, plan_id)
