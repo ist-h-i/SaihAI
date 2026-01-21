@@ -14,9 +14,9 @@ logger = logging.getLogger("saihai.simulator_planner")
 _DEFAULT_PLAN_TYPES = ("A", "B", "C")
 
 _PM_MAX_TOKENS = 3167
-_HR_MAX_TOKENS = 4096  # 25240から削減（実際の応答はこれほど長くない）
+_HR_MAX_TOKENS = 25240
 _RISK_MAX_TOKENS = 2000
-_GUNSHI_MAX_TOKENS = 8192  # 64000から削減（実際の応答はこれほど長くない）
+_GUNSHI_MAX_TOKENS = 64000
 _AGENT_TEMPERATURE = 1.0
 
 _PM_USER_PROMPT = (
