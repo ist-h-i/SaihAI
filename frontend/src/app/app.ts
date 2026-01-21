@@ -15,7 +15,15 @@ import { ToastCenterComponent } from './core/toast-center.component';
     } @else {
       <div class="min-h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100 flex">
         <aside
-          class="hidden lg:flex w-[260px] shrink-0 bg-slate-950 border-r border-slate-800 p-5 flex-col gap-6"
+          id="desktop-nav"
+          class="hidden lg:flex shrink-0 bg-slate-950 border-slate-800 flex-col gap-6 overflow-hidden transition-[width,padding,opacity] duration-300 ease-out"
+          [attr.aria-hidden]="!desktopNavOpen()"
+          [style.width.px]="desktopNavOpen() ? 260 : 0"
+          [style.padding]="desktopNavOpen() ? '1.25rem' : '0'"
+          [style.opacity]="desktopNavOpen() ? 1 : 0"
+          [style.visibility]="desktopNavOpen() ? 'visible' : 'hidden'"
+          [style.borderRightWidth.px]="desktopNavOpen() ? 1 : 0"
+          [style.pointerEvents]="desktopNavOpen() ? 'auto' : 'none'"
         >
           <div class="flex items-center gap-3">
             <div
@@ -88,6 +96,27 @@ import { ToastCenterComponent } from './core/toast-center.component';
                   <span class="h-0.5 w-5 bg-slate-200"></span>
                   <span class="h-0.5 w-5 bg-slate-200"></span>
                 </span>
+              </button>
+              <button
+                type="button"
+                class="hidden lg:grid h-9 w-9 rounded-lg border border-slate-800 bg-white/5 place-items-center hover:bg-white/10"
+                (click)="toggleDesktopNav()"
+                aria-label="Toggle navigation panel"
+                aria-controls="desktop-nav"
+                [attr.aria-expanded]="desktopNavOpen()"
+              >
+                <svg
+                  class="h-4 w-4 text-slate-200 transition-transform duration-300"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  [style.transform]="desktopNavOpen() ? 'rotate(0deg)' : 'rotate(180deg)'"
+                >
+                  <path d="M12.5 4.5l-5 5 5 5" />
+                </svg>
               </button>
               <div class="text-base font-bold tracking-tight truncate">{{ pageTitle() }}</div>
             </div>
@@ -189,6 +218,7 @@ export class App {
   private readonly activePath = signal('/dashboard');
   protected readonly isLoginRoute = computed(() => this.activePath() === '/login');
   protected readonly mobileNavOpen = signal(false);
+  protected readonly desktopNavOpen = signal(true);
 
   protected readonly pageTitle = computed(() => {
     switch (this.activePath()) {
@@ -227,6 +257,10 @@ export class App {
 
   protected toggleMobileNav(): void {
     this.mobileNavOpen.set(!this.mobileNavOpen());
+  }
+
+  protected toggleDesktopNav(): void {
+    this.desktopNavOpen.set(!this.desktopNavOpen());
   }
 
   protected closeMobileNav(): void {
