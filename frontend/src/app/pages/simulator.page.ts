@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -57,7 +57,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
 };
 
 @Component({
-  imports: [DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
+  imports: [CommonModule, DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
     <ng-template #progressStreamTemplate>
       <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
