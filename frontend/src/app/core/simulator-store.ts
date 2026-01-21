@@ -276,6 +276,7 @@ export class SimulatorStore {
       let done = false;
 
       source.addEventListener('progress', (event) => {
+        if (done) return;
         const data = this.parseEvent<PlanStreamProgress>(event);
         if (!data) return;
         this.planProgress.set(data);
@@ -283,6 +284,7 @@ export class SimulatorStore {
       });
 
       source.addEventListener('log', (event) => {
+        if (done) return;
         const data = this.parseEvent<PlanStreamLog>(event);
         if (!data) return;
         this.planDiscussionLog.update((curr) => [...curr, data]);
@@ -292,6 +294,13 @@ export class SimulatorStore {
         const data = this.parseEvent<PlanStreamComplete>(event);
         if (!data?.plans?.length) return;
         done = true;
+        const finalProgress: PlanStreamProgress = {
+          phase: 'complete',
+          message: 'completed',
+          progress: 100,
+        };
+        this.planProgress.set(finalProgress);
+        this.planProgressLog.update((curr) => [...curr, finalProgress]);
         this.streaming.set(false);
         this.closePlanStream();
         resolve(data.plans);
