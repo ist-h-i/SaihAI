@@ -146,8 +146,6 @@ def _wipe_tables(conn) -> None:
         "user_profiles",
         "google_oauth_tokens",
         "langgraph_checkpoints",
-        "project_health_snapshots",
-        "user_motivation_history",
         "autonomous_actions",
         "saved_plans",
         "ai_strategy_proposals",
@@ -155,6 +153,8 @@ def _wipe_tables(conn) -> None:
         "assignment_patterns",
         "weekly_reports",
         "assignments",
+        "project_health_snapshots",
+        "user_motivation_history",
         "projects",
         "users",
     ]

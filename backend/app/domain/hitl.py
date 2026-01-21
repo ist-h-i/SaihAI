@@ -329,6 +329,20 @@ def reject_request(
         action_id,
         approval_request_id,
     )
+    _upsert_checkpoint(conn, thread_id, checkpoint, metadata)
+
+    if action_id:
+        conn.execute(
+            text(
+                """
+                UPDATE autonomous_actions
+                SET status = :status,
+                    is_approved = FALSE
+                WHERE action_id = :action_id
+                """
+            ),
+            {"status": HITL_STATUS_REJECTED, "action_id": action_id},
+        )
 
 
 def apply_steer(
