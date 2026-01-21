@@ -59,6 +59,62 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
 @Component({
   imports: [DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
+    <ng-template #progressStreamTemplate>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm font-semibold">AI進捗ストリーム</span>
+          <span class="text-xs text-slate-300">{{ store.planProgress()?.progress ?? 0 }}%</span>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
+          <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
+          <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
+        </div>
+        <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
+          <div class="h-2 bg-indigo-500" [style.width.%]="store.planProgress()?.progress ?? 0">
+          </div>
+        </div>
+
+        <div class="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <div class="ui-kicker">Progress Log</div>
+            @if (store.planProgressLog().length) {
+              <ul
+                class="mt-2 space-y-1 text-xs text-slate-300 h-40 overflow-hidden flex flex-col justify-end leading-snug"
+              >
+                @for (entry of store.planProgressLog(); track $index) {
+                  <li>{{ entry.message }}</li>
+                }
+              </ul>
+            } @else {
+              <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
+            }
+          </div>
+          <div>
+            <div class="ui-kicker">Debate Stream</div>
+            @if (store.planDiscussionLog().length) {
+              <ul
+                class="mt-2 space-y-2 text-xs h-40 overflow-hidden flex flex-col justify-end leading-snug"
+              >
+                @for (entry of store.planDiscussionLog(); track $index) {
+                  <li class="flex items-start gap-2">
+                    <span
+                      class="shrink-0 w-[7ch] px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-left"
+                      [style.color]="planStreamLabelColors[entry.tone]"
+                    >
+                      {{ planStreamLabels[entry.tone] }}
+                    </span>
+                    <span class="text-slate-200">{{ entry.message }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <div class="mt-2 text-xs text-slate-500">Waiting for debate...</div>
+            }
+          </div>
+        </div>
+      </div>
+    </ng-template>
+
     <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="ui-kicker">Tactical Simulator</div>
@@ -524,83 +580,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         @if (
           store.streaming() || store.planProgressLog().length || store.planDiscussionLog().length
         ) {
-          <details
-            #progressDetails
-            class="mb-3 rounded-xl border border-slate-800 bg-slate-900/30 p-3"
-            [open]="store.streaming()"
-          >
-            <summary
-              class="ui-accordion__summary ui-focus-ring"
-              [attr.aria-expanded]="progressDetails.open"
-              aria-controls="progress-stream-panel"
-            >
-              <span class="text-sm font-semibold">AI進捗ストリーム</span>
-              <span class="ui-accordion__meta">
-                <span class="text-xs text-slate-300">
-                  {{ store.planProgress()?.progress ?? 0 }}%
-                </span>
-                <svg
-                  class="ui-accordion__icon"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.24 4.37a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </span>
-            </summary>
-            <div id="progress-stream-panel" class="ui-accordion__content">
-              <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
-                <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
-                <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
-              </div>
-              <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
-                <div
-                  class="h-2 bg-indigo-500"
-                  [style.width.%]="store.planProgress()?.progress ?? 0"
-                ></div>
-              </div>
-
-              <div class="mt-3 grid gap-3 md:grid-cols-2">
-                <div>
-                  <div class="ui-kicker">Progress Log</div>
-                  @if (store.planProgressLog().length) {
-                    <ul class="mt-2 space-y-1 text-xs text-slate-300 max-h-[160px] overflow-auto pr-1">
-                      @for (entry of store.planProgressLog(); track $index) {
-                        <li>{{ entry.message }}</li>
-                      }
-                    </ul>
-                  } @else {
-                    <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
-                  }
-                </div>
-                <div>
-                  <div class="ui-kicker">Debate Stream</div>
-                  @if (store.planDiscussionLog().length) {
-                    <ul class="mt-2 space-y-2 text-xs max-h-[160px] overflow-auto pr-1">
-                      @for (entry of store.planDiscussionLog(); track $index) {
-                        <li class="flex items-start gap-2">
-                          <span
-                            class="shrink-0 w-[7ch] px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-left"
-                            [style.color]="planStreamLabelColors[entry.tone]"
-                          >
-                            {{ planStreamLabels[entry.tone] }}
-                          </span>
-                          <span class="text-slate-200">{{ entry.message }}</span>
-                        </li>
-                      }
-                    </ul>
-                  } @else {
-                    <div class="mt-2 text-xs text-slate-500">Waiting for debate...</div>
-                  }
-                </div>
-              </div>
-            </div>
-          </details>
+          <div class="mb-3">
+            <ng-container [ngTemplateOutlet]="progressStreamTemplate"></ng-container>
+          </div>
         }
 
         @if (validSimulationResult(); as r) {
@@ -994,6 +976,16 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 </div>
 
                 <div class="flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
+                  @if (
+                    store.streaming() ||
+                    store.planProgressLog().length ||
+                    store.planDiscussionLog().length
+                  ) {
+                    <div class="p-4 sm:p-5 border-b border-slate-800/80">
+                      <ng-container [ngTemplateOutlet]="progressStreamTemplate"></ng-container>
+                    </div>
+                  }
+
                   <div class="p-4 sm:p-5 border-b border-slate-800/80">
                     <div class="ui-kicker">Step 2: 選ぶ</div>
                     <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
