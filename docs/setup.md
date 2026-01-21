@@ -154,6 +154,8 @@ SLACK_SIGNING_SECRET=...
 SLACK_APP_TOKEN=xapp-...
 # 既定投稿先（Slack 通知を使う場合は必須）
 SLACK_DEFAULT_CHANNEL=C0123456789
+# デモ通知の投稿先（未指定時は SLACK_DEFAULT_CHANNEL を利用）
+SLACK_CHANNEL_ID=C0123456789
 ```
 
 手順
@@ -174,6 +176,39 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - `ok: true` が返れば認証成功。
 - 署名検証の一時無効化は `SLACK_ALLOW_UNSIGNED=true`（ローカル専用）を使用。
 
+## デモ: Slack → Google Calendar 連携
+
+前提条件
+- Slack App の Interactivity が有効（`POST /slack/interactions`）
+- Google OAuth をユーザでリンク済み（下記「Google Calendar OAuth」参照）
+- `CALENDAR_PROVIDER=google` を設定
+
+環境変数（.env 例）
+```
+# デモの投稿先
+SLACK_CHANNEL_ID=C0123456789
+
+# 予定の作成先（未設定時は primary）
+CALENDAR_ID=primary
+# デモ専用で上書きする場合
+DEMO_CALENDAR_ID=primary
+
+# 招待先（複数可・カンマ区切り、未設定時は demo-invitee@example.com）
+INVITEE_EMAILS=demo-invitee@example.com
+
+# Approve 権限制御（任意、Slack user_id をカンマ区切り）
+APPROVER_USER_IDS=U01234567,U08999999
+
+# カレンダー実行は Google を利用
+CALENDAR_PROVIDER=google
+```
+
+仕様メモ
+- 予定日時は **翌日 18:00–18:30（Asia/Tokyo）固定**
+- 介入テキストは Slack のモーダル入力で受け取る
+- `CALENDAR_ID` は既定で `primary` を使用（共有テストカレンダーを使う場合は ID を指定）
+- 認可方式は **ユーザ OAuth**。トークンは DB の `google_oauth_tokens` に保存される
+
 ## 環境変数/シークレット一覧と取得元
 
 - AWS_BEARER_TOKEN_BEDROCK: AWS 管理画面（Bedrock 対応の資格情報）。Bearer/STS 等の運用方針はセキュリティポリシーに従う。
@@ -190,12 +225,17 @@ curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.
 - JWT_SECRET / JWT_TTL_MINUTES: JWT 署名キーと有効期限（分）
 - SLACK_BOT_TOKEN / SLACK_SIGNING_SECRET / SLACK_APP_TOKEN（任意）: Slack アプリ管理画面（Basic Information / OAuth & Permissions / Socket Mode）
 - SLACK_DEFAULT_CHANNEL: 既定投稿先のチャンネル ID
+- SLACK_CHANNEL_ID: デモ通知の投稿先チャンネル ID（未設定時は SLACK_DEFAULT_CHANNEL を利用）
 - SLACK_REQUEST_TTL_SECONDS: 署名検証の許容時間（秒、デフォルト 300）
 - SLACK_ALLOW_UNSIGNED: ローカル検証用の署名検証無効化フラグ（`true` のときのみ許可）
 - INTERNAL_API_TOKEN: Watchdog の内部実行 API に付与するトークン（未設定の場合は無効）
 - EMAIL_PROVIDER / CALENDAR_PROVIDER: 外部アクションのプロバイダ（既定 `mock`）
 - EMAIL_DEFAULT_TO / EMAIL_DEFAULT_FROM / CALENDAR_DEFAULT_ATTENDEE / CALENDAR_DEFAULT_TIMEZONE: 外部アクションの既定値（任意）
 - CALENDAR_DEFAULT_OWNER_EMAIL: カレンダー作成の既定オーナーEmail（任意）
+- CALENDAR_ID: Google Calendar の作成先 ID（既定 `primary`）
+- DEMO_CALENDAR_ID: デモの作成先 ID を上書きする場合に使用
+- INVITEE_EMAILS: デモで招待するメールアドレス（複数可・カンマ区切り）
+- APPROVER_USER_IDS: デモ承認を許可する Slack user_id（複数可・カンマ区切り、未設定で全員許可）
 - GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REDIRECT_URI: Google OAuth のクライアント設定
 - GOOGLE_OAUTH_SCOPES: OAuth スコープ（既定 `https://www.googleapis.com/auth/calendar.events`）
 - GOOGLE_OAUTH_TOKEN_SECRET: OAuth トークン暗号化キー

@@ -2,10 +2,11 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-test('app shell removes demo/global CTA noise', async () => {
+test('app shell keeps demo button while removing legacy CTA noise', async () => {
   const appPath = path.resolve(process.cwd(), 'frontend/src/app/app.ts');
   const source = fs.readFileSync(appPath, 'utf8');
 
+  expect(source).toContain('デモ');
   expect(source).not.toContain('Debug & Demo');
   expect(source).not.toContain('緊急介入 (Alert)');
   expect(source).not.toContain('AI自動編成 (手動)');

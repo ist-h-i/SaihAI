@@ -319,6 +319,12 @@ export interface ApprovalDecisionResponse {
   action_id: number;
 }
 
+export interface DemoStartResponse {
+  alertId: string;
+  status: string;
+  slack?: SlackMeta | null;
+}
+
 export interface HistoryEvent {
   event_type: string;
   actor?: string | null;

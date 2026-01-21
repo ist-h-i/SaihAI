@@ -113,26 +113,43 @@ def fetch_google_user_info(access_token: str) -> dict[str, Any]:
 
 
 def create_google_calendar_event(access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    calendar_id = _resolve_calendar_id(payload)
+    payload = dict(payload)
+    payload.pop("calendar_id", None)
+    payload.pop("calendarId", None)
     meeting_url = str(payload.get("meeting_url") or payload.get("meetingUrl") or "").strip() or None
     include_conference = not meeting_url
     event = _build_event_payload(payload, include_conference=include_conference)
     try:
-        return _insert_event(access_token, event, include_conference=include_conference)
+        return _insert_event(access_token, event, include_conference=include_conference, calendar_id=calendar_id)
     except GoogleCalendarError as exc:
         if not include_conference:
             raise
         logger.warning("Meet generation failed; retrying without conference data: %s", exc)
         event = _build_event_payload(payload, include_conference=False)
-        return _insert_event(access_token, event, include_conference=False)
+        return _insert_event(access_token, event, include_conference=False, calendar_id=calendar_id)
 
 
-def _insert_event(access_token: str, event: dict[str, Any], *, include_conference: bool) -> dict[str, Any]:
+def _insert_event(
+    access_token: str,
+    event: dict[str, Any],
+    *,
+    include_conference: bool,
+    calendar_id: str,
+) -> dict[str, Any]:
     params = {"sendUpdates": "all"}
     if include_conference:
         params["conferenceDataVersion"] = "1"
-    url = f"{GOOGLE_CALENDAR_API_BASE}/calendars/primary/events?{urllib.parse.urlencode(params)}"
+    encoded_calendar_id = urllib.parse.quote(calendar_id, safe="")
+    url = f"{GOOGLE_CALENDAR_API_BASE}/calendars/{encoded_calendar_id}/events?{urllib.parse.urlencode(params)}"
     headers = {"Authorization": f"Bearer {access_token}"}
     return _request_json(url, data=event, headers=headers, method="POST")
+
+
+def _resolve_calendar_id(payload: dict[str, Any]) -> str:
+    raw = payload.get("calendar_id") or payload.get("calendarId") or os.getenv("CALENDAR_ID") or "primary"
+    value = str(raw or "").strip()
+    return value or "primary"
 
 
 def _build_event_payload(payload: dict[str, Any], *, include_conference: bool) -> dict[str, Any]:

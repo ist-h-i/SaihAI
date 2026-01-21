@@ -16,6 +16,7 @@
 ## 2. 必要スコープ（Bot Token Scopes）
 
 - `chat:write`（通知送信）
+- `views:write`（モーダルで介入指示を受け取る場合）
 - `channels:read` / `groups:read` / `im:read` / `mpim:read`（投稿先の解決）
 - `chat:write.public`（必要なら公開チャンネル投稿）
 
@@ -24,15 +25,15 @@
 - Interactivity: `POST /slack/interactions`
 - Events: `POST /slack/events`
 
-## 4. Events 設定
+## 4. Events 設定（必要な場合のみ）
 
-- Subscribe to bot events:
+- HITL の Steer をスレッド返信で受け取る場合は、以下を購読:
   - `message.channels`
   - `message.groups`
   - `message.im`
   - `message.mpim`
 
-※ スレッド返信で介入（Steer）を受信するため、`message.*` を購読する。
+※ デモ機能は「介入ボタン → モーダル入力」で完結するため、Events の購読は必須ではない。
 
 ## 5. 署名検証
 
@@ -56,6 +57,12 @@ SLACK_ALLOW_UNSIGNED=false
 - セクション: 要約 / ドラフト本文（根回し文）
 - アクション: Approve / Reject / Request changes
 - コンテキスト: `thread_id` と `approval_request_id` を表示
+
+## 7.1 デモフロー（追加）
+
+- 初回投稿: Plan A/B/C と `✋ 介入` ボタンを提示
+- `✋ 介入` → モーダル入力（callback: `demo_intervention_modal`）
+- Plan/介入後: Approve / Reject / Cancel ボタンをスレッド内に投稿
 
 ## 8. 運用メモ
 

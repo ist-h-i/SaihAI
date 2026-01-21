@@ -7,6 +7,7 @@ import {
   ApprovalDecisionResponse,
   ApprovalRequestResponse,
   DashboardInitialResponse,
+  DemoStartResponse,
   HistoryEntry,
   Member,
   PlanChatRequest,
@@ -141,6 +142,10 @@ export class ApiClient {
     if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
     const suffix = query.toString();
     return this.http.get<HistoryEntry[]>(this.buildUrl(`/history${suffix ? `?${suffix}` : ''}`));
+  }
+
+  startDemo(): Observable<DemoStartResponse> {
+    return this.http.post<DemoStartResponse>(this.buildUrl('/demo/start'), {});
   }
 
   private buildUrl(path: string): string {
