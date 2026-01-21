@@ -10,3 +10,10 @@ test('progress stream caps entries to latest 2000 lines', async () => {
   expect(source).toContain('capStreamLines');
   expect(source).toContain('slice(-this.streamLineLimit)');
 });
+
+test('progress stream list is not fixed height', async () => {
+  const pagePath = path.resolve(process.cwd(), 'frontend/src/app/pages/simulator.page.ts');
+  const source = fs.readFileSync(pagePath, 'utf8');
+
+  expect(source).not.toContain('h-40 overflow-hidden');
+});

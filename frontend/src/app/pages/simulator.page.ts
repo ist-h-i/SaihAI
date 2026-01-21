@@ -78,9 +78,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           <div>
             <div class="ui-kicker">Progress Log</div>
             @if (store.planProgressLog().length) {
-              <ul
-                class="mt-2 space-y-1 text-xs text-slate-300 h-40 overflow-hidden flex flex-col justify-end leading-snug"
-              >
+              <ul class="mt-2 space-y-1 text-xs text-slate-300 flex flex-col leading-snug">
                 @for (entry of store.planProgressLog(); track $index) {
                   <li>{{ entry.message }}</li>
                 }
@@ -92,9 +90,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           <div>
             <div class="ui-kicker">Debate Stream</div>
             @if (store.planDiscussionLog().length) {
-              <ul
-                class="mt-2 space-y-2 text-xs h-40 overflow-hidden flex flex-col justify-end leading-snug"
-              >
+              <ul class="mt-2 space-y-2 text-xs flex flex-col leading-snug">
                 @for (entry of store.planDiscussionLog(); track $index) {
                   <li class="flex items-start gap-2">
                     <span
