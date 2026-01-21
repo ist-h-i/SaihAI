@@ -44,7 +44,7 @@ export class SimulatorStore {
 
   private readonly loaded = signal(false);
   private planStream: EventSource | null = null;
-  private readonly streamLineLimit = 100;
+  private readonly streamLineLimit = 2000;
 
   readonly selectedProject = computed(() => {
     const id = this.selectedProjectId();
