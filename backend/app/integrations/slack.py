@@ -12,10 +12,17 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "")
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
-SLACK_DEFAULT_CHANNEL = os.getenv("SLACK_DEFAULT_CHANNEL", "")
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "").strip()
+def _clean_env(name: str) -> str:
+    value = (os.getenv(name) or "").strip()
+    if not value or value.upper() == "CHANGE_ME":
+        return ""
+    return value
+
+
+SLACK_SIGNING_SECRET = _clean_env("SLACK_SIGNING_SECRET")
+SLACK_BOT_TOKEN = _clean_env("SLACK_BOT_TOKEN")
+SLACK_DEFAULT_CHANNEL = _clean_env("SLACK_DEFAULT_CHANNEL")
+SLACK_WEBHOOK_URL = _clean_env("SLACK_WEBHOOK_URL")
 SLACK_REQUEST_TTL_SECONDS = int(os.getenv("SLACK_REQUEST_TTL_SECONDS", "300"))
 SLACK_ALLOW_UNSIGNED = os.getenv("SLACK_ALLOW_UNSIGNED", "").lower() in {"1", "true", "yes"}
 

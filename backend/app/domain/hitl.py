@@ -3,14 +3,26 @@
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from app.domain.external_actions import ExternalActionError, execute_external_action
+from app.domain.external_actions import (
+    ACTION_TYPE_CALENDAR,
+    CALENDAR_PROVIDER,
+    DEFAULT_CALENDAR_ATTENDEE,
+    DEFAULT_CALENDAR_OWNER_EMAIL,
+    DEFAULT_CALENDAR_TIMEZONE,
+    CalendarPayload,
+    ExternalActionError,
+    _create_calendar_event,
+    _extract_payload_from_draft,
+    execute_external_action,
+)
 from app.integrations.slack import SlackMeta, post_thread_message, send_approval_message
 
 
@@ -168,6 +180,8 @@ def request_approval(
             "message_ts": slack_meta.message_ts,
             "thread_ts": slack_meta.thread_ts,
         }
+
+    metadata = _apply_tentative_calendar_hold(conn, action_id, action, metadata)
 
     _upsert_checkpoint(conn, thread_id, state, metadata)
 
@@ -740,3 +754,117 @@ def _notify_execution_result(
     else:
         text = f"Execution failed. job_id={job_id} action_id={action_id} error={error_message}"
     post_thread_message(channel=slack.channel, thread_ts=thread_ts, text=text)
+
+
+def _resolve_timezone_name(raw: Any) -> str:
+    value = str(raw or "").strip()
+    if not value:
+        return DEFAULT_CALENDAR_TIMEZONE
+    try:
+        ZoneInfo(value)
+    except Exception:
+        return DEFAULT_CALENDAR_TIMEZONE
+    return value
+
+
+def _build_tentative_calendar_payload(
+    action_id: int,
+    draft_content: str | None,
+) -> tuple[CalendarPayload, dict[str, Any]]:
+    payload = _extract_payload_from_draft(draft_content)
+    timezone_name = _resolve_timezone_name(payload.get("timezone"))
+    tz = ZoneInfo(timezone_name)
+    next_day = (datetime.now(tz).date() + timedelta(days=1))
+    start_dt = datetime(
+        next_day.year,
+        next_day.month,
+        next_day.day,
+        18,
+        0,
+        tzinfo=tz,
+    )
+    end_dt = start_dt + timedelta(hours=1)
+
+    title = str(payload.get("title") or f"Approval hold {action_id}")
+    if "tentative" not in title.lower():
+        title = f"Tentative: {title}"
+
+    description = str(payload.get("description") or "").strip()
+    note = "Tentative hold created at approval request."
+    if note not in description:
+        description = f"{description}\n\n{note}".strip()
+
+    meeting_url = payload.get("meeting_url") or payload.get("meetingUrl")
+    owner_email = payload.get("owner_email") or payload.get("ownerEmail") or DEFAULT_CALENDAR_OWNER_EMAIL
+    owner_user_id = payload.get("owner_user_id") or payload.get("ownerUserId")
+    attendee = payload.get("attendee") or DEFAULT_CALENDAR_ATTENDEE
+
+    calendar_payload = CalendarPayload(
+        attendee=str(attendee),
+        title=title,
+        start_at=start_dt.isoformat(),
+        end_at=end_dt.isoformat(),
+        timezone=timezone_name,
+        description=description or None,
+        meeting_url=str(meeting_url).strip() if meeting_url else None,
+        owner_email=str(owner_email).strip() if owner_email else None,
+        owner_user_id=str(owner_user_id).strip() if owner_user_id else None,
+    )
+    hold_meta = {
+        "start_at": calendar_payload.start_at,
+        "end_at": calendar_payload.end_at,
+        "timezone": calendar_payload.timezone,
+        "title": calendar_payload.title,
+        "attendee": calendar_payload.attendee,
+    }
+    return calendar_payload, hold_meta
+
+
+def _apply_tentative_calendar_hold(
+    conn: Connection,
+    action_id: int,
+    action: dict[str, Any],
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    if action.get("action_type") != ACTION_TYPE_CALENDAR:
+        return metadata
+
+    existing = metadata.get("tentative_calendar")
+    if isinstance(existing, dict) and existing.get("status") == "created":
+        return metadata
+
+    calendar_payload, hold_meta = _build_tentative_calendar_payload(
+        action_id=action_id,
+        draft_content=action.get("draft_content"),
+    )
+    hold_meta.update(
+        {
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "provider": CALENDAR_PROVIDER,
+        }
+    )
+
+    try:
+        response = _create_calendar_event(conn, calendar_payload)
+    except Exception as exc:
+        hold_meta.update({"status": "failed", "error": str(exc)})
+        metadata["tentative_calendar"] = hold_meta
+        logger.warning(
+            "tentative calendar hold failed thread_id=%s action_id=%s error=%s",
+            f"action-{action_id}",
+            action_id,
+            exc,
+        )
+        return metadata
+
+    if isinstance(response, dict):
+        event_id = response.get("id") or response.get("event_id")
+        if event_id:
+            hold_meta["event_id"] = str(event_id)
+        if response.get("htmlLink"):
+            hold_meta["html_link"] = response.get("htmlLink")
+
+    hold_meta["status"] = "created"
+    metadata["tentative_calendar"] = hold_meta
+    return metadata
