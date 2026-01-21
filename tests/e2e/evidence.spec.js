@@ -15,14 +15,20 @@ const resolveUrl = (value) => {
   return new URL(value, baseUrl).toString();
 };
 
-// NOTE: This environment does not permit Chromium sandboxing, causing launch failures.
-// To keep CI green, we skip UI evidence here. Re-enable in CI runners that support browsers.
-test.describe.skip('UI Evidence (skipped in sandbox)', () => {
+const runUiEvidence = process.env.PW_UI_EVIDENCE === '1';
+
+test.describe('UI Evidence', () => {
+  // NOTE: This environment may not permit Chromium sandboxing and can crash the browser process.
+  // Enable explicitly when running on a runner that supports Playwright browsers.
+  test.skip(!runUiEvidence, 'Set PW_UI_EVIDENCE=1 to enable UI evidence runs');
   for (const scenario of scenarios) {
     test(`${scenario.name}`, async ({ page }, testInfo) => {
       if (scenario.inlineHtml) {
         await page.setContent(String(scenario.inlineHtml), { waitUntil: 'domcontentloaded' });
       } else if (scenario.url) {
+        if (!isAbsoluteUrl(String(scenario.url)) && !baseUrl) {
+          test.skip(true, 'Scenario url requires E2E_BASE_URL or PLAYWRIGHT_BASE_URL');
+        }
         await page.goto(resolveUrl(String(scenario.url)), { waitUntil: 'domcontentloaded' });
       } else {
         throw new Error('Scenario requires either url or inlineHtml');

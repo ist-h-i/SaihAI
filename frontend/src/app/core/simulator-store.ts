@@ -14,6 +14,8 @@ import {
   Project,
   SimulationPlan,
   SimulationResult,
+  TeamSuggestion,
+  TeamSuggestionsResponse,
 } from './types';
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +33,7 @@ export class SimulatorStore {
   readonly currentTeamLoading = signal(false);
   readonly currentTeamError = signal<string | null>(null);
   readonly simulationResult = signal<SimulationResult | null>(null);
+  readonly teamSuggestionsResponse = signal<TeamSuggestionsResponse | null>(null);
   readonly planProgress = signal<PlanStreamProgress | null>(null);
   readonly planProgressLog = signal<PlanStreamProgress[]>([]);
   readonly planDiscussionLog = signal<PlanStreamLog[]>([]);
@@ -50,6 +53,10 @@ export class SimulatorStore {
   readonly selectedMembers = computed(() => {
     const wanted = new Set(this.selectedMemberIds());
     return this.members().filter((m) => wanted.has(m.id));
+  });
+
+  readonly teamSuggestions = computed<TeamSuggestion[]>(() => {
+    return this.teamSuggestionsResponse()?.suggestions ?? [];
   });
 
   constructor(api: ApiClient, config: AppConfigService, tokenStore: AuthTokenStore) {
@@ -91,6 +98,7 @@ export class SimulatorStore {
     this.selectedProjectId.set(projectId);
     this.selectedMemberIds.set([]);
     this.simulationResult.set(null);
+    this.teamSuggestionsResponse.set(null);
     this.resetProgress();
     void this.loadProjectTeam(projectId);
   }
@@ -101,11 +109,13 @@ export class SimulatorStore {
       ? current.filter((id) => id !== memberId)
       : [...current, memberId];
     this.selectedMemberIds.set(next);
+    this.teamSuggestionsResponse.set(null);
   }
 
   setSelectedMembers(memberIds: string[]): void {
     const unique = Array.from(new Set(memberIds));
     this.selectedMemberIds.set(unique);
+    this.teamSuggestionsResponse.set(null);
   }
 
   focusMember(memberId: string): void {
@@ -117,6 +127,7 @@ export class SimulatorStore {
   clearSelection(): void {
     this.selectedMemberIds.set([]);
     this.simulationResult.set(null);
+    this.teamSuggestionsResponse.set(null);
     this.resetProgress();
   }
 
@@ -128,13 +139,61 @@ export class SimulatorStore {
     }
     const memberIds = this.selectedMemberIds();
     if (!memberIds.length) {
-      this.error.set('メンバーを1人以上選択してください');
+      await this.loadTeamSuggestions(projectId);
+      return;
+    }
+
+    await this.runSimulationWithMembers(projectId, memberIds);
+  }
+
+  async applyTeamSuggestion(suggestion: TeamSuggestion): Promise<void> {
+    const projectId = this.selectedProjectId();
+    if (!projectId) {
+      this.error.set('案件を選択してください');
+      return;
+    }
+    if (!suggestion.applyable || !suggestion.memberIds.length) {
+      this.error.set('この案は適用できません');
       return;
     }
 
     this.loading.set(true);
     this.error.set(null);
+    this.simulationResult.set(null);
     this.resetProgress();
+    try {
+      await firstValueFrom(
+        this.api.applyTeamSuggestion({
+          projectId,
+          memberIds: suggestion.memberIds,
+          minAvailability: this.teamSuggestionsResponse()?.minAvailability,
+        })
+      );
+      this.setSelectedMembers(suggestion.memberIds);
+      this.teamSuggestionsResponse.set(null);
+      await this.runSimulationWithMembers(projectId, suggestion.memberIds, { keepLoading: true });
+      return;
+    } catch (e) {
+      if (!(e instanceof HttpErrorResponse)) {
+        this.error.set(e instanceof Error ? e.message : 'failed to apply suggestion');
+      }
+    } finally {
+      this.streaming.set(false);
+      this.loading.set(false);
+    }
+  }
+
+  private async runSimulationWithMembers(
+    projectId: string,
+    memberIds: string[],
+    options?: { keepLoading?: boolean }
+  ): Promise<void> {
+    if (!options?.keepLoading) {
+      this.loading.set(true);
+      this.error.set(null);
+      this.simulationResult.set(null);
+      this.resetProgress();
+    }
     try {
       const evaluation = await firstValueFrom(this.api.evaluateSimulation({ projectId, memberIds }));
       const plans = await this.streamPlans(evaluation.id);
@@ -146,7 +205,9 @@ export class SimulatorStore {
       }
     } finally {
       this.streaming.set(false);
-      this.loading.set(false);
+      if (!options?.keepLoading) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -163,6 +224,27 @@ export class SimulatorStore {
     this.planProgressLog.set([]);
     this.planDiscussionLog.set([]);
     this.streaming.set(false);
+  }
+
+  private async loadTeamSuggestions(projectId: string): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    this.simulationResult.set(null);
+    this.teamSuggestionsResponse.set(null);
+    this.resetProgress();
+    try {
+      const response = await firstValueFrom(this.api.getTeamSuggestions({ projectId }));
+      this.teamSuggestionsResponse.set(response);
+      if (!response.suggestions?.length) {
+        this.error.set('候補プールから編成案を作れませんでした');
+      }
+    } catch (e) {
+      if (!(e instanceof HttpErrorResponse)) {
+        this.error.set(e instanceof Error ? e.message : 'failed to suggest team');
+      }
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async loadProjectTeam(projectId: string): Promise<void> {

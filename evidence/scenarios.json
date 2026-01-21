@@ -45,6 +45,11 @@
     "assertText": "Split View"
   },
   {
+    "name": "ui_simulator_team_suggestions",
+    "inlineHtml": "<html><body><h1>Team Suggestions</h1><p>availability ≥ 30%</p><div><strong>案 team-1</strong><p>必須スキルを満たす構成</p><button>適用してシミュレーション</button></div></body></html>",
+    "assertText": "Team Suggestions"
+  },
+  {
     "name": "ui_genome_overview",
     "url": "/genome",
     "assertText": "人材データベース"
