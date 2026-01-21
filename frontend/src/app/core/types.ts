@@ -172,6 +172,34 @@ export interface SimulationResult extends SimulationEvaluation {
   plans: SimulationPlan[];
 }
 
+export interface SavedPlanSummary {
+  id: string;
+  simulationId: string;
+  title: string;
+  projectId?: string | null;
+  projectName?: string | null;
+  recommendedPlan?: string | null;
+  selectedPlan?: 'A' | 'B' | 'C' | null;
+  contentText?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface SavedPlanDetail extends SavedPlanSummary {
+  content: SimulationResult;
+}
+
+export interface SavedPlanCreateRequest {
+  content: SimulationResult;
+  title?: string;
+  selectedPlan?: 'A' | 'B' | 'C' | null;
+}
+
+export interface SavedPlanUpdateRequest {
+  title?: string;
+  selectedPlan?: 'A' | 'B' | 'C' | null;
+}
+
 export type AiDebateIntensity = 'Low' | 'Mid' | 'High';
 export type AiDecision = '採用' | '不採用' | '条件付';
 export type AiDebateSpeaker = 'PM' | 'HR' | 'Risk' | 'Gunshi';

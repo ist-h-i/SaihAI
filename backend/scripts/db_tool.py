@@ -149,6 +149,7 @@ def _wipe_tables(conn) -> None:
         "project_health_snapshots",
         "user_motivation_history",
         "autonomous_actions",
+        "saved_plans",
         "ai_strategy_proposals",
         "ai_analysis_results",
         "assignment_patterns",

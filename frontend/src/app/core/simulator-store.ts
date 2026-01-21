@@ -12,6 +12,9 @@ import {
   PlanStreamProgress,
   ProjectTeamMember,
   Project,
+  SavedPlanDetail,
+  SavedPlanSummary,
+  SavedPlanUpdateRequest,
   SimulationPlan,
   SimulationResult,
   TeamSuggestion,
@@ -38,6 +41,10 @@ export class SimulatorStore {
   readonly planProgressLog = signal<PlanStreamProgress[]>([]);
   readonly planDiscussionLog = signal<PlanStreamLog[]>([]);
   readonly streaming = signal(false);
+
+  readonly savedPlans = signal<SavedPlanSummary[]>([]);
+  readonly savedPlansLoading = signal(false);
+  readonly savedPlansError = signal<string | null>(null);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -226,6 +233,40 @@ export class SimulatorStore {
     this.streaming.set(false);
   }
 
+  resetPlanProgress(): void {
+    this.resetProgress();
+  }
+
+  async loadSavedPlans(): Promise<void> {
+    this.savedPlansLoading.set(true);
+    this.savedPlansError.set(null);
+    try {
+      const plans = await firstValueFrom(this.api.getSavedPlans());
+      this.savedPlans.set(this.sortSavedPlans(plans ?? []));
+    } catch (e) {
+      if (!(e instanceof HttpErrorResponse)) {
+        this.savedPlansError.set(e instanceof Error ? e.message : 'failed to load saved plans');
+      }
+    } finally {
+      this.savedPlansLoading.set(false);
+    }
+  }
+
+  async fetchSavedPlan(planId: string): Promise<SavedPlanDetail> {
+    return firstValueFrom(this.api.getSavedPlan(planId));
+  }
+
+  async updateSavedPlan(planId: string, req: SavedPlanUpdateRequest): Promise<SavedPlanDetail> {
+    const detail = await firstValueFrom(this.api.updateSavedPlan(planId, req));
+    this.upsertSavedPlan(detail);
+    return detail;
+  }
+
+  async deleteSavedPlan(planId: string): Promise<void> {
+    await firstValueFrom(this.api.deleteSavedPlan(planId));
+    this.savedPlans.update((curr) => curr.filter((plan) => plan.id !== planId));
+  }
+
   private async loadTeamSuggestions(projectId: string): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
@@ -345,5 +386,33 @@ export class SimulatorStore {
       url.searchParams.set('token', token);
     }
     return url.toString();
+  }
+
+  private upsertSavedPlan(detail: SavedPlanDetail): void {
+    const summary: SavedPlanSummary = {
+      id: detail.id,
+      simulationId: detail.simulationId,
+      title: detail.title,
+      projectId: detail.projectId ?? null,
+      projectName: detail.projectName ?? null,
+      recommendedPlan: detail.recommendedPlan ?? null,
+      selectedPlan: detail.selectedPlan ?? null,
+      contentText: detail.contentText ?? null,
+      createdAt: detail.createdAt ?? null,
+      updatedAt: detail.updatedAt ?? null,
+    };
+    this.savedPlans.update((curr) => this.sortSavedPlans([summary, ...curr.filter((p) => p.id !== summary.id)]));
+  }
+
+  private sortSavedPlans(plans: SavedPlanSummary[]): SavedPlanSummary[] {
+    return [...plans].sort((a, b) => this.planTimestamp(b) - this.planTimestamp(a));
+  }
+
+  private planTimestamp(plan: SavedPlanSummary): number {
+    const raw = plan.updatedAt ?? plan.createdAt ?? '';
+    if (!raw) return 0;
+    const date = new Date(raw);
+    const time = date.getTime();
+    return Number.isNaN(time) ? 0 : time;
   }
 }

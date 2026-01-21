@@ -13,6 +13,10 @@ import {
   PlanChatResponse,
   ProjectTeamResponse,
   Project,
+  SavedPlanCreateRequest,
+  SavedPlanDetail,
+  SavedPlanSummary,
+  SavedPlanUpdateRequest,
   SimulationEvaluation,
   SimulationPlan,
   SimulationRequest,
@@ -77,6 +81,31 @@ export class ApiClient {
     return this.http.post<PlanChatResponse>(
       this.buildUrl(`/simulations/${simulationId}/plans/${planType}/chat`),
       req
+    );
+  }
+
+  getSavedPlans(): Observable<SavedPlanSummary[]> {
+    return this.http.get<SavedPlanSummary[]>(this.buildUrl('/plans'));
+  }
+
+  getSavedPlan(planId: string): Observable<SavedPlanDetail> {
+    return this.http.get<SavedPlanDetail>(this.buildUrl(`/plans/${encodeURIComponent(planId)}`));
+  }
+
+  createSavedPlan(req: SavedPlanCreateRequest): Observable<SavedPlanDetail> {
+    return this.http.post<SavedPlanDetail>(this.buildUrl('/plans'), req);
+  }
+
+  updateSavedPlan(planId: string, req: SavedPlanUpdateRequest): Observable<SavedPlanDetail> {
+    return this.http.patch<SavedPlanDetail>(
+      this.buildUrl(`/plans/${encodeURIComponent(planId)}`),
+      req
+    );
+  }
+
+  deleteSavedPlan(planId: string): Observable<{ status: string }> {
+    return this.http.delete<{ status: string }>(
+      this.buildUrl(`/plans/${encodeURIComponent(planId)}`)
     );
   }
 

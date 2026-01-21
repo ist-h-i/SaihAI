@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -262,6 +263,34 @@ class PlanChatRequest(BaseModel):
 class PlanChatResponse(BaseModel):
     plan: SimulationPlan
     message: str
+
+
+class SavedPlanCreateRequest(BaseModel):
+    content: dict[str, Any]
+    title: str | None = None
+    selectedPlan: str | None = None
+
+
+class SavedPlanUpdateRequest(BaseModel):
+    title: str | None = None
+    selectedPlan: str | None = None
+
+
+class SavedPlanSummary(BaseModel):
+    id: str
+    simulationId: str
+    title: str
+    projectId: str | None = None
+    projectName: str | None = None
+    recommendedPlan: str | None = None
+    selectedPlan: str | None = None
+    contentText: str | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
+
+
+class SavedPlanDetail(SavedPlanSummary):
+    content: dict[str, Any]
 
 
 class DashboardKpi(BaseModel):
@@ -856,29 +885,46 @@ def apply_team_suggestion(req: TeamSuggestionApplyRequest, conn: Connection = De
 @router.post(
     "/simulations/{simulation_id}/plans/generate",
     response_model=list[SimulationPlan],
-    dependencies=[Depends(get_current_user)],
 )
-def generate_plans(simulation_id: str) -> list[dict]:
+def generate_plans(
+    simulation_id: str,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> list[dict]:
     simulation = _simulations.get(simulation_id)
     if not simulation:
         raise HTTPException(status_code=404, detail="simulation not found")
 
     try:
         plans, _logs = _build_plans_with_bedrock(simulation_id, simulation)
+        try:
+            _persist_saved_plan_content(conn, user.user_id, simulation_id, simulation, plans)
+        except Exception:
+            logger.info("saved plan persistence failed simulation_id=%s", simulation_id)
         return plans
     except BedrockError:
         logger.exception("Bedrock plan generation failed, falling back simulation_id=%s", simulation_id)
 
     risk_score = int(simulation.get("riskScore", 0))
-    return _build_plans_fallback(simulation_id, risk_score)
+    plans = _build_plans_fallback(simulation_id, risk_score)
+    try:
+        _persist_saved_plan_content(conn, user.user_id, simulation_id, simulation, plans)
+    except Exception:
+        logger.info("saved plan persistence failed simulation_id=%s", simulation_id)
+    return plans
 
 
 @router.post(
     "/simulations/{simulation_id}/plans/{plan_type}/chat",
     response_model=PlanChatResponse,
-    dependencies=[Depends(get_current_user)],
 )
-def chat_plan(simulation_id: str, plan_type: str, req: PlanChatRequest) -> PlanChatResponse:
+def chat_plan(
+    simulation_id: str,
+    plan_type: str,
+    req: PlanChatRequest,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> PlanChatResponse:
     simulation = _simulations.get(simulation_id)
     if not simulation:
         raise HTTPException(status_code=404, detail="simulation not found")
@@ -935,6 +981,11 @@ def chat_plan(simulation_id: str, plan_type: str, req: PlanChatRequest) -> PlanC
         plan["score"] = update.score
         _plans[plan_id] = plan
         assistant_message = update.assistant_message
+        try:
+            content = _build_simulation_content(simulation, _collect_simulation_plans(simulation_id))
+            _update_saved_plan_content(conn, user.user_id, simulation_id, content)
+        except Exception:
+            logger.info("saved plan update failed simulation_id=%s", simulation_id)
     except BedrockError:
         logger.exception("Bedrock plan chat failed simulation_id=%s plan_type=%s", simulation_id, normalized)
         assistant_message = "AI サービスへの接続に失敗しました。もう一度お試しください。（プランは変更していません）"
@@ -950,6 +1001,7 @@ def chat_plan(simulation_id: str, plan_type: str, req: PlanChatRequest) -> PlanC
 async def stream_plans(
     simulation_id: str,
     user: AuthUser = Depends(get_current_user_or_token),
+    conn: Connection = Depends(get_db),
 ) -> StreamingResponse:
     simulation = _simulations.get(simulation_id)
     if not simulation:
@@ -994,10 +1046,132 @@ async def stream_plans(
                 },
             )
             plans = _build_plans_fallback(simulation_id, risk_score)
+        try:
+            _persist_saved_plan_content(conn, user.user_id, simulation_id, simulation, plans)
+        except Exception:
+            logger.info("saved plan persistence failed simulation_id=%s", simulation_id)
         yield _sse_event("complete", {"plans": plans})
 
     headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     return StreamingResponse(event_stream(), headers=headers, media_type="text/event-stream")
+
+
+@router.get("/plans", response_model=list[SavedPlanSummary])
+def list_saved_plans(
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> list[dict]:
+    rows = conn.execute(
+        text(
+            """
+            SELECT plan_id, simulation_id, title, content_json, content_text, selected_plan, created_at, updated_at
+            FROM saved_plans
+            WHERE user_id = :user_id
+            ORDER BY updated_at DESC, created_at DESC
+            """
+        ),
+        {"user_id": user.user_id},
+    ).mappings().all()
+    return [_saved_plan_summary_from_row(row) for row in rows]
+
+
+@router.get("/plans/{plan_id}", response_model=SavedPlanDetail)
+def get_saved_plan(
+    plan_id: str,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> dict:
+    row = _fetch_saved_plan_row(conn, user.user_id, plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="plan not found")
+    content = _load_json(row.get("content_json"))
+    _rehydrate_simulation_cache(content)
+    return _saved_plan_detail_from_row(row, content)
+
+
+@router.post("/plans", response_model=SavedPlanDetail)
+def create_saved_plan(
+    req: SavedPlanCreateRequest,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> dict:
+    if not isinstance(req.content, dict):
+        raise HTTPException(status_code=400, detail="invalid plan content")
+    simulation_id = str(req.content.get("id") or "").strip()
+    if not simulation_id:
+        raise HTTPException(status_code=400, detail="missing simulation id")
+    detail = _persist_saved_plan_payload(
+        conn,
+        user.user_id,
+        simulation_id,
+        req.content,
+        title=req.title,
+        selected_plan=req.selectedPlan,
+    )
+    return detail
+
+
+@router.patch("/plans/{plan_id}", response_model=SavedPlanDetail)
+def update_saved_plan(
+    plan_id: str,
+    req: SavedPlanUpdateRequest,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> dict:
+    updates: list[str] = []
+    payload: dict[str, Any] = {"plan_id": plan_id, "user_id": user.user_id}
+
+    if req.title is not None:
+        title = req.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="title is required")
+        payload["title"] = _truncate_text(title, 180)
+        updates.append("title = :title")
+
+    if req.selectedPlan is not None:
+        normalized = _normalize_plan_type(req.selectedPlan)
+        if not normalized:
+            raise HTTPException(status_code=400, detail="invalid selectedPlan")
+        payload["selected_plan"] = normalized
+        updates.append("selected_plan = :selected_plan")
+
+    if not updates:
+        row = _fetch_saved_plan_row(conn, user.user_id, plan_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="plan not found")
+        content = _load_json(row.get("content_json"))
+        return _saved_plan_detail_from_row(row, content)
+
+    payload["updated_at"] = datetime.now(timezone.utc)
+    updates.append("updated_at = :updated_at")
+    stmt = f\"\"\"
+        UPDATE saved_plans
+        SET {', '.join(updates)}
+        WHERE plan_id = :plan_id AND user_id = :user_id
+    \"\"\"
+    conn.execute(text(stmt), payload)
+
+    row = _fetch_saved_plan_row(conn, user.user_id, plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="plan not found")
+    content = _load_json(row.get("content_json"))
+    return _saved_plan_detail_from_row(row, content)
+
+
+@router.delete("/plans/{plan_id}")
+def delete_saved_plan(
+    plan_id: str,
+    user: AuthUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+) -> dict:
+    row = _fetch_saved_plan_row(conn, user.user_id, plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="plan not found")
+    conn.execute(
+        text("DELETE FROM saved_plans WHERE plan_id = :plan_id AND user_id = :user_id"),
+        {"plan_id": plan_id, "user_id": user.user_id},
+    )
+    return {"status": "deleted"}
 
 
 @router.post(
@@ -1248,6 +1422,287 @@ def list_history_api(
     conn: Connection = Depends(get_db),
 ) -> list[dict]:
     return fetch_history(conn, status=status, project_id=project_id, limit=limit)
+
+
+def _format_timestamp(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+def _truncate_text(value: str, limit: int) -> str:
+    trimmed = value.strip()
+    if len(trimmed) <= limit:
+        return trimmed
+    return trimmed[:limit].rstrip()
+
+
+def _load_json(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _normalize_plan_type(value: str | None) -> str | None:
+    if not value:
+        return None
+    trimmed = value.strip().upper()
+    if trimmed.startswith("PLAN_"):
+        trimmed = trimmed.replace("PLAN_", "")
+    if trimmed.startswith("PLAN "):
+        trimmed = trimmed.replace("PLAN ", "")
+    if trimmed in {"A", "B", "C"}:
+        return trimmed
+    return None
+
+
+def _resolve_recommended_plan_type(content: dict[str, Any]) -> str | None:
+    agents = content.get("agents") if isinstance(content, dict) else None
+    if isinstance(agents, dict):
+        gunshi = agents.get("gunshi")
+        if isinstance(gunshi, dict):
+            recommended = _normalize_plan_type(str(gunshi.get("recommend") or ""))
+            if recommended:
+                return recommended
+    plans = content.get("plans") if isinstance(content, dict) else None
+    if isinstance(plans, list):
+        for plan in plans:
+            if not isinstance(plan, dict):
+                continue
+            if plan.get("recommended") is True:
+                plan_type = _normalize_plan_type(str(plan.get("planType") or ""))
+                if plan_type:
+                    return plan_type
+    return None
+
+
+def _resolve_plan_summary(content: dict[str, Any], plan_type: str | None) -> str:
+    if not plan_type:
+        return ""
+    plans = content.get("plans") if isinstance(content, dict) else None
+    if not isinstance(plans, list):
+        return ""
+    for plan in plans:
+        if not isinstance(plan, dict):
+            continue
+        current_type = _normalize_plan_type(str(plan.get("planType") or ""))
+        if current_type == plan_type:
+            summary = str(plan.get("summary") or "").strip()
+            if summary:
+                return summary
+    return ""
+
+
+def _build_plan_content_text(content: dict[str, Any]) -> str:
+    project = content.get("project") if isinstance(content, dict) else {}
+    if not isinstance(project, dict):
+        project = {}
+    project_name = str(project.get("name") or "").strip()
+    plan_type = _resolve_recommended_plan_type(content)
+    summary = _resolve_plan_summary(content, plan_type)
+    pattern = str(content.get("pattern") or "").strip()
+    parts = []
+    if project_name:
+        parts.append(project_name)
+    if plan_type:
+        parts.append(f"Plan {plan_type}")
+    if summary:
+        parts.append(summary)
+    if pattern:
+        parts.append(f"pattern={pattern}")
+    return _truncate_text(" / ".join(parts), 400) if parts else ""
+
+
+def _build_plan_title(content: dict[str, Any]) -> str:
+    base = _build_plan_content_text(content)
+    if base:
+        return _truncate_text(base, 180)
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    return f"Plan {timestamp}"
+
+
+def _normalize_plan_content(content: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(content) if isinstance(content, dict) else {}
+    if "version" not in normalized:
+        normalized["version"] = 1
+    return normalized
+
+
+def _collect_simulation_plans(simulation_id: str) -> list[dict]:
+    plans = [plan for plan in _plans.values() if plan.get("simulationId") == simulation_id]
+    order = {"A": 0, "B": 1, "C": 2}
+    return sorted(
+        plans,
+        key=lambda plan: order.get(_normalize_plan_type(str(plan.get("planType") or "")) or "Z", 99),
+    )
+
+
+def _build_simulation_content(simulation: dict, plans: list[dict]) -> dict[str, Any]:
+    evaluation = simulation.get("evaluation")
+    if not isinstance(evaluation, dict):
+        evaluation = {}
+    result = dict(evaluation)
+    result["plans"] = plans
+    return _normalize_plan_content(result)
+
+
+def _fetch_saved_plan_row(conn: Connection, user_id: str, plan_id: str) -> dict[str, Any] | None:
+    return conn.execute(
+        text(
+            """
+            SELECT plan_id, simulation_id, title, content_json, content_text, selected_plan, created_at, updated_at
+            FROM saved_plans
+            WHERE plan_id = :plan_id AND user_id = :user_id
+            """
+        ),
+        {"plan_id": plan_id, "user_id": user_id},
+    ).mappings().first()
+
+
+def _saved_plan_summary_from_row(row: dict[str, Any], content: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = content if content is not None else _load_json(row.get("content_json"))
+    project = payload.get("project") if isinstance(payload, dict) else {}
+    if not isinstance(project, dict):
+        project = {}
+    return {
+        "id": row.get("plan_id"),
+        "simulationId": row.get("simulation_id") or str(payload.get("id") or ""),
+        "title": row.get("title"),
+        "projectId": project.get("id"),
+        "projectName": project.get("name"),
+        "recommendedPlan": _resolve_recommended_plan_type(payload),
+        "selectedPlan": _normalize_plan_type(str(row.get("selected_plan") or "")),
+        "contentText": row.get("content_text") or _build_plan_content_text(payload),
+        "createdAt": _format_timestamp(row.get("created_at")),
+        "updatedAt": _format_timestamp(row.get("updated_at")),
+    }
+
+
+def _saved_plan_detail_from_row(row: dict[str, Any], content: dict[str, Any]) -> dict[str, Any]:
+    detail = _saved_plan_summary_from_row(row, content)
+    detail["content"] = content
+    return detail
+
+
+def _persist_saved_plan_payload(
+    conn: Connection,
+    user_id: str,
+    simulation_id: str,
+    content: dict[str, Any],
+    *,
+    title: str | None = None,
+    selected_plan: str | None = None,
+) -> dict[str, Any]:
+    normalized = _normalize_plan_content(content)
+    plan_id = f"plan-{simulation_id}"
+    resolved_title = title.strip() if isinstance(title, str) else ""
+    if not resolved_title:
+        resolved_title = _build_plan_title(normalized)
+    resolved_title = _truncate_text(resolved_title, 180)
+    resolved_selected = _normalize_plan_type(selected_plan) or _resolve_recommended_plan_type(normalized)
+    content_text = _build_plan_content_text(normalized)
+    now = datetime.now(timezone.utc)
+    conn.execute(
+        text(
+            """
+            INSERT INTO saved_plans
+              (plan_id, user_id, simulation_id, title, content_json, content_text, selected_plan, created_at, updated_at)
+            VALUES
+              (:plan_id, :user_id, :simulation_id, :title, :content_json, :content_text, :selected_plan, :created_at, :updated_at)
+            ON CONFLICT (plan_id) DO UPDATE SET
+              content_json = excluded.content_json,
+              content_text = excluded.content_text,
+              updated_at = excluded.updated_at
+            """
+        ),
+        {
+            "plan_id": plan_id,
+            "user_id": user_id,
+            "simulation_id": simulation_id,
+            "title": resolved_title,
+            "content_json": json.dumps(normalized, ensure_ascii=False),
+            "content_text": content_text,
+            "selected_plan": resolved_selected,
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+    row = _fetch_saved_plan_row(conn, user_id, plan_id)
+    if not row:
+        raise HTTPException(status_code=500, detail="plan persistence failed")
+    return _saved_plan_detail_from_row(row, normalized)
+
+
+def _persist_saved_plan_content(
+    conn: Connection,
+    user_id: str,
+    simulation_id: str,
+    simulation: dict,
+    plans: list[dict],
+) -> dict[str, Any]:
+    content = _build_simulation_content(simulation, plans)
+    return _persist_saved_plan_payload(conn, user_id, simulation_id, content)
+
+
+def _update_saved_plan_content(
+    conn: Connection,
+    user_id: str,
+    simulation_id: str,
+    content: dict[str, Any],
+) -> None:
+    normalized = _normalize_plan_content(content)
+    conn.execute(
+        text(
+            """
+            UPDATE saved_plans
+            SET content_json = :content_json,
+                content_text = :content_text,
+                updated_at = :updated_at
+            WHERE user_id = :user_id AND simulation_id = :simulation_id
+            """
+        ),
+        {
+            "content_json": json.dumps(normalized, ensure_ascii=False),
+            "content_text": _build_plan_content_text(normalized),
+            "updated_at": datetime.now(timezone.utc),
+            "user_id": user_id,
+            "simulation_id": simulation_id,
+        },
+    )
+
+
+def _rehydrate_simulation_cache(content: dict[str, Any]) -> None:
+    if not isinstance(content, dict):
+        return
+    simulation_id = str(content.get("id") or "").strip()
+    if not simulation_id:
+        return
+    evaluation = dict(content)
+    evaluation.pop("plans", None)
+    metrics = evaluation.get("metrics") if isinstance(evaluation.get("metrics"), dict) else {}
+    risk_score = int(metrics.get("riskPct") or 0)
+    _simulations[simulation_id] = {
+        "evaluation": evaluation,
+        "riskScore": risk_score,
+        "project": evaluation.get("project") or {},
+        "team": evaluation.get("team") or [],
+    }
+    plans = content.get("plans")
+    if not isinstance(plans, list):
+        return
+    for plan in plans:
+        if isinstance(plan, dict) and plan.get("id"):
+            _plans[str(plan["id"])] = plan
 
 
 def _build_plans(simulation_id: str, risk_score: int) -> list[dict]:
