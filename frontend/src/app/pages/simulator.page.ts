@@ -948,25 +948,8 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                     >
                       根拠ログ（Agent Log）
                     </summary>
-                    <div
-                      class="p-4 sm:p-5 space-y-2 font-mono text-xs min-h-0 lg:flex-1 lg:overflow-auto"
-                    >
-                      @for (l of overlayLog(); track $index) {
-                        <div class="flex items-start gap-3">
-                          <span
-                            class="shrink-0 px-2 py-1 rounded-md border border-slate-700 bg-slate-900/60"
-                            [class.border-rose-500/40]="l.tone === 'risk'"
-                            [class.border-emerald-500/40]="l.tone === 'hr'"
-                            [class.border-indigo-500/40]="l.tone === 'pm'"
-                            [class.border-amber-500/40]="l.tone === 'gunshi'"
-                          >
-                            {{ l.agent }}
-                          </span>
-                          <span class="text-slate-200 flex-1 min-w-0 break-words">{{
-                            l.text
-                          }}</span>
-                        </div>
-                      }
+                    <div class="p-4 sm:p-5">
+                      <ng-container [ngTemplateOutlet]="progressStreamTemplate"></ng-container>
                     </div>
                   </details>
                 </div>
