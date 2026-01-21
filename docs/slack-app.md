@@ -67,5 +67,6 @@ SLACK_ALLOW_UNSIGNED=false
 ## 8. 運用メモ
 
 - 承認ボタンは `approval_request_id` を value に埋め込む。
-- 介入テキストはスレッド返信として受信し、`approval_request_id` と関連付ける。
+- HITL の Steer はスレッド返信（Events）として受信し、`approval_request_id` と関連付ける。
+- デモの介入は `✋ 介入` → モーダル入力（`views.open`）で受信する。
 - Slack の Retry は同一 `event_id` を冪等キーとして扱う。

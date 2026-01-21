@@ -144,31 +144,6 @@ def _post_slack_api(payload: dict[str, Any]) -> dict[str, Any] | None:
         send_payload["channel"] = SLACK_DEFAULT_CHANNEL
     return _call_slack_api("chat.postMessage", send_payload)
 
-    data = json.dumps(send_payload).encode("utf-8")
-    request = urllib.request.Request(
-        "https://slack.com/api/chat.postMessage",
-        data=data,
-        headers={
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-            "Content-Type": "application/json; charset=utf-8",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            body = response.read().decode("utf-8")
-    except urllib.error.URLError:
-        return None
-
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        return None
-
-    if not payload.get("ok"):
-        return None
-    return payload
-
 
 def _post_slack_webhook(payload: dict[str, Any]) -> bool:
     if not SLACK_WEBHOOK_URL:

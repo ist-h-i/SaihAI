@@ -45,6 +45,7 @@ DEMO_STATUS_APPROVAL_PENDING = "approval_pending"
 DEMO_STATUS_APPROVED = "approved"
 DEMO_STATUS_REJECTED = "rejected"
 DEMO_STATUS_CANCELLED = "cancelled"
+DEMO_STATUS_CALENDAR_CREATING = "calendar_creating"
 DEMO_STATUS_CALENDAR_CREATED = "calendar_created"
 DEMO_STATUS_CALENDAR_FAILED = "calendar_failed"
 
@@ -104,7 +105,11 @@ def record_demo_plan_selection(
         if not normalized:
             logger.warning("demo plan selection invalid plan=%s alert_id=%s", plan, alert_id)
             return
-        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATED}:
+        if metadata.get("status") in {DEMO_STATUS_REJECTED, DEMO_STATUS_CANCELLED}:
+            _notify_thread(metadata, "すでに終了しています。新しいデモを開始してください。")
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
+        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATING, DEMO_STATUS_CALENDAR_CREATED}:
             _notify_thread(metadata, "すでにApprove済みです。")
             _upsert_demo_metadata(conn, alert_id, metadata)
             return
@@ -137,8 +142,12 @@ def record_demo_intervention(
             return
         _record_idempotency_key(metadata, idempotency_key)
 
-        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATED}:
+        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATING, DEMO_STATUS_CALENDAR_CREATED}:
             _notify_thread(metadata, "すでにApprove済みです。")
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
+        if metadata.get("status") in {DEMO_STATUS_REJECTED, DEMO_STATUS_CANCELLED}:
+            _notify_thread(metadata, "すでに終了しています。新しいデモを開始してください。")
             _upsert_demo_metadata(conn, alert_id, metadata)
             return
 
@@ -163,14 +172,20 @@ def approve_demo(
     actor: str | None,
     idempotency_key: str | None,
 ) -> None:
+    phase1_metadata = None
     with _demo_db() as conn:
-        metadata = _load_demo_metadata(conn, alert_id)
+        metadata = _load_demo_metadata(conn, alert_id, for_update=True)
         if not metadata:
             logger.warning("demo approve ignored (missing alert_id=%s)", alert_id)
             return
         if _idempotency_seen(metadata, idempotency_key):
             return
         _record_idempotency_key(metadata, idempotency_key)
+
+        if metadata.get("status") in {DEMO_STATUS_REJECTED, DEMO_STATUS_CANCELLED}:
+            _notify_thread(metadata, "すでにReject/Cancelされています。新しいデモを開始してください。")
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
 
         if not _is_actor_allowed(actor):
             _notify_thread(metadata, "Approve権限がありません。")
@@ -183,37 +198,82 @@ def approve_demo(
             _upsert_demo_metadata(conn, alert_id, metadata)
             return
 
-        metadata["status"] = DEMO_STATUS_APPROVED
+        if metadata.get("status") == DEMO_STATUS_CALENDAR_CREATING or calendar.get("status") == DEMO_STATUS_CALENDAR_CREATING:
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
+
         metadata["approval_status"] = DEMO_STATUS_APPROVED
         metadata["approved_by"] = actor
         metadata["approved_at"] = datetime.now(timezone.utc).isoformat()
-        _upsert_demo_metadata(conn, alert_id, metadata)
-
-        try:
-            event = _create_demo_calendar_event(conn, metadata)
-        except Exception as exc:
-            reason = str(exc)
-            metadata["status"] = DEMO_STATUS_CALENDAR_FAILED
-            metadata["calendar"] = {"status": DEMO_STATUS_CALENDAR_FAILED, "error": reason}
-            metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
-            _upsert_demo_metadata(conn, alert_id, metadata)
-            _notify_retry(metadata, reason)
-            logger.warning("demo calendar failed alert_id=%s error=%s", alert_id, reason)
-            return
-
-        event_link = str(event.get("htmlLink") or "").strip() or None
-        event_id = str(event.get("id") or event.get("event_id") or "").strip() or None
-        metadata["status"] = DEMO_STATUS_CALENDAR_CREATED
-        metadata["calendar"] = {
-            "status": DEMO_STATUS_CALENDAR_CREATED,
-            "event_id": event_id,
-            "event_link": event_link,
-        }
+        calendar = dict(calendar)
+        calendar.update(
+            {
+                "status": DEMO_STATUS_CALENDAR_CREATING,
+                "started_by": actor,
+                "started_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        metadata["status"] = DEMO_STATUS_CALENDAR_CREATING
+        metadata["calendar"] = calendar
         metadata["updated_at"] = datetime.now(timezone.utc).isoformat()
         _upsert_demo_metadata(conn, alert_id, metadata)
+        phase1_metadata = metadata
 
-        message = _build_success_message(metadata, event_link, event_id)
-        _notify_thread(metadata, message)
+    if not phase1_metadata:
+        return
+
+    try:
+        with _demo_db() as conn:
+            latest = _load_demo_metadata(conn, alert_id)
+            if not latest:
+                return
+            calendar = latest.get("calendar") or {}
+            if calendar.get("event_id") or calendar.get("event_link"):
+                return
+            if latest.get("status") != DEMO_STATUS_CALENDAR_CREATING and calendar.get("status") != DEMO_STATUS_CALENDAR_CREATING:
+                return
+            event = _create_demo_calendar_event(conn, latest)
+    except Exception as exc:
+        reason = str(exc)
+        with _demo_db() as conn:
+            latest = _load_demo_metadata(conn, alert_id)
+            if not latest:
+                return
+            calendar = dict(latest.get("calendar") or {})
+            if calendar.get("event_id") or calendar.get("event_link"):
+                return
+            latest["status"] = DEMO_STATUS_CALENDAR_FAILED
+            calendar.update({"status": DEMO_STATUS_CALENDAR_FAILED, "error": reason})
+            latest["calendar"] = calendar
+            latest["updated_at"] = datetime.now(timezone.utc).isoformat()
+            _upsert_demo_metadata(conn, alert_id, latest)
+        _notify_retry(phase1_metadata, reason)
+        logger.warning("demo calendar failed alert_id=%s error=%s", alert_id, reason)
+        return
+
+    event_link = str(event.get("htmlLink") or "").strip() or None
+    event_id = str(event.get("id") or event.get("event_id") or "").strip() or None
+    with _demo_db() as conn:
+        latest = _load_demo_metadata(conn, alert_id)
+        if not latest:
+            return
+        calendar = dict(latest.get("calendar") or {})
+        if calendar.get("event_id") or calendar.get("event_link"):
+            return
+        latest["status"] = DEMO_STATUS_CALENDAR_CREATED
+        calendar.update(
+            {
+                "status": DEMO_STATUS_CALENDAR_CREATED,
+                "event_id": event_id,
+                "event_link": event_link,
+            }
+        )
+        latest["calendar"] = calendar
+        latest["updated_at"] = datetime.now(timezone.utc).isoformat()
+        _upsert_demo_metadata(conn, alert_id, latest)
+
+    message = _build_success_message(phase1_metadata, event_link, event_id)
+    _notify_thread(phase1_metadata, message)
 
 
 def reject_demo(
@@ -230,6 +290,11 @@ def reject_demo(
         if _idempotency_seen(metadata, idempotency_key):
             return
         _record_idempotency_key(metadata, idempotency_key)
+
+        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATING, DEMO_STATUS_CALENDAR_CREATED}:
+            _notify_thread(metadata, "すでにApprove済みです。")
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
 
         metadata["status"] = DEMO_STATUS_REJECTED
         metadata["approval_status"] = DEMO_STATUS_REJECTED
@@ -253,6 +318,11 @@ def cancel_demo(
         if _idempotency_seen(metadata, idempotency_key):
             return
         _record_idempotency_key(metadata, idempotency_key)
+
+        if metadata.get("status") in {DEMO_STATUS_APPROVED, DEMO_STATUS_CALENDAR_CREATING, DEMO_STATUS_CALENDAR_CREATED}:
+            _notify_thread(metadata, "すでにApprove済みです。")
+            _upsert_demo_metadata(conn, alert_id, metadata)
+            return
 
         metadata["status"] = DEMO_STATUS_CANCELLED
         metadata["approval_status"] = DEMO_STATUS_CANCELLED
@@ -461,15 +531,24 @@ def _demo_thread_id(alert_id: str) -> str:
     return f"demo:{alert_id}"
 
 
-def _load_demo_metadata(conn: Connection, alert_id: str) -> dict:
+def _load_demo_metadata(conn: Connection, alert_id: str, *, for_update: bool = False) -> dict:
+    suffix = ""
+    if for_update:
+        try:
+            dialect = conn.dialect.name  # type: ignore[attr-defined]
+        except Exception:
+            dialect = ""
+        if str(dialect).startswith("postgres"):
+            suffix = " FOR UPDATE"
+    query = """
+        SELECT metadata
+        FROM langgraph_checkpoints
+        WHERE thread_id = :thread_id
+    """
+    if suffix:
+        query += suffix
     row = conn.execute(
-        text(
-            """
-            SELECT metadata
-            FROM langgraph_checkpoints
-            WHERE thread_id = :thread_id
-            """
-        ),
+        text(query),
         {"thread_id": _demo_thread_id(alert_id)},
     ).mappings().first()
     if not row:
