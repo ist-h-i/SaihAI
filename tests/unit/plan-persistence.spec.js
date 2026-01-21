@@ -24,11 +24,18 @@ test('saved plan endpoints are exposed in v1 api', async () => {
   expect(source).toContain('@router.delete("/plans/{plan_id}"');
 });
 
-test('simulator page includes saved plan controls', async () => {
+test('saved plans page includes saved plan controls', async () => {
+  const savedPlansPath = path.resolve(process.cwd(), 'frontend/src/app/pages/saved-plans.page.ts');
+  const source = fs.readFileSync(savedPlansPath, 'utf8');
+
+  expect(source).toContain('保存済みプラン');
+  expect(source).toContain('一覧更新');
+  expect(source).toContain('新規作成');
+});
+
+test('simulator page keeps saved plan title updates', async () => {
   const simulatorPath = path.resolve(process.cwd(), 'frontend/src/app/pages/simulator.page.ts');
   const source = fs.readFileSync(simulatorPath, 'utf8');
 
-  expect(source).toContain('保存済みプラン');
   expect(source).toContain('タイトル更新');
-  expect(source).toContain('新規作成');
 });

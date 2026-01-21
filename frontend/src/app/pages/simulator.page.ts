@@ -48,14 +48,14 @@ const COMPRESSED_COST = 30;
 const PLAN_STREAM_LABEL_COLORS: Record<PlanStreamTone, string> = {
   pm: '#2563EB',
   hr: '#16A34A',
-  risk: '#D97706',
-  gunshi: '#7C3AED',
+  risk: '#EF4444',
+  gunshi: '#FBBF24',
 };
 const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
   pm: 'PM',
   hr: 'HR',
   risk: 'RISK',
-  gunshi: '軍師',
+  gunshi: 'GUNSHI',
 };
 
 @Component({
@@ -128,32 +128,29 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </span>
           </div>
 
-          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(240px,0.45fr)]">
+          <div class="grid gap-4 lg:grid-cols-1">
             <div class="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
               <div class="flex items-center justify-between gap-2">
-                <div class="ui-kicker text-slate-400">Debate Flow</div>
+                <div class="ui-kicker text-slate-400">Debate Stream</div>
                 <div class="flex items-center gap-2">
                   @if (store.streaming()) {
                     <span class="text-[10px] uppercase tracking-[0.32em] text-emerald-300">
-                      live
+                      LIVE
                     </span>
                   } @else {
                     <span class="text-[10px] uppercase tracking-[0.32em] text-slate-500">
-                      paused
+                      PAUSED
                     </span>
                   }
-                  <span class="text-[11px] text-slate-400">
-                    lines {{ store.planDiscussionLog().length }}
-                  </span>
                 </div>
               </div>
-              <div class="relative mt-3 max-h-[360px] overflow-auto pr-2">
+              <div class="debate-flow-stream relative mt-3">
                 <div
                   class="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-400/60 via-indigo-400/30 to-transparent"
                 ></div>
                 @if (store.planDiscussionLog().length) {
                   <ul
-                    class="relative space-y-3 text-xs text-slate-200"
+                    class="debate-flow-list relative space-y-3 text-xs text-slate-200"
                     role="log"
                     aria-live="polite"
                     aria-relevant="additions"
@@ -168,7 +165,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                         >
                           <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
                             <span
-                              class="debate-stream-chip"
+                              class="debate-stream-chip debate-flow-badge"
                               [style.color]="planStreamLabelColors[entry.tone]"
                             >
                               {{ planStreamLabels[entry.tone] }}
@@ -185,26 +182,6 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="relative pl-8 text-xs text-slate-500">Waiting for debate...</div>
                 }
               </div>
-            </div>
-
-            <div class="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
-              <div class="flex items-center justify-between gap-2">
-                <div class="ui-kicker text-slate-400">Progress Log</div>
-                <span class="text-[11px] text-slate-500">
-                  lines {{ store.planProgressLog().length }}
-                </span>
-              </div>
-              @if (store.planProgressLog().length) {
-                <ul class="mt-2 space-y-2 text-xs text-slate-300 leading-snug max-h-[260px] overflow-auto pr-1">
-                  @for (entry of store.planProgressLog(); track $index) {
-                    <li class="rounded-md border border-slate-800/70 bg-slate-950/70 px-2 py-1">
-                      {{ entry.message }}
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
-              }
             </div>
           </div>
         </div>
@@ -309,83 +286,6 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
       </ol>
     </div>
 
-    <section class="mt-3 ui-panel p-3" id="saved-plans">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="min-w-0">
-          <div class="ui-kicker">Plan Library</div>
-          <div class="text-sm font-semibold text-slate-100">保存済みプラン</div>
-          <div class="mt-1 text-xs text-slate-400">
-            一覧から詳細を開き、タイトル編集や削除ができます。
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="ui-button-secondary text-xs" (click)="startNewPlan()">
-            新規作成
-          </button>
-          <button
-            type="button"
-            class="ui-button-ghost text-xs"
-            [disabled]="store.savedPlansLoading()"
-            (click)="reloadSavedPlans()"
-          >
-            一覧更新
-          </button>
-        </div>
-      </div>
-
-      @if (store.savedPlansError(); as planErr) {
-        <div class="mt-2 text-xs text-rose-200">{{ planErr }}</div>
-      }
-
-      @if (store.savedPlansLoading()) {
-        <div class="mt-3 text-xs text-slate-400">loading saved plans...</div>
-      } @else if (store.savedPlans().length) {
-        <div class="mt-3 grid gap-2 max-h-[320px] overflow-auto pr-1">
-          @for (plan of store.savedPlans(); track plan.id) {
-            <div
-              class="rounded-xl border border-slate-800 bg-slate-950/30 p-3"
-              [class.border-indigo-500/70]="activeSavedPlanId() === plan.id"
-              [class.bg-indigo-500/10]="activeSavedPlanId() === plan.id"
-            >
-              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                <button
-                  type="button"
-                  class="w-full text-left min-w-0 ui-focus-ring"
-                  (click)="selectSavedPlan(plan.id)"
-                >
-                  <div class="text-sm font-semibold text-slate-100 truncate">{{ plan.title }}</div>
-                  <div class="mt-1 text-xs text-slate-400">
-                    {{ plan.projectName ?? '—' }}
-                  </div>
-                  <div class="mt-1 text-[11px] text-slate-500">
-                    更新: {{ formatPlanDate(plan.updatedAt ?? plan.createdAt) }}
-                  </div>
-                </button>
-                <div class="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:gap-2">
-                  <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100">
-                    Plan {{ plan.selectedPlan ?? plan.recommendedPlan ?? '-' }}
-                  </span>
-                  <button
-                    type="button"
-                    class="ui-button-ghost text-[11px]"
-                    (click)="deleteSavedPlan(plan.id, $event)"
-                  >
-                    削除
-                  </button>
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <app-empty-state
-          kicker="Empty"
-          title="保存済みプランがありません"
-          description="シミュレーションを実行するとここに保存されます。"
-        />
-      }
-    </section>
-
     <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
       <section class="ui-panel p-3" id="simulator-input">
         <div class="flex items-center justify-between gap-3 mb-2">
@@ -413,12 +313,12 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         </div>
 
         <div
-          class="mt-2 grid gap-2 max-h-[300px] overflow-auto pr-1 sm:grid-cols-2 sm:max-h-[340px] lg:max-h-[420px] xl:grid-cols-3"
+          class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 sm:grid-cols-2 sm:max-h-[420px] md:grid-cols-3 md:max-h-[480px] lg:grid-cols-4 lg:max-h-[520px] 2xl:grid-cols-5 2xl:max-h-[600px]"
         >
           @for (m of store.members(); track m.id) {
             <button
               type="button"
-              class="member-card ui-panel-interactive text-left"
+              class="member-card ui-panel-interactive text-left p-2 gap-1.5 min-h-[140px]"
               [class.member-card--selected]="store.selectedMemberIds().includes(m.id)"
               (click)="store.toggleMember(m.id)"
             >
@@ -432,8 +332,8 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   <div class="text-[11px] text-slate-400">{{ m.availability }}%</div>
                 </div>
               </div>
-              <div class="mt-2 text-xs text-slate-400 break-words">{{ m.skills.join(', ') }}</div>
-              <div class="mt-3 flex flex-wrap gap-2">
+              <div class="mt-1 text-[11px] text-slate-400 break-words">{{ m.skills.join(', ') }}</div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
                 @for (badge of memberBadges(m); track badge.label) {
                   <span
                     class="member-badge"
@@ -447,7 +347,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   </span>
                 }
               </div>
-              <div class="mt-3 text-[11px] text-slate-400">
+              <div class="mt-2 text-[10px] text-slate-500">
                 {{ store.selectedMemberIds().includes(m.id) ? '選択中' : 'クリックで追加' }}
               </div>
             </button>
@@ -1091,7 +991,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
       <div class="fixed inset-0 z-50">
         <div class="absolute inset-0 bg-black/70" (click)="closeOverlay()"></div>
         <div
-          class="absolute inset-0 sm:inset-6 lg:inset-8 xl:inset-10 rounded-none sm:rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
+          class="absolute inset-0 sm:inset-5 lg:inset-7 xl:inset-9 rounded-none sm:rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/70 surface-overlay"
         >
           <app-neural-orb class="absolute inset-0 opacity-30 pointer-events-none"></app-neural-orb>
 
@@ -1160,34 +1060,24 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                     }
                   </div>
 
-                  <details class="border-b border-slate-800/80">
-                    <summary
-                      class="cursor-pointer list-none px-4 sm:px-5 py-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider"
+                  <div class="border-b border-slate-800/80">
+                    <div
+                      class="px-4 sm:px-5 py-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider"
                     >
                       根拠ログ（Agent Log）
-                    </summary>
+                    </div>
                     <div class="p-4 sm:p-5">
                       <ng-container [ngTemplateOutlet]="progressStreamTemplate"></ng-container>
                     </div>
-                  </details>
+                  </div>
                 </div>
 
                 <div class="flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
-                  @if (
-                    store.streaming() ||
-                    store.planProgressLog().length ||
-                    store.planDiscussionLog().length
-                  ) {
-                    <div class="p-4 sm:p-5 border-b border-slate-800/80">
-                      <ng-container [ngTemplateOutlet]="progressStreamTemplate"></ng-container>
-                    </div>
-                  }
-
                   <div class="p-4 sm:p-5 border-b border-slate-800/80">
                     <div class="ui-kicker">Step 2: 選ぶ</div>
                     <div class="text-sm font-bold text-slate-100">戦略プランの選択</div>
                     @if (validSimulationResult(); as r) {
-                      <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
+                      <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-3">
                         @for (p of r.plans; track p.id) {
                           <button
                             type="button"
@@ -1214,12 +1104,6 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                             }
                             <div class="font-extrabold text-slate-100 break-words">
                               Plan {{ p.planType }}: {{ p.summary }}
-                            </div>
-                            <div class="mt-2 text-xs text-slate-300">
-                              pros: {{ p.prosCons.pros.join(' / ') }}
-                            </div>
-                            <div class="mt-1 text-xs text-slate-300">
-                              cons: {{ p.prosCons.cons.join(' / ') }}
                             </div>
                           </button>
                         }
@@ -1600,12 +1484,22 @@ export class SimulatorPage implements OnDestroy {
       const focus = p.get('focus');
       const project = p.get('project');
       const mode = p.get('mode');
-      const key = `${demo ?? ''}|${mode ?? ''}|${project ?? ''}|${focus ?? ''}`;
+      const savedPlan = p.get('savedPlan');
+      const newPlan = p.get('newPlan');
+      const key = `${demo ?? ''}|${mode ?? ''}|${project ?? ''}|${focus ?? ''}|${savedPlan ?? ''}|${newPlan ?? ''}`;
       if (key === this.lastKey) return;
       this.lastKey = key;
 
       if (project && this.store.projects().some((entry) => entry.id === project)) {
         this.store.setProject(project);
+      }
+      if (savedPlan) {
+        void this.selectSavedPlan(savedPlan);
+        return;
+      }
+      if (newPlan) {
+        this.startNewPlan();
+        return;
       }
       if (mode === 'alert' || mode === 'manual') {
         void this.runAlertContext(mode, focus);

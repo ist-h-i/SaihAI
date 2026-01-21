@@ -16,78 +16,197 @@ import { ToastCenterComponent } from './core/toast-center.component';
       <div class="min-h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100 flex">
         <aside
           id="desktop-nav"
-          class="hidden lg:flex shrink-0 bg-slate-950 border-slate-800 flex-col gap-6 overflow-hidden transition-[width,padding,opacity] duration-300 ease-out"
-          [attr.aria-hidden]="!desktopNavOpen()"
-          [style.width.px]="desktopNavOpen() ? 260 : 0"
-          [style.padding]="desktopNavOpen() ? '1.25rem' : '0'"
-          [style.opacity]="desktopNavOpen() ? 1 : 0"
-          [style.visibility]="desktopNavOpen() ? 'visible' : 'hidden'"
-          [style.borderRightWidth.px]="desktopNavOpen() ? 1 : 0"
-          [style.pointerEvents]="desktopNavOpen() ? 'auto' : 'none'"
+          class="hidden lg:flex shrink-0 bg-slate-950 border-slate-800 flex-col gap-6 overflow-hidden transition-[width,padding] duration-300 ease-out"
+          [style.width.px]="desktopNavOpen() ? 260 : 72"
+          [style.padding]="desktopNavOpen() ? '1.25rem' : '0.75rem'"
+          [style.borderRightWidth.px]="1"
         >
-          <div class="flex items-center gap-3">
+          <div
+            class="flex items-center gap-3"
+            [class.flex-col]="!desktopNavOpen()"
+            [class.items-center]="!desktopNavOpen()"
+            [class.gap-2]="!desktopNavOpen()"
+          >
             <div
               class="h-10 w-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 grid place-items-center"
             >
               <span class="font-black text-indigo-300">AI</span>
             </div>
-            <div class="leading-tight">
-              <div class="text-lg font-extrabold tracking-tight">
-                Saih<span class="text-fuchsia-400">AI</span>
-                <span class="ml-1 text-xs text-slate-500 font-semibold">v2</span>
+            @if (desktopNavOpen()) {
+              <div class="leading-tight">
+                <div class="text-lg font-extrabold tracking-tight">
+                  Saih<span class="text-fuchsia-400">AI</span>
+                  <span class="ml-1 text-xs text-slate-500 font-semibold">v2</span>
+                </div>
+                <div class="text-[11px] text-slate-400">99% autonomy, 1% intuition</div>
               </div>
-              <div class="text-[11px] text-slate-400">99% autonomy, 1% intuition</div>
-            </div>
+            }
+            <button
+              type="button"
+              class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 hover:bg-white/10"
+              [class.ml-auto]="desktopNavOpen()"
+              (click)="toggleDesktopNav()"
+              [attr.aria-label]="desktopNavOpen() ? 'Collapse navigation' : 'Expand navigation'"
+            >
+              <svg
+                class="h-4 w-4 transition-transform duration-200"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                [style.transform]="desktopNavOpen() ? 'rotate(0deg)' : 'rotate(180deg)'"
+              >
+                <path d="M12.5 4.5l-5 5 5 5" />
+              </svg>
+            </button>
           </div>
 
           <div>
-            <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">
-              Cockpit
-            </div>
+            @if (desktopNavOpen()) {
+              <div class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2 px-3">
+                Cockpit
+              </div>
+            }
             <a
               routerLink="/dashboard"
               routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
-              class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
+              class="group flex items-center gap-3 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 py-2"
+              [class.px-3]="desktopNavOpen()"
+              [class.px-2]="!desktopNavOpen()"
+              [class.justify-center]="!desktopNavOpen()"
             >
-              <span class="text-sm">経営ダッシュボード</span>
+              <span
+                class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 group-hover:bg-white/10"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+                  <rect x="11" y="3" width="6" height="4" rx="1"></rect>
+                  <rect x="11" y="9" width="6" height="8" rx="1"></rect>
+                  <rect x="3" y="11" width="6" height="6" rx="1"></rect>
+                </svg>
+              </span>
+              @if (desktopNavOpen()) {
+                <span class="text-sm">経営ダッシュボード</span>
+              }
             </a>
             <a
               routerLink="/simulator"
               routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
-              class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
+              class="group flex items-center gap-3 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 py-2"
+              [class.px-3]="desktopNavOpen()"
+              [class.px-2]="!desktopNavOpen()"
+              [class.justify-center]="!desktopNavOpen()"
             >
-              <span class="text-sm">戦術シミュレーター</span>
+              <span
+                class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 group-hover:bg-white/10"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="10" cy="10" r="5.5"></circle>
+                  <path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3"></path>
+                </svg>
+              </span>
+              @if (desktopNavOpen()) {
+                <span class="text-sm">戦術シミュレーター</span>
+              }
+            </a>
+            <a
+              routerLink="/saved-plans"
+              routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
+              class="group flex items-center gap-3 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 py-2"
+              [class.px-3]="desktopNavOpen()"
+              [class.px-2]="!desktopNavOpen()"
+              [class.justify-center]="!desktopNavOpen()"
+            >
+              <span
+                class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 group-hover:bg-white/10"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M6 3.5h8a1 1 0 0 1 1 1v12l-5-2.5L5 16.5v-12a1 1 0 0 1 1-1z" />
+                </svg>
+              </span>
+              @if (desktopNavOpen()) {
+                <span class="text-sm">保存済みプラン</span>
+              }
             </a>
             <a
               routerLink="/genome"
               routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
-              class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
+              class="group flex items-center gap-3 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 py-2"
+              [class.px-3]="desktopNavOpen()"
+              [class.px-2]="!desktopNavOpen()"
+              [class.justify-center]="!desktopNavOpen()"
             >
-              <span class="text-sm">人材データベース</span>
+              <span
+                class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 group-hover:bg-white/10"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="5" cy="10" r="2"></circle>
+                  <circle cx="15" cy="6" r="2"></circle>
+                  <circle cx="15" cy="14" r="2"></circle>
+                  <path d="M7 10h5M13 7.5L7.8 10M13 12.5L7.8 10"></path>
+                </svg>
+              </span>
+              @if (desktopNavOpen()) {
+                <span class="text-sm">人材データベース</span>
+              }
             </a>
           </div>
 
-          <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
-            <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
-            <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
-              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-              Active
+          @if (desktopNavOpen()) {
+            <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
+              <div class="text-[10px] text-slate-400 font-semibold">AI Watchdog</div>
+              <div class="mt-1 flex items-center gap-2 text-[12px] font-bold text-emerald-300">
+                <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                Active
+              </div>
             </div>
-          </div>
+          }
         </aside>
 
         <div
           class="flex-1 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,#1e293b_0%,#0b1022_55%)]"
         >
-          <header
-            class="h-14 sm:h-16 shrink-0 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-3"
-          >
-            <div class="flex items-center gap-3 min-w-0">
+          <main class="flex-1 overflow-auto p-4 sm:p-6">
+            <div class="mb-3 flex items-center gap-2 lg:hidden">
               <button
                 type="button"
-                class="lg:hidden h-9 w-9 rounded-lg border border-slate-800 bg-white/5 grid place-items-center hover:bg-white/10"
+                class="h-9 w-9 rounded-lg border border-slate-800 bg-white/5 grid place-items-center hover:bg-white/10"
                 (click)="toggleMobileNav()"
-                aria-label="メニュー"
+                aria-label="Open navigation"
                 aria-controls="mobile-nav"
                 [attr.aria-expanded]="mobileNavOpen()"
               >
@@ -97,32 +216,7 @@ import { ToastCenterComponent } from './core/toast-center.component';
                   <span class="h-0.5 w-5 bg-slate-200"></span>
                 </span>
               </button>
-              <button
-                type="button"
-                class="hidden lg:grid h-9 w-9 rounded-lg border border-slate-800 bg-white/5 place-items-center hover:bg-white/10"
-                (click)="toggleDesktopNav()"
-                aria-label="Toggle navigation panel"
-                aria-controls="desktop-nav"
-                [attr.aria-expanded]="desktopNavOpen()"
-              >
-                <svg
-                  class="h-4 w-4 text-slate-200 transition-transform duration-300"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  [style.transform]="desktopNavOpen() ? 'rotate(0deg)' : 'rotate(180deg)'"
-                >
-                  <path d="M12.5 4.5l-5 5 5 5" />
-                </svg>
-              </button>
-              <div class="text-base font-bold tracking-tight truncate">{{ pageTitle() }}</div>
             </div>
-          </header>
-
-          <main class="flex-1 overflow-auto p-4 sm:p-6">
             <router-outlet />
           </main>
         </div>
@@ -185,6 +279,14 @@ import { ToastCenterComponent } from './core/toast-center.component';
                   <span class="text-sm">戦術シミュレーター</span>
                 </a>
                 <a
+                  routerLink="/saved-plans"
+                  routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
+                  class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
+                  (click)="closeMobileNav()"
+                >
+                  <span class="text-sm">保存済みプラン</span>
+                </a>
+                <a
                   routerLink="/genome"
                   routerLinkActive="bg-indigo-500/15 text-indigo-200 border-indigo-400/50"
                   class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5"
@@ -226,6 +328,8 @@ export class App {
         return '経営ダッシュボード';
       case '/simulator':
         return '戦術シミュレーター';
+      case '/saved-plans':
+        return '保存済みプラン';
       case '/genome':
         return '人材データベース';
       default:

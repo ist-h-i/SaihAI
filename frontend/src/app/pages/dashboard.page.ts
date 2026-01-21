@@ -3,8 +3,6 @@ import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { EmptyStateComponent } from '../components/empty-state.component';
-import { HaisaSpeechComponent } from '../components/haisa-speech.component';
-import { NeuralOrbComponent } from '../components/neural-orb.component';
 import { DashboardStore } from '../core/dashboard-store';
 import { SimulatorStore } from '../core/simulator-store';
 import {
@@ -84,9 +82,10 @@ interface ProposalGroup {
 }
 
 @Component({
-  imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
+  imports: [EmptyStateComponent],
   template: `
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div class="min-h-full flex flex-col">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="ui-kicker">Shadow Dashboard</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">経営ダッシュボード</h2>
@@ -94,70 +93,18 @@ interface ProposalGroup {
           影のAIが予兆と提案を整理し、判断だけに集中できます。
         </p>
       </div>
-
-      <div class="w-full lg:w-[320px] shrink-0 lg:sticky lg:top-6">
-        <div class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
-          <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
-          <div class="relative p-3">
-            <div class="ui-kicker">Next Action</div>
-            @if (activeAlert(); as alert) {
-              <div class="mt-2 text-sm font-semibold text-rose-200">緊急アラート</div>
-              <div class="mt-1 text-xs text-slate-300">{{ alert.title }}</div>
-              <div class="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                <span class="ui-pill border-rose-500/40 bg-rose-500/15 text-rose-200">RISK</span>
-                <span class="text-rose-100 font-semibold">{{ alert.risk }}%</span>
-              </div>
-              <div class="mt-3">
-                <button type="button" class="ui-button-primary" (click)="openAlert(alert)">
-                  介入へ
-                </button>
-              </div>
-            } @else if (primaryProposal(); as proposal) {
-              <div class="mt-2 text-sm font-semibold text-slate-100">推奨提案を確認</div>
-              <div class="mt-1 text-xs text-slate-300">Plan {{ proposal.planType }}</div>
-              <div class="text-xs text-slate-400">
-                プロジェクト: {{ proposalProjectName(proposal) }}
-              </div>
-              <div class="mt-3">
-                <button type="button" class="ui-button-primary" (click)="goSimulator()">
-                  介入へ
-                </button>
-              </div>
-            } @else if (dashboard.pendingActions().length) {
-              <div class="mt-2 text-sm font-semibold text-slate-100">承認待ちを確認</div>
-              <div class="mt-1 text-xs text-slate-300">{{ dashboard.pendingActions().length }} 件の承認待ち</div>
-              <div class="mt-3">
-                <button type="button" class="ui-button-primary" (click)="goSimulator()">
-                  承認フローへ
-                </button>
-              </div>
-            } @else {
-              <div class="mt-2 text-sm font-semibold text-slate-100">最新状況を確認</div>
-              <div class="mt-1 text-xs text-slate-300">新しい動きがないか更新します。</div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button type="button" class="ui-button-primary" (click)="goSimulator()">
-                  シミュレーターへ
-                </button>
-                <button type="button" class="ui-button-ghost" (click)="reload()">
-                  再読み込み
-                </button>
-              </div>
-            }
-          </div>
-        </div>
-      </div>
     </div>
 
-    <div class="mt-4 flex items-center justify-between gap-3">
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
       <div class="ui-kicker">KPIモニタリング</div>
       <div class="text-xs text-slate-400">
         更新: {{ lastUpdatedLabel() }} / {{ refreshIntervalSec }}s
       </div>
     </div>
 
-    <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
       @for (k of kpis(); track k.label) {
-        <div class="ui-panel-muted p-3">
+        <div class="ui-panel-muted p-4">
           <div class="ui-kicker">{{ k.label }}</div>
           <div class="mt-2 flex items-end gap-2">
             <div class="text-3xl font-extrabold tracking-tight" [style.color]="k.color">
@@ -170,177 +117,44 @@ interface ProposalGroup {
       }
     </div>
 
-    <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)]">
-      <section class="ui-panel p-3">
+    <div
+      class="mt-4 grid flex-1 min-h-0 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-stretch"
+    >
+      <div class="lg:col-start-1 lg:row-start-1">
+        <section class="ui-panel p-4">
         <div class="ui-kicker">緊急アラートフィード</div>
         @if (alertFeed().length) {
-        <div class="mt-2 space-y-3 max-h-[320px] overflow-auto pr-1">
-          @for (alert of alertFeed(); track alert.id) {
-            <div class="ui-panel-muted p-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
-                  <span
-                    class="ui-pill"
-                    [class.border-rose-500/40]="alert.category !== 'career_mismatch'"
-                    [class.bg-rose-500/10]="alert.category !== 'career_mismatch'"
-                    [class.text-rose-200]="alert.category !== 'career_mismatch'"
-                    [class.border-indigo-500/40]="alert.category === 'career_mismatch'"
-                    [class.bg-indigo-500/10]="alert.category === 'career_mismatch'"
-                    [class.text-indigo-200]="alert.category === 'career_mismatch'"
-                  >
-                    {{ alertCategoryLabel(alert) }}
-                  </span>
-                  @if (alertFocusName(alert); as focusName) {
-                    <span class="text-slate-400">対象: {{ focusName }}</span>
-                  }
-                </div>
-                <div class="mt-2 text-sm font-semibold text-slate-100">{{ alert.title }}</div>
-                <div class="text-xs text-slate-400 truncate">{{ alert.subtitle }}</div>
-              </div>
-              <div class="flex items-center gap-4 sm:ml-auto">
-                <div class="text-right">
-                  <div class="text-[10px] text-slate-400 font-semibold">RISK</div>
-                  <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
-                </div>
-                <button type="button" class="ui-button-secondary" (click)="openAlert(alert)">
-                  詳細を開く
-                </button>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <app-empty-state
-          kicker="Empty"
-          title="緊急アラートはありません"
-          description="新しいアラートが検知されるとここに表示します。"
-        />
-      }
-      </section>
-
-      <section class="ui-panel p-3">
-        <div class="ui-kicker">Today Focus</div>
-      @if (activeAlert(); as alert) {
-        <div class="mt-2 w-full text-left ui-panel-muted p-3 border-rose-500/30 bg-rose-500/10">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div
-              class="h-10 w-10 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
-            >
-              !
-            </div>
-            <div class="min-w-0">
-              <div class="text-base font-bold truncate">{{ alert.title }}</div>
-              <div class="text-sm text-slate-300 truncate">{{ alert.subtitle }}</div>
-            </div>
-            <div class="sm:ml-auto text-left sm:text-right">
-              <div class="text-xs text-slate-400 font-semibold">RISK</div>
-              <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
-            </div>
-          </div>
-        </div>
-      } @else if (primaryProposal(); as proposal) {
-        <div class="mt-2 ui-panel p-3">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div class="ui-kicker">AI Recommendation</div>
-              <div class="text-base font-semibold text-slate-100">Plan {{ proposal.planType }}</div>
-              <div class="mt-1 text-xs text-slate-400">
-                プロジェクト: {{ proposalProjectName(proposal) }}
-              </div>
-              <div class="mt-2 text-sm text-slate-300 whitespace-pre-line">
-                {{ proposalSummary(proposal) }}
-              </div>
-            </div>
-          </div>
-          @if (proposalDetail(proposal); as detail) {
-            <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                詳細
-              </summary>
-              <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">{{ detail }}</div>
-            </details>
-          }
-        </div>
-      } @else {
-        <app-empty-state
-          kicker="Empty"
-          title="意思決定ポイントはありません"
-          description="新しいアラートや提案が届いたら表示します。"
-        />
-      }
-      </section>
-    </div>
-
-    <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
-      <div class="ui-panel p-3">
-        <div class="flex items-center justify-between gap-3">
-          <div class="ui-section-title">AI 提案</div>
-        </div>
-        @if (proposalGroups().length) {
-          <div class="mt-3 space-y-3 max-h-[420px] overflow-auto pr-1">
-            @for (group of proposalGroups(); track group.projectId) {
-              <div
-                class="rounded-lg border border-slate-800/70 bg-slate-950/30 p-3"
-                [attr.data-project-id]="group.projectId"
-              >
-                <div class="text-[11px] text-slate-400 font-semibold">プロジェクト</div>
-                <div class="text-sm font-semibold text-slate-100">{{ group.projectName }}</div>
-                <div class="mt-3 space-y-3">
-                  @if (group.primary; as p) {
-                    <app-haisa-speech
-                      [tone]="p.isRecommended ? 'success' : 'info'"
-                      [title]="'Plan ' + p.planType"
-                [tag]="p.isRecommended ? '推奨' : undefined"
-                      [meta]="proposalMeta(p)"
-                      [message]="proposalSummary(p)"
-                      [compact]="true"
-                      [showAvatar]="true"
-                      [reserveAvatarSpace]="true"
-                      [highlight]="p.isRecommended"
-                    />
-                    @if (proposalDetail(p); as detail) {
-                      <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                        <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                          詳細
-                        </summary>
-                        <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">
-                          {{ detail }}
-                        </div>
-                      </details>
+          <div class="mt-2 space-y-4 max-h-[320px] overflow-auto pr-1">
+            @for (alert of alertFeed(); track alert.id) {
+              <div class="ui-panel-muted p-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+                    <span
+                      class="ui-pill"
+                      [class.border-rose-500/40]="alert.category !== 'career_mismatch'"
+                      [class.bg-rose-500/10]="alert.category !== 'career_mismatch'"
+                      [class.text-rose-200]="alert.category !== 'career_mismatch'"
+                      [class.border-indigo-500/40]="alert.category === 'career_mismatch'"
+                      [class.bg-indigo-500/10]="alert.category === 'career_mismatch'"
+                      [class.text-indigo-200]="alert.category === 'career_mismatch'"
+                    >
+                      {{ alertCategoryLabel(alert) }}
+                    </span>
+                    @if (alertFocusName(alert); as focusName) {
+                      <span class="text-slate-400">対象: {{ focusName }}</span>
                     }
-                  }
-
-                  @if (group.secondary.length) {
-                    <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                      <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                        他の提案（{{ group.secondary.length }}）
-                      </summary>
-                      <div class="mt-3 space-y-3">
-                        @for (p of group.secondary; track p.id) {
-                          <app-haisa-speech
-                            [tone]="p.isRecommended ? 'success' : 'info'"
-                            [title]="'Plan ' + p.planType"
-                      [tag]="p.isRecommended ? '推奨' : undefined"
-                            [meta]="proposalMeta(p)"
-                            [message]="proposalSummary(p)"
-                            [compact]="true"
-                            [showAvatar]="false"
-                            [reserveAvatarSpace]="true"
-                          />
-                          @if (proposalDetail(p); as detail) {
-                            <details class="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                                詳細
-                              </summary>
-                              <div class="mt-2 text-xs text-slate-300 whitespace-pre-line">
-                                {{ detail }}
-                              </div>
-                            </details>
-                          }
-                        }
-                      </div>
-                    </details>
-                  }
+                  </div>
+                  <div class="mt-2 text-sm font-semibold text-slate-100">{{ alert.title }}</div>
+                  <div class="text-xs text-slate-400 truncate">{{ alert.subtitle }}</div>
+                </div>
+                <div class="flex items-center gap-4 sm:ml-auto">
+                  <div class="text-right">
+                    <div class="text-[10px] text-slate-400 font-semibold">RISK</div>
+                    <div class="text-lg font-extrabold text-rose-200">{{ alert.risk }}%</div>
+                  </div>
+                  <button type="button" class="ui-button-secondary" (click)="openAlert(alert)">
+                    詳細を開く
+                  </button>
                 </div>
               </div>
             }
@@ -348,13 +162,15 @@ interface ProposalGroup {
         } @else {
           <app-empty-state
             kicker="Empty"
-            title="提案を準備中"
-            description="新しい提案が届いたら表示します。"
+            title="緊急アラートはありません"
+            description="新しいアラートが検知されるとここに表示します。"
           />
         }
+        </section>
       </div>
 
-      <div class="ui-panel p-3">
+      <div class="lg:col-start-2 lg:row-start-1">
+        <div class="ui-panel p-4">
         <div class="flex items-center justify-between gap-3">
           <div class="ui-section-title">承認待ち</div>
           <span
@@ -371,12 +187,14 @@ interface ProposalGroup {
         </div>
         @if (dashboard.pendingActions().length) {
           <div class="mt-3">
-            <div class="text-sm text-slate-300">要対応 {{ dashboard.pendingActions().length }} 件</div>
-            <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+            <div class="text-sm text-slate-300">
+              要対応 {{ dashboard.pendingActions().length }} 件
+            </div>
+            <details open class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
               <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
                 詳細を開く
               </summary>
-              <div class="mt-3 space-y-2">
+              <div class="mt-3 space-y-3 max-h-[240px] overflow-auto pr-1">
                 @for (action of dashboard.pendingActions(); track action.id) {
                   <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
                     <div class="flex items-center justify-between gap-3">
@@ -405,100 +223,25 @@ interface ProposalGroup {
             description="新しい承認が発生したら通知します。"
           />
         }
-      </div>
-    </div>
-
-    <div class="mt-4 grid gap-3 lg:grid-cols-3">
-      <div class="lg:col-span-2 ui-panel p-3">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <div class="ui-kicker">Talent Matrix</div>
-            <div class="text-sm text-slate-200 font-semibold mt-1">組織人材マップ</div>
-          </div>
-          <div class="text-xs text-slate-400">MOTIVATION → / PERFORMANCE ↑</div>
-        </div>
-
-        <div
-          class="mt-3 relative h-[280px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/30"
-        >
-          <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
-            <div class="border-b border-r border-slate-800/80 p-2">
-              <div class="text-xs font-bold text-rose-200">Risk</div>
-              <div class="text-[11px] text-slate-400">離職予備軍</div>
-            </div>
-            <div class="border-b border-slate-800/80 p-2">
-              <div class="text-xs font-bold text-indigo-200">Star</div>
-              <div class="text-[11px] text-slate-400">エース</div>
-            </div>
-            <div class="border-r border-slate-800/80 p-2">
-              <div class="text-xs font-bold text-violet-200">Stagnant</div>
-              <div class="text-[11px] text-slate-400">停滞</div>
-            </div>
-            <div class="p-2">
-              <div class="text-xs font-bold text-emerald-200">Growth</div>
-              <div class="text-[11px] text-slate-400">成長株</div>
-            </div>
-          </div>
-
-          <div
-            class="absolute inset-0 opacity-60"
-            style="background: radial-gradient(circle at center, rgba(99,102,241,0.20), transparent 55%)"
-          ></div>
-
-          @for (visual of matrixVisuals(); track visual.id) {
-            <button
-              type="button"
-              class="absolute z-30 h-10 w-10 rounded-xl border border-white/20 bg-slate-900/70 hover:bg-slate-800/70 matrix-cluster-base backdrop-blur grid place-items-center text-sm font-extrabold"
-              [style.left.%]="visual.x"
-              [style.top.%]="visual.yTop"
-              [style.borderColor]="visual.border"
-              [style.background]="visual.bg"
-              [title]="visual.tooltip"
-              (click)="
-                visual.count === 1
-                  ? goSimulator('manual', visual.members[0].id)
-                  : toggleCluster(visual.id)
-              "
-            >
-              @if (visual.count === 1) {
-                <span>{{ visual.members[0].initial }}</span>
-              }
-              @if (visual.count > 1) {
-                <span class="text-[11px] leading-tight">+{{ visual.count }}</span>
-              }
-            </button>
-            @if (openedClusterId() === visual.id && visual.count > 1) {
-              @for (exp of visual.expandedMembers; track exp.member.id) {
-                <button
-                  type="button"
-                  class="absolute z-40 h-8 w-8 rounded-xl border border-white/30 bg-slate-900/80 hover:bg-slate-800/80 backdrop-blur text-[10px] font-extrabold"
-                  [style.left.%]="exp.fan.left"
-                  [style.top.%]="exp.fan.top"
-                  [style.borderColor]="visual.border"
-                  [style.background]="visual.bg"
-                  (click)="goSimulator('manual', exp.member.id)"
-                  [title]="exp.member.name"
-                >
-                  {{ exp.member.initial }}
-                </button>
-              }
-            }
-          }
         </div>
       </div>
 
-      <div class="ui-panel p-3">
-        <div class="ui-kicker">AI Watchdog</div>
+      <div class="lg:col-start-2 lg:row-start-2 flex min-h-0">
+        <div class="ui-panel p-4 flex min-h-0 flex-1 flex-col">
+          <div class="ui-kicker">AI Watchdog</div>
         @if (watchdog().length) {
           <div class="mt-3">
             <div class="text-xs text-slate-400">最新</div>
             <div class="mt-1 text-sm text-slate-200">{{ watchdog()[0].text }}</div>
           </div>
-          <details class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
+          <details
+            open
+            class="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3 flex min-h-0 flex-1 flex-col"
+          >
             <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
               ログを開く
             </summary>
-            <div class="mt-3 space-y-3 text-sm">
+            <div class="mt-3 space-y-3 text-sm flex-1 min-h-0 overflow-auto pr-1">
               @for (row of watchdog(); track row.t) {
                 <div class="flex items-start gap-3">
                   <span class="mt-1 h-2 w-2 rounded-full" [style.background]="row.dot"></span>
@@ -523,61 +266,67 @@ interface ProposalGroup {
             </div>
           </div>
         }
-      </div>
-    </div>
-
-    <div class="mt-4 ui-panel p-3">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="ui-section-title">History</div>
-        <select
-          class="rounded-md border border-slate-800 bg-slate-900/50 px-2 py-1 text-xs text-slate-200"
-          (change)="updateHistoryFilter($event)"
-          [value]="historyStatusFilter() ?? ''"
-        >
-          <option value="">All</option>
-          <option value="approval_pending">Approval Pending</option>
-          <option value="approved">Approved</option>
-          <option value="executing">Executing</option>
-          <option value="executed">Executed</option>
-          <option value="failed">Failed</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        </div>
       </div>
 
-      @if (historyEntries().length) {
-        <div class="mt-3 space-y-2 max-h-[360px] overflow-auto pr-1">
-          @for (entry of historyEntries(); track entry.thread_id) {
-            <details class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-              <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
-                <span class="text-slate-100">Action #{{ entry.action_id }}</span>
-                <span class="text-slate-400">
-                  / {{ entry.status || 'unknown' }} / {{ formatHistoryTime(entry.updated_at) }}
-                </span>
-              </summary>
-              <div class="mt-2 text-xs text-slate-300 whitespace-pre-wrap">
-                {{ entry.summary || 'No summary available.' }}
-              </div>
-              @if (entry.events.length) {
-                <div class="mt-3 space-y-2 text-[11px] text-slate-400">
-                  @for (evt of entry.events; track evt.created_at) {
-                    <div>
-                      <span class="text-slate-500">{{ formatHistoryTime(evt.created_at) }}</span>
-                      <span class="text-slate-300"> {{ evt.event_type }}</span>
-                      @if (evt.actor) { <span class="text-slate-500"> by {{ evt.actor }}</span> }
+      <div class="ui-panel p-4 lg:col-start-1 lg:row-start-2 flex min-h-0 flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="ui-section-title">History</div>
+          <select
+            class="rounded-md border border-slate-800 bg-slate-900/50 px-2 py-1 text-xs text-slate-200"
+            (change)="updateHistoryFilter($event)"
+            [value]="historyStatusFilter() ?? ''"
+          >
+            <option value="">All</option>
+            <option value="approval_pending">Approval Pending</option>
+            <option value="approved">Approved</option>
+            <option value="executing">Executing</option>
+            <option value="executed">Executed</option>
+            <option value="failed">Failed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        @if (historyEntries().length) {
+          <div class="mt-3 flex-1 min-h-0 space-y-3 overflow-auto pr-1">
+            @for (entry of historyEntries(); track entry.thread_id) {
+              <details open class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+                <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
+                  <span class="text-slate-100">Action #{{ entry.action_id }}</span>
+                  <span class="text-slate-400">
+                    / {{ entry.status || 'unknown' }} / {{ formatHistoryTime(entry.updated_at) }}
+                  </span>
+                </summary>
+                <div class="mt-2 max-h-[200px] overflow-auto pr-1">
+                  <div class="text-xs text-slate-300 whitespace-pre-wrap">
+                    {{ entry.summary || 'No summary available.' }}
+                  </div>
+                  @if (entry.events.length) {
+                    <div class="mt-3 space-y-3 text-[11px] text-slate-400">
+                      @for (evt of entry.events; track evt.created_at) {
+                        <div>
+                          <span class="text-slate-500">{{ formatHistoryTime(evt.created_at) }}</span>
+                          <span class="text-slate-300"> {{ evt.event_type }}</span>
+                          @if (evt.actor) {
+                            <span class="text-slate-500"> by {{ evt.actor }}</span>
+                          }
+                        </div>
+                      }
                     </div>
                   }
                 </div>
-              }
-            </details>
-          }
-        </div>
-      } @else {
-        <app-empty-state
-          kicker="Empty"
-          title="履歴はまだありません"
-          description="承認や実行が発生するとここに履歴が表示されます。"
-        />
-      }
+              </details>
+            }
+          </div>
+        } @else {
+          <app-empty-state
+            kicker="Empty"
+            title="履歴はまだありません"
+            description="承認や実行が発生するとここに履歴が表示されます。"
+          />
+        }
+      </div>
+    </div>
     </div>
 
     @if (nemawashiOpen() && nemawashiAction(); as action) {
@@ -596,7 +345,9 @@ interface ProposalGroup {
           </div>
 
           @if (nemawashiError(); as err) {
-            <div class="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100">
+            <div
+              class="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100"
+            >
               {{ err }}
             </div>
           }
@@ -868,7 +619,10 @@ export class DashboardPage implements OnDestroy {
   private splitProposal(description: string): { summary: string; detail: string | null } {
     const normalized = description.replace(/\s+/g, ' ').trim();
     if (!normalized) return { summary: '状況を確認中です。', detail: null };
-    const parts = normalized.split('。').map((s) => s.trim()).filter(Boolean);
+    const parts = normalized
+      .split('。')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const summaryParts = parts.slice(0, 2);
     const summary = summaryParts.join(' / ');
     if (parts.length <= 2) return { summary, detail: null };

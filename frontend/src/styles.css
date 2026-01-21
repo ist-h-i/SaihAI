@@ -254,6 +254,51 @@ app-root {
   text-transform: uppercase;
 }
 
+.debate-flow-stream > div.absolute {
+  display: none;
+}
+
+.debate-flow-list li {
+  padding-left: 0 !important;
+}
+
+.debate-flow-list li > span.absolute {
+  display: none;
+}
+
+.debate-flow-list li > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.debate-flow-list li > div > div {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.debate-flow-badge {
+  border-radius: 0.5rem;
+  border-color: currentColor;
+  background: rgba(2, 6, 23, 0.32);
+  min-width: 4.75rem;
+  justify-content: center;
+  letter-spacing: 0.22em;
+}
+
+.debate-flow-badge ~ span {
+  display: none;
+}
+
+.debate-flow-list li > div > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.7;
+}
+
 .timeline-list {
   position: relative;
   padding-left: 1.2rem;
