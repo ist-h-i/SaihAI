@@ -67,6 +67,10 @@ Environment variables:
 - `AWS_REGION` (or `AWS_DEFAULT_REGION`)
 - `AWS_BEDROCK_MODEL_ID`
 - `AWS_BEDROCK_INFERENCE_PROFILE_ID` (or `AWS_BEDROCK_INFERENCE_PROFILE_ARN`, optional; takes precedence over `AWS_BEDROCK_MODEL_ID`)
+- `BEDROCK_CONNECT_TIMEOUT_MS` (optional; client connect timeout in milliseconds)
+- `BEDROCK_READ_TIMEOUT_MS` (optional; client read timeout in milliseconds)
+- `BEDROCK_MAX_ATTEMPTS` (optional; AWS SDK retry attempts)
+- `BEDROCK_RETRY_MODE` (optional; `standard` or `adaptive`)
 
 Recommended:
 
@@ -76,6 +80,10 @@ Recommended:
 Auth:
 
 - Uses `boto3` credential resolution (e.g., `AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`).
+
+Logging:
+
+- Bedrock calls emit timing/size metrics via the `saihai.bedrock` logger (INFO on success, WARNING on error).
 
 Quick check:
 
