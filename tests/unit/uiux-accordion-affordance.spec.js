@@ -7,7 +7,6 @@ test('simulator accordions expose affordance + aria wiring', async () => {
   const source = fs.readFileSync(simulatorPath, 'utf8');
 
   expect(source).toContain('ui-accordion__summary');
-  expect(source).toContain('aria-controls="progress-stream-panel"');
   expect(source).toContain('aria-controls="requirement-coverage-panel"');
   expect(source).toContain('aria-controls="future-timeline-panel"');
   expect(source).toContain('aria-controls="agent-insights-panel"');

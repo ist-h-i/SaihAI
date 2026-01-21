@@ -51,6 +51,7 @@ export class SimulatorStore {
 
   private readonly loaded = signal(false);
   private planStream: EventSource | null = null;
+  private readonly streamLineLimit = 2000;
 
   readonly selectedProject = computed(() => {
     const id = this.selectedProjectId();
@@ -321,14 +322,18 @@ export class SimulatorStore {
         const data = this.parseEvent<PlanStreamProgress>(event);
         if (!data) return;
         this.planProgress.set(data);
-        this.planProgressLog.update((curr) => [...curr, data]);
+        const entries = this.splitStreamLines(data.message).map((message) => ({ ...data, message }));
+        if (!entries.length) return;
+        this.planProgressLog.update((curr) => this.capStreamLines([...curr, ...entries]));
       });
 
       source.addEventListener('log', (event) => {
         if (done) return;
         const data = this.parseEvent<PlanStreamLog>(event);
         if (!data) return;
-        this.planDiscussionLog.update((curr) => [...curr, data]);
+        const entries = this.splitStreamLines(data.message).map((message) => ({ ...data, message }));
+        if (!entries.length) return;
+        this.planDiscussionLog.update((curr) => this.capStreamLines([...curr, ...entries]));
       });
 
       source.addEventListener('complete', (event) => {
@@ -388,6 +393,19 @@ export class SimulatorStore {
     return url.toString();
   }
 
+  private splitStreamLines(message: string): string[] {
+    const lines = String(message ?? '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    return lines;
+  }
+
+  private capStreamLines<T>(entries: T[]): T[] {
+    if (entries.length <= this.streamLineLimit) return entries;
+    return entries.slice(-this.streamLineLimit);
+  }
+
   private upsertSavedPlan(detail: SavedPlanDetail): void {
     const summary: SavedPlanSummary = {
       id: detail.id,
@@ -401,7 +419,9 @@ export class SimulatorStore {
       createdAt: detail.createdAt ?? null,
       updatedAt: detail.updatedAt ?? null,
     };
-    this.savedPlans.update((curr) => this.sortSavedPlans([summary, ...curr.filter((p) => p.id !== summary.id)]));
+    this.savedPlans.update((curr) =>
+      this.sortSavedPlans([summary, ...curr.filter((p) => p.id !== summary.id)])
+    );
   }
 
   private sortSavedPlans(plans: SavedPlanSummary[]): SavedPlanSummary[] {
