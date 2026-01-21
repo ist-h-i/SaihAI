@@ -159,7 +159,7 @@ app-root {
   }
 
   .member-card {
-    @apply rounded-xl border border-slate-800 bg-slate-900/30 p-4 flex flex-col gap-2 min-h-[220px];
+    @apply rounded-xl border border-slate-800 bg-slate-900/30 p-3 flex flex-col gap-2 min-h-[180px];
   }
 
   .member-card--selected {

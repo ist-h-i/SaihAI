@@ -59,17 +59,17 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
 @Component({
   imports: [DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="ui-kicker">Tactical Simulator</div>
         <h2 class="mt-1 text-xl sm:text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
-        <p class="mt-2 text-sm text-slate-300 max-w-2xl">
+        <p class="mt-1 text-sm text-slate-300 max-w-2xl">
           案件を選び、メンバー選択あり/なしで AI による編成案と介入プランを確認します。
         </p>
       </div>
 
-      <div class="w-full lg:w-[320px]">
-        <div class="ui-panel">
+      <div class="w-full lg:w-[300px]">
+        <div class="ui-panel p-3">
           <div class="ui-kicker">Next Action</div>
           @if (store.loading() || store.streaming()) {
             <div class="mt-1 text-sm font-semibold text-slate-100">AIが編成中</div>
@@ -130,14 +130,14 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
     </div>
 
     @if (store.error(); as err) {
-      <div class="mb-3 mt-4">
+      <div class="mb-3 mt-3">
         <app-haisa-speech [tone]="'error'" [message]="err" [compact]="true" [showAvatar]="false" />
       </div>
     }
 
-    <div class="mt-4 ui-panel-muted ui-flow-panel">
+    <div class="mt-3 ui-panel-muted ui-flow-panel p-3">
       <div class="ui-flow-label">Flow</div>
-      <ol class="mt-3 grid gap-2 sm:grid-cols-4 text-xs">
+      <ol class="mt-2 grid gap-2 sm:grid-cols-4 text-xs">
         @for (step of steps; track step.id) {
           <li
             class="flex items-center gap-2 rounded-lg border px-3 py-2"
@@ -157,9 +157,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
       </ol>
     </div>
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
-      <section class="ui-panel" id="simulator-input">
-        <div class="flex items-center justify-between gap-3 mb-3">
+    <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <section class="ui-panel p-3" id="simulator-input">
+        <div class="flex items-center justify-between gap-3 mb-2">
           <div class="font-semibold">1. 入力（対象の選択）</div>
           @if (store.loading()) {
             <span class="text-xs text-slate-400">processing...</span>
@@ -178,13 +178,13 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           }
         </select>
 
-        <div class="mt-4 flex items-center justify-between">
+        <div class="mt-3 flex items-center justify-between">
           <div class="text-sm text-slate-300">Candidate Pool</div>
           <div class="text-xs text-slate-400">{{ store.members().length }} 名</div>
         </div>
 
         <div
-          class="mt-2 grid gap-2 max-h-[360px] overflow-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0"
+          class="mt-2 grid gap-2 max-h-[300px] overflow-auto pr-1 sm:grid-cols-2 sm:max-h-[340px] lg:max-h-[420px] xl:grid-cols-3"
         >
           @for (m of store.members(); track m.id) {
             <button
@@ -225,9 +225,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           }
         </div>
 
-        <div class="mt-4">
+        <div class="mt-3">
           <div class="text-sm text-slate-300">Split View</div>
-          <div class="mt-2 space-y-3">
+          <div class="mt-2 space-y-2">
             <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
               <div class="flex items-center justify-between text-xs text-slate-400">
                 <span>Current (Read-only)</span>
@@ -238,7 +238,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
               } @else if (store.currentTeamError(); as err) {
                 <div class="mt-2 text-xs text-rose-200">{{ err }}</div>
               } @else if (store.currentTeam().length) {
-                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 max-h-[260px] overflow-auto pr-1">
                   @for (m of store.currentTeam(); track m.id) {
                     <div class="member-card member-card--readonly">
                       <div class="flex items-start justify-between gap-3">
@@ -295,7 +295,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 }
               </div>
               @if (store.selectedMembers().length) {
-                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 max-h-[260px] overflow-auto pr-1">
                   @for (m of store.selectedMembers(); track m.id) {
                     <button
                       type="button"
@@ -379,7 +379,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         @if (validSimulationResult()) {
           <button
             type="button"
-            class="mt-4 w-full ui-button-secondary disabled:opacity-60"
+            class="mt-3 w-full ui-button-secondary disabled:opacity-60"
             [disabled]="store.loading()"
             (click)="store.runSimulation()"
           >
@@ -388,7 +388,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         } @else {
           <button
             type="button"
-            class="mt-4 w-full ui-button-primary disabled:opacity-60"
+            class="mt-3 w-full ui-button-primary disabled:opacity-60"
             [disabled]="store.loading() || !canRunSimulation()"
             (click)="store.runSimulation()"
           >
@@ -400,8 +400,8 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         }
 
         @if (!validSimulationResult() && store.teamSuggestionsResponse(); as suggestionResponse) {
-          @if (suggestionResponse.suggestions?.length) {
-            <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+          @if (suggestionResponse.suggestions.length) {
+            <div class="mt-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <div class="ui-kicker">Team Suggestions</div>
@@ -415,14 +415,14 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 </div>
               </div>
 
-              <div class="mt-3 grid gap-3">
+              <div class="mt-3 grid gap-2 max-h-[320px] overflow-auto pr-1">
                 @for (s of suggestionResponse.suggestions; track s.id) {
                   <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <div class="text-sm font-semibold text-slate-100 truncate">案 {{ s.id }}</div>
                         <div class="mt-1 text-xs text-slate-400 break-words">{{ s.why }}</div>
-                        @if (s.missingSkills?.length) {
+                        @if (s.missingSkills.length) {
                           <div class="mt-2 text-[11px] text-rose-200">
                             不足: {{ s.missingSkills.join(', ') }}
                           </div>
@@ -507,8 +507,8 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         }
       </section>
 
-      <section class="ui-panel">
-        <div class="flex items-center justify-between gap-3 mb-3">
+      <section class="ui-panel p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-8rem)] lg:overflow-auto">
+        <div class="flex items-center justify-between gap-3 mb-2">
           <div class="font-semibold">2. 結果</div>
           @if (validSimulationResult()) {
             <button type="button" class="ui-button-primary text-xs" (click)="openOverlay('manual')">
@@ -526,7 +526,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         ) {
           <details
             #progressDetails
-            class="mb-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3"
+            class="mb-3 rounded-xl border border-slate-800 bg-slate-900/30 p-3"
             [open]="store.streaming()"
           >
             <summary
@@ -565,11 +565,11 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 ></div>
               </div>
 
-              <div class="mt-3 grid gap-4 md:grid-cols-2">
+              <div class="mt-3 grid gap-3 md:grid-cols-2">
                 <div>
                   <div class="ui-kicker">Progress Log</div>
                   @if (store.planProgressLog().length) {
-                    <ul class="mt-2 space-y-1 text-xs text-slate-300">
+                    <ul class="mt-2 space-y-1 text-xs text-slate-300 max-h-[160px] overflow-auto pr-1">
                       @for (entry of store.planProgressLog(); track $index) {
                         <li>{{ entry.message }}</li>
                       }
@@ -581,7 +581,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 <div>
                   <div class="ui-kicker">Debate Stream</div>
                   @if (store.planDiscussionLog().length) {
-                    <ul class="mt-2 space-y-2 text-xs">
+                    <ul class="mt-2 space-y-2 text-xs max-h-[160px] overflow-auto pr-1">
                       @for (entry of store.planDiscussionLog(); track $index) {
                         <li class="flex items-start gap-2">
                           <span
@@ -604,7 +604,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         }
 
         @if (validSimulationResult(); as r) {
-          <div class="ui-panel-muted">
+          <div class="ui-panel-muted p-3">
             <div class="ui-kicker">Summary</div>
             <div class="mt-2 text-sm text-slate-300">
               {{ r.project.name }} / pattern:
@@ -623,7 +623,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </div>
           </div>
 
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <div class="mt-3 grid gap-2 sm:grid-cols-2">
             <div class="rounded border border-slate-800 bg-slate-900/30 p-3">
               <div class="text-xs text-slate-400">予算</div>
               <div class="mt-1 text-sm">
@@ -644,7 +644,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </div>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-3">
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #coverageDetails>
               <summary
                 class="ui-accordion__summary ui-focus-ring"
@@ -691,7 +691,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </details>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-3">
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #timelineDetails>
               <summary
                 class="ui-accordion__summary ui-focus-ring"
@@ -738,7 +738,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </details>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-3">
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3" #agentDetails>
               <summary
                 class="ui-accordion__summary ui-focus-ring"
@@ -808,7 +808,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             </details>
           </div>
 
-          <div class="mt-4">
+          <div class="mt-3">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div class="text-sm font-semibold">プラン選択</div>
@@ -823,7 +823,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
               }
             </div>
 
-            <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <div class="mt-3 grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               @for (p of r.plans; track p.id) {
                 <button
                   type="button"

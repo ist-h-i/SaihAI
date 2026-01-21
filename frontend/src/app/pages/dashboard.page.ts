@@ -86,7 +86,7 @@ interface ProposalGroup {
 @Component({
   imports: [NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="ui-kicker">Shadow Dashboard</div>
         <h2 class="mt-1 text-2xl font-extrabold tracking-tight">経営ダッシュボード</h2>
@@ -95,10 +95,10 @@ interface ProposalGroup {
         </p>
       </div>
 
-      <div class="w-full lg:w-[360px] shrink-0">
+      <div class="w-full lg:w-[320px] shrink-0 lg:sticky lg:top-6">
         <div class="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950/40">
           <app-neural-orb class="absolute inset-0 opacity-90"></app-neural-orb>
-          <div class="relative p-4">
+          <div class="relative p-3">
             <div class="ui-kicker">Next Action</div>
             @if (activeAlert(); as alert) {
               <div class="mt-2 text-sm font-semibold text-rose-200">緊急アラート</div>
@@ -148,16 +148,16 @@ interface ProposalGroup {
       </div>
     </div>
 
-    <div class="mt-6 flex items-center justify-between gap-3">
+    <div class="mt-4 flex items-center justify-between gap-3">
       <div class="ui-kicker">KPIモニタリング</div>
       <div class="text-xs text-slate-400">
         更新: {{ lastUpdatedLabel() }} / {{ refreshIntervalSec }}s
       </div>
     </div>
 
-    <div class="mt-3 grid gap-4 grid-cols-1 md:grid-cols-4">
+    <div class="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
       @for (k of kpis(); track k.label) {
-        <div class="ui-panel-muted">
+        <div class="ui-panel-muted p-3">
           <div class="ui-kicker">{{ k.label }}</div>
           <div class="mt-2 flex items-end gap-2">
             <div class="text-3xl font-extrabold tracking-tight" [style.color]="k.color">
@@ -170,12 +170,13 @@ interface ProposalGroup {
       }
     </div>
 
-    <div class="mt-6">
-      <div class="ui-kicker">緊急アラートフィード</div>
-      @if (alertFeed().length) {
-        <div class="mt-2 space-y-3">
+    <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)]">
+      <section class="ui-panel p-3">
+        <div class="ui-kicker">緊急アラートフィード</div>
+        @if (alertFeed().length) {
+        <div class="mt-2 space-y-3 max-h-[320px] overflow-auto pr-1">
           @for (alert of alertFeed(); track alert.id) {
-            <div class="ui-panel flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="ui-panel-muted p-3 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
                   <span
@@ -215,15 +216,15 @@ interface ProposalGroup {
           description="新しいアラートが検知されるとここに表示します。"
         />
       }
-    </div>
+      </section>
 
-    <div class="mt-6">
-      <div class="ui-kicker">Today Focus</div>
+      <section class="ui-panel p-3">
+        <div class="ui-kicker">Today Focus</div>
       @if (activeAlert(); as alert) {
-        <div class="mt-2 w-full text-left ui-panel border-rose-500/30 bg-rose-500/10">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div class="mt-2 w-full text-left ui-panel-muted p-3 border-rose-500/30 bg-rose-500/10">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
             <div
-              class="h-12 w-12 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
+              class="h-10 w-10 rounded-xl bg-rose-500/15 border border-rose-500/30 grid place-items-center text-rose-200 font-black"
             >
               !
             </div>
@@ -238,7 +239,7 @@ interface ProposalGroup {
           </div>
         </div>
       } @else if (primaryProposal(); as proposal) {
-        <div class="mt-2 ui-panel">
+        <div class="mt-2 ui-panel p-3">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div class="ui-kicker">AI Recommendation</div>
@@ -267,15 +268,16 @@ interface ProposalGroup {
           description="新しいアラートや提案が届いたら表示します。"
         />
       }
+      </section>
     </div>
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-2">
-      <div class="ui-panel">
+    <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
+      <div class="ui-panel p-3">
         <div class="flex items-center justify-between gap-3">
           <div class="ui-section-title">AI 提案</div>
         </div>
         @if (proposalGroups().length) {
-          <div class="mt-3 space-y-4">
+          <div class="mt-3 space-y-3 max-h-[420px] overflow-auto pr-1">
             @for (group of proposalGroups(); track group.projectId) {
               <div
                 class="rounded-lg border border-slate-800/70 bg-slate-950/30 p-3"
@@ -352,7 +354,7 @@ interface ProposalGroup {
         }
       </div>
 
-      <div class="ui-panel">
+      <div class="ui-panel p-3">
         <div class="flex items-center justify-between gap-3">
           <div class="ui-section-title">承認待ち</div>
           <span
@@ -406,8 +408,8 @@ interface ProposalGroup {
       </div>
     </div>
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-3">
-      <div class="lg:col-span-2 ui-panel">
+    <div class="mt-4 grid gap-3 lg:grid-cols-3">
+      <div class="lg:col-span-2 ui-panel p-3">
         <div class="flex items-center justify-between gap-4">
           <div>
             <div class="ui-kicker">Talent Matrix</div>
@@ -417,22 +419,22 @@ interface ProposalGroup {
         </div>
 
         <div
-          class="mt-3 relative h-[340px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/30"
+          class="mt-3 relative h-[280px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950/30"
         >
           <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
-            <div class="border-b border-r border-slate-800/80 p-3">
+            <div class="border-b border-r border-slate-800/80 p-2">
               <div class="text-xs font-bold text-rose-200">Risk</div>
               <div class="text-[11px] text-slate-400">離職予備軍</div>
             </div>
-            <div class="border-b border-slate-800/80 p-3">
+            <div class="border-b border-slate-800/80 p-2">
               <div class="text-xs font-bold text-indigo-200">Star</div>
               <div class="text-[11px] text-slate-400">エース</div>
             </div>
-            <div class="border-r border-slate-800/80 p-3">
+            <div class="border-r border-slate-800/80 p-2">
               <div class="text-xs font-bold text-violet-200">Stagnant</div>
               <div class="text-[11px] text-slate-400">停滞</div>
             </div>
-            <div class="p-3">
+            <div class="p-2">
               <div class="text-xs font-bold text-emerald-200">Growth</div>
               <div class="text-[11px] text-slate-400">成長株</div>
             </div>
@@ -485,7 +487,7 @@ interface ProposalGroup {
         </div>
       </div>
 
-      <div class="ui-panel">
+      <div class="ui-panel p-3">
         <div class="ui-kicker">AI Watchdog</div>
         @if (watchdog().length) {
           <div class="mt-3">
@@ -524,7 +526,7 @@ interface ProposalGroup {
       </div>
     </div>
 
-    <div class="mt-6 ui-panel">
+    <div class="mt-4 ui-panel p-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="ui-section-title">History</div>
         <select
@@ -543,7 +545,7 @@ interface ProposalGroup {
       </div>
 
       @if (historyEntries().length) {
-        <div class="mt-3 space-y-3">
+        <div class="mt-3 space-y-2 max-h-[360px] overflow-auto pr-1">
           @for (entry of historyEntries(); track entry.thread_id) {
             <details class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
               <summary class="cursor-pointer list-none text-xs font-semibold text-slate-300">
