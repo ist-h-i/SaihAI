@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,9 +14,9 @@ logger = logging.getLogger("saihai.simulator_planner")
 _DEFAULT_PLAN_TYPES = ("A", "B", "C")
 
 _PM_MAX_TOKENS = 3167
-_HR_MAX_TOKENS = 25240
+_HR_MAX_TOKENS = 4096  # 25240から削減（実際の応答はこれほど長くない）
 _RISK_MAX_TOKENS = 2000
-_GUNSHI_MAX_TOKENS = 64000
+_GUNSHI_MAX_TOKENS = 8192  # 64000から削減（実際の応答はこれほど長くない）
 _AGENT_TEMPERATURE = 1.0
 
 _PM_USER_PROMPT = (
@@ -315,7 +316,28 @@ class SimulationPlansResult:
     raw: dict[str, Any]
 
 
+def _invoke_agent(agent_name: str, prompt: str, max_tokens: int) -> tuple[str, dict[str, Any]]:
+    """エージェントを呼び出すヘルパー関数（並列実行用）"""
+    import time
+    start_time = time.perf_counter()
+    logger.info("Bedrock prompt[%s]=%s", agent_name, prompt)
+    payload = invoke_json(
+        prompt,
+        max_tokens=max_tokens,
+        temperature=_AGENT_TEMPERATURE,
+        retries=1,
+    )
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    logger.info("Agent %s completed in %.1fms", agent_name, elapsed_ms)
+    if not isinstance(payload, dict):
+        raise BedrockInvocationError(f"{agent_name} agent returned non-object JSON")
+    return agent_name, payload
+
+
 def generate_simulation_plans(context: dict[str, Any]) -> SimulationPlansResult:
+    import time
+    total_start_time = time.perf_counter()
+    
     if _LOG_BEDROCK_CONTEXT:
         logger.warning(
             "Bedrock plan generation context=%s",
@@ -323,36 +345,35 @@ def generate_simulation_plans(context: dict[str, Any]) -> SimulationPlansResult:
         )
     try:
         data_json = json.dumps(context, ensure_ascii=False)
+        
+        # プロンプトを事前に準備
         pm_prompt = _render_template(_PM_USER_PROMPT, {"data": data_json})
-        logger.info("Bedrock prompt[PM]=%s", pm_prompt)
-        pm_payload = invoke_json(
-            pm_prompt,
-            max_tokens=_PM_MAX_TOKENS,
-            temperature=_AGENT_TEMPERATURE,
-            retries=1,
-        )
         hr_prompt = _render_template(_HR_USER_PROMPT, {"data": data_json})
-        logger.info("Bedrock prompt[HR]=%s", hr_prompt)
-        hr_payload = invoke_json(
-            hr_prompt,
-            max_tokens=_HR_MAX_TOKENS,
-            temperature=_AGENT_TEMPERATURE,
-            retries=1,
-        )
         risk_prompt = _render_template(_RISK_USER_PROMPT, {"data": data_json})
-        logger.info("Bedrock prompt[RISK]=%s", risk_prompt)
-        risk_payload = invoke_json(
-            risk_prompt,
-            max_tokens=_RISK_MAX_TOKENS,
-            temperature=_AGENT_TEMPERATURE,
-            retries=1,
-        )
-        if not isinstance(pm_payload, dict):
-            raise BedrockInvocationError("PM agent returned non-object JSON")
-        if not isinstance(hr_payload, dict):
-            raise BedrockInvocationError("HR agent returned non-object JSON")
-        if not isinstance(risk_payload, dict):
-            raise BedrockInvocationError("RISK agent returned non-object JSON")
+        
+        # PM、HR、Riskエージェントを並列実行
+        parallel_start_time = time.perf_counter()
+        logger.info("Starting parallel agent invocations (PM, HR, Risk)")
+        agent_results: dict[str, dict[str, Any]] = {}
+        
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(_invoke_agent, "PM", pm_prompt, _PM_MAX_TOKENS): "PM",
+                executor.submit(_invoke_agent, "HR", hr_prompt, _HR_MAX_TOKENS): "HR",
+                executor.submit(_invoke_agent, "Risk", risk_prompt, _RISK_MAX_TOKENS): "Risk",
+            }
+            
+            for future in as_completed(futures):
+                agent_name, payload = future.result()
+                agent_results[agent_name] = payload
+                logger.info("Agent %s completed", agent_name)
+        
+        pm_payload = agent_results["PM"]
+        hr_payload = agent_results["HR"]
+        risk_payload = agent_results["Risk"]
+        
+        parallel_elapsed_ms = (time.perf_counter() - parallel_start_time) * 1000
+        logger.info("All parallel agent invocations completed in %.1fms", parallel_elapsed_ms)
 
         project_context = {
             "project": context.get("project") or {},
@@ -375,6 +396,8 @@ def generate_simulation_plans(context: dict[str, Any]) -> SimulationPlansResult:
         )
         logger.info("Bedrock prompt[Gunshi][system]=%s", _GUNSHI_SYSTEM_PROMPT)
         logger.info("Bedrock prompt[Gunshi][user]=%s", gunshi_prompt)
+        
+        gunshi_start_time = time.perf_counter()
         gunshi_payload = invoke_json(
             gunshi_prompt,
             system_prompt=_GUNSHI_SYSTEM_PROMPT,
@@ -382,6 +405,12 @@ def generate_simulation_plans(context: dict[str, Any]) -> SimulationPlansResult:
             temperature=_AGENT_TEMPERATURE,
             retries=1,
         )
+        gunshi_elapsed_ms = (time.perf_counter() - gunshi_start_time) * 1000
+        logger.info("Gunshi agent completed in %.1fms", gunshi_elapsed_ms)
+        
+        total_elapsed_ms = (time.perf_counter() - total_start_time) * 1000
+        logger.info("Total plan generation completed in %.1fms (parallel: %.1fms, gunshi: %.1fms)", 
+                   total_elapsed_ms, parallel_elapsed_ms, gunshi_elapsed_ms)
     except BedrockInvocationError:
         logger.exception("simulator planner Bedrock invocation failed")
         raise
@@ -507,4 +536,3 @@ def build_simulation_plan_logs(result: SimulationPlansResult) -> list[dict[str, 
         logs.append({"agent": "GUNSHI", "message": summary, "tone": "gunshi"})
 
     return logs
-
