@@ -35,4 +35,5 @@
 - Genome: search + skill filter works; reset button appears only when filters are active.
 - Genome: member selection updates the detail panel; selection clear works.
 - Simulator: run simulation -> results -> open intervention overlay -> approve.
+- Simulator: when no members selected -> team suggestions -> apply -> results.
 - Simulator (mobile): layout remains usable; primary CTA visible without overlap.

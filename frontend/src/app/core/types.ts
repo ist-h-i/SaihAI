@@ -46,6 +46,56 @@ export interface SimulationRequest {
   memberIds: string[];
 }
 
+export interface TeamSuggestionRequest {
+  projectId: string;
+  excludeMemberIds?: string[];
+  minAvailability?: number;
+  proposalCount?: number;
+  minTeamSize?: number;
+  maxTeamSize?: number;
+}
+
+export interface TeamSuggestionMember {
+  id: string;
+  name: string;
+  role?: string | null;
+  allocationPct?: number | null;
+  cost?: number | null;
+  availability?: number | null;
+}
+
+export interface TeamSuggestion {
+  id: string;
+  source: 'internal' | 'external';
+  applyable: boolean;
+  memberIds: string[];
+  team: TeamSuggestionMember[];
+  why: string;
+  metrics?: SimulationEvaluation['metrics'] | null;
+  isRecommended: boolean;
+  missingSkills: string[];
+}
+
+export interface TeamSuggestionsResponse {
+  project: { id: string; name: string; budget: number };
+  minAvailability: number;
+  candidateCount: number;
+  suggestions: TeamSuggestion[];
+}
+
+export interface TeamSuggestionApplyRequest {
+  projectId: string;
+  memberIds: string[];
+  minAvailability?: number;
+}
+
+export interface TeamSuggestionApplyResponse {
+  draftId: string;
+  projectId: string;
+  memberIds: string[];
+  minAvailability: number;
+}
+
 export interface RequirementResult {
   name: string;
   fulfilled: boolean;

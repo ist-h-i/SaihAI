@@ -16,6 +16,10 @@ import {
   SimulationEvaluation,
   SimulationPlan,
   SimulationRequest,
+  TeamSuggestionApplyRequest,
+  TeamSuggestionApplyResponse,
+  TeamSuggestionRequest,
+  TeamSuggestionsResponse,
 } from './types';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +49,17 @@ export class ApiClient {
 
   evaluateSimulation(req: SimulationRequest): Observable<SimulationEvaluation> {
     return this.http.post<SimulationEvaluation>(this.buildUrl('/simulations/evaluate'), req);
+  }
+
+  getTeamSuggestions(req: TeamSuggestionRequest): Observable<TeamSuggestionsResponse> {
+    return this.http.post<TeamSuggestionsResponse>(this.buildUrl('/simulations/team-suggestions'), req);
+  }
+
+  applyTeamSuggestion(req: TeamSuggestionApplyRequest): Observable<TeamSuggestionApplyResponse> {
+    return this.http.post<TeamSuggestionApplyResponse>(
+      this.buildUrl('/simulations/team-suggestions/apply'),
+      req
+    );
   }
 
   generatePlans(simulationId: string): Observable<SimulationPlan[]> {

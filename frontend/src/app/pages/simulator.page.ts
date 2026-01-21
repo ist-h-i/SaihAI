@@ -22,6 +22,7 @@ import {
   ProjectTeamMember,
   SimulationPlan,
   SimulationResult,
+  TeamSuggestion,
 } from '../core/types';
 
 interface ChatEntry {
@@ -63,7 +64,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         <div class="ui-kicker">Tactical Simulator</div>
         <h2 class="mt-1 text-xl sm:text-2xl font-extrabold tracking-tight">戦術シミュレーター</h2>
         <p class="mt-2 text-sm text-slate-300 max-w-2xl">
-          案件とメンバーを選び、介入プランを確認します。
+          案件を選び、メンバー選択あり/なしで AI による編成案と介入プランを確認します。
         </p>
       </div>
 
@@ -101,6 +102,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                 <span>processing / waiting</span>
               </span>
             </div>
+          } @else if (store.teamSuggestions().length) {
+            <div class="mt-1 text-sm font-semibold text-slate-100">編成案を選択</div>
+            <div class="mt-1 text-xs text-slate-400">候補から1案を適用してシミュレーションします。</div>
           } @else if (validSimulationResult()) {
             @if (interventionCompleted()) {
               <div class="mt-1 text-sm font-semibold text-slate-100">介入完了</div>
@@ -110,11 +114,16 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
               <div class="mt-1 text-xs text-slate-400">結果セクションで介入に進みます。</div>
             }
           } @else if (canRunSimulation()) {
-            <div class="mt-1 text-sm font-semibold text-slate-100">実行準備完了</div>
-            <div class="mt-1 text-xs text-slate-400">入力を確認して AI を実行します。</div>
+            @if (store.selectedMemberIds().length) {
+              <div class="mt-1 text-sm font-semibold text-slate-100">実行準備完了</div>
+              <div class="mt-1 text-xs text-slate-400">選択メンバーでシミュレーションします。</div>
+            } @else {
+              <div class="mt-1 text-sm font-semibold text-slate-100">候補プールから提案</div>
+              <div class="mt-1 text-xs text-slate-400">未選択のまま実行すると編成案を提示します。</div>
+            }
           } @else {
             <div class="mt-1 text-sm font-semibold text-slate-100">対象を選択</div>
-            <div class="mt-1 text-xs text-slate-400">案件とメンバーを選んで開始します。</div>
+            <div class="mt-1 text-xs text-slate-400">案件を選んで開始します。</div>
           }
         </div>
       </div>
@@ -336,7 +345,9 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
                   }
                 </div>
               } @else {
-                <div class="mt-2 text-xs text-slate-500">メンバーを選択してください</div>
+                <div class="mt-2 text-xs text-slate-500">
+                  メンバーを選択するか、未選択のまま AI自動編成 を実行してください
+                </div>
               }
             </div>
           </div>
@@ -386,6 +397,113 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         }
         @if (store.loading()) {
           <div class="text-xs text-slate-400 mt-2">running…</div>
+        }
+
+        @if (!validSimulationResult() && store.teamSuggestionsResponse(); as suggestionResponse) {
+          @if (suggestionResponse.suggestions?.length) {
+            <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="ui-kicker">Team Suggestions</div>
+                  <div class="mt-1 text-xs text-slate-400">
+                    availability ≥ {{ suggestionResponse.minAvailability }}% / candidates
+                    {{ suggestionResponse.candidateCount }}
+                  </div>
+                </div>
+                <div class="text-xs text-slate-400">
+                  {{ suggestionResponse.project.name }}
+                </div>
+              </div>
+
+              <div class="mt-3 grid gap-3">
+                @for (s of suggestionResponse.suggestions; track s.id) {
+                  <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-100 truncate">案 {{ s.id }}</div>
+                        <div class="mt-1 text-xs text-slate-400 break-words">{{ s.why }}</div>
+                        @if (s.missingSkills?.length) {
+                          <div class="mt-2 text-[11px] text-rose-200">
+                            不足: {{ s.missingSkills.join(', ') }}
+                          </div>
+                        }
+                      </div>
+                      <div class="flex flex-col items-end gap-2 shrink-0">
+                        @if (s.source === 'external') {
+                          <span class="ui-pill border-slate-500/40 bg-slate-500/10 text-slate-200">
+                            External
+                          </span>
+                        }
+                        @if (s.isRecommended) {
+                          <span class="ui-pill border-emerald-500/40 bg-emerald-500/10 text-emerald-200">
+                            Recommended
+                          </span>
+                        }
+                      </div>
+                    </div>
+
+                    @if (s.metrics) {
+                      <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100">
+                          skill {{ s.metrics.skillFitPct }}%
+                        </span>
+                        <span class="ui-pill border-rose-500/40 bg-rose-500/10 text-rose-200">
+                          risk {{ s.metrics.riskPct }}%
+                        </span>
+                        <span class="ui-pill border-slate-500/40 bg-slate-500/10 text-slate-200">
+                          budget {{ s.metrics.budgetPct }}%
+                        </span>
+                      </div>
+                    }
+
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                      @for (m of s.team; track m.id) {
+                        <div class="rounded-lg border border-slate-800 bg-slate-950/30 p-2">
+                          <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                              <div class="text-sm font-semibold text-slate-100 truncate">
+                                {{ m.name }}
+                              </div>
+                              <div class="text-[11px] text-slate-400 truncate">
+                                {{ m.role ?? '—' }}
+                              </div>
+                            </div>
+                            <div class="text-right shrink-0 text-[11px] text-slate-400">
+                              @if (m.cost != null) {
+                                <div>¥{{ m.cost | number:'1.0-0' }}</div>
+                              } @else {
+                                <div>--</div>
+                              }
+                              @if (m.availability != null) {
+                                <div>{{ m.availability }}%</div>
+                              } @else {
+                                <div>--</div>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-end">
+                      @if (s.applyable) {
+                        <button
+                          type="button"
+                          class="ui-button-primary text-xs disabled:opacity-60"
+                          [disabled]="store.loading()"
+                          (click)="applySuggestion(s)"
+                        >
+                          適用してシミュレーション
+                        </button>
+                      } @else {
+                        <div class="text-xs text-slate-400">外部調達枠のため適用できません</div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
         }
       </section>
 
@@ -767,7 +885,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
           <app-empty-state
             kicker="Empty"
             title="結果はまだありません"
-            description="案件とメンバーを選択してください。"
+            description="案件を選択してください。メンバー未選択でも AI が編成案を提案します。"
           />
         }
       </section>
@@ -1060,6 +1178,7 @@ export class SimulatorPage implements OnDestroy {
 
   protected readonly currentStep = computed(() => {
     if (this.store.loading() || this.store.streaming()) return 2;
+    if (this.store.teamSuggestions().length) return 2;
     if (this.validSimulationResult()) {
       return this.interventionCompleted() ? 5 : 4;
     }
@@ -1073,7 +1192,7 @@ export class SimulatorPage implements OnDestroy {
   });
 
   protected readonly canRunSimulation = computed(() => {
-    return Boolean(this.store.selectedProjectId()) && this.store.selectedMemberIds().length > 0;
+    return Boolean(this.store.selectedProjectId());
   });
 
   protected readonly recommendedPlan = computed<SimulationPlan | null>(() => {
@@ -1252,6 +1371,10 @@ export class SimulatorPage implements OnDestroy {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
     this.store.setProject(target.value);
+  }
+
+  protected applySuggestion(suggestion: TeamSuggestion): void {
+    void this.store.applyTeamSuggestion(suggestion);
   }
 
   ngOnDestroy(): void {

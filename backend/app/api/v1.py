@@ -25,6 +25,14 @@ from app.db.repository import (
 )
 from app.domain.patterns import detect_pattern
 from app.domain.scoring import score
+from app.domain.team_suggestions import (
+    DEFAULT_CANDIDATE_LIMIT,
+    DEFAULT_MAX_TEAM_SIZE,
+    DEFAULT_MIN_AVAILABILITY_PCT,
+    DEFAULT_MIN_TEAM_SIZE,
+    DEFAULT_PROPOSAL_COUNT,
+    build_team_suggestions,
+)
 from app.domain.external_actions import ACTION_TYPE_CALENDAR, ACTION_TYPE_EMAIL, ACTION_TYPE_HR
 from app.domain.input_sources import (
     SOURCE_ATTENDANCE,
@@ -118,6 +126,15 @@ class SimulationEvaluateRequest(BaseModel):
     memberIds: list[str] = Field(default_factory=list)
 
 
+class TeamSuggestionRequest(BaseModel):
+    projectId: str = Field(min_length=1)
+    excludeMemberIds: list[str] = Field(default_factory=list)
+    minAvailability: int | None = None
+    proposalCount: int | None = None
+    minTeamSize: int | None = None
+    maxTeamSize: int | None = None
+
+
 class RequirementResult(BaseModel):
     name: str
     fulfilled: bool
@@ -135,6 +152,47 @@ class SimulationProjectSummary(BaseModel):
     id: str
     name: str
     budget: int
+
+
+class TeamSuggestionMember(BaseModel):
+    id: str
+    name: str
+    role: str | None = None
+    allocationPct: int | None = None
+    cost: int | None = None
+    availability: int | None = None
+
+
+class TeamSuggestion(BaseModel):
+    id: str
+    source: Literal["internal", "external"] = "internal"
+    applyable: bool = True
+    memberIds: list[str] = Field(default_factory=list)
+    team: list[TeamSuggestionMember] = Field(default_factory=list)
+    why: str
+    metrics: SimulationMetrics | None = None
+    isRecommended: bool = False
+    missingSkills: list[str] = Field(default_factory=list)
+
+
+class TeamSuggestionsResponse(BaseModel):
+    project: SimulationProjectSummary
+    minAvailability: int
+    candidateCount: int
+    suggestions: list[TeamSuggestion] = Field(default_factory=list)
+
+
+class TeamSuggestionApplyRequest(BaseModel):
+    projectId: str = Field(min_length=1)
+    memberIds: list[str] = Field(default_factory=list)
+    minAvailability: int | None = None
+
+
+class TeamSuggestionApplyResponse(BaseModel):
+    draftId: str
+    projectId: str
+    memberIds: list[str]
+    minAvailability: int
 
 
 class SimulationMemberSummary(BaseModel):
@@ -337,6 +395,7 @@ class HistoryEntryResponse(BaseModel):
 _simulations: dict[str, dict] = {}
 _plans: dict[str, dict] = {}
 _plan_chats: dict[str, list[dict[str, str]]] = {}
+_team_suggestion_drafts: dict[str, dict] = {}
 
 
 @router.post("/auth/login", response_model=LoginResponse)
@@ -557,6 +616,12 @@ def evaluate(req: SimulationEvaluateRequest, conn: Connection = Depends(get_db))
     if not project:
         raise HTTPException(status_code=404, detail="project not found")
 
+    if not req.memberIds:
+        raise HTTPException(
+            status_code=400,
+            detail="memberIds is required. Call /simulations/team-suggestions when no members are selected.",
+        )
+
     team = fetch_members_by_ids(conn, req.memberIds)
     if len(team) != len(set(req.memberIds)):
         raise HTTPException(status_code=404, detail="member not found")
@@ -660,6 +725,132 @@ def evaluate(req: SimulationEvaluateRequest, conn: Connection = Depends(get_db))
         "team": team,
     }
     return evaluation
+
+
+@router.post(
+    "/simulations/team-suggestions",
+    response_model=TeamSuggestionsResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def suggest_teams(req: TeamSuggestionRequest, conn: Connection = Depends(get_db)) -> dict:
+    project = fetch_project(conn, req.projectId)
+    if not project:
+        raise HTTPException(status_code=404, detail="project not found")
+
+    min_availability = req.minAvailability if isinstance(req.minAvailability, int) else DEFAULT_MIN_AVAILABILITY_PCT
+    proposal_count = req.proposalCount if isinstance(req.proposalCount, int) else DEFAULT_PROPOSAL_COUNT
+    min_team_size = req.minTeamSize if isinstance(req.minTeamSize, int) else DEFAULT_MIN_TEAM_SIZE
+    max_team_size = req.maxTeamSize if isinstance(req.maxTeamSize, int) else DEFAULT_MAX_TEAM_SIZE
+
+    if proposal_count < 1:
+        proposal_count = 1
+    if proposal_count > 5:
+        proposal_count = 5
+
+    if min_team_size < 1:
+        min_team_size = 1
+    if max_team_size < min_team_size:
+        max_team_size = min_team_size
+    if max_team_size > 10:
+        max_team_size = 10
+
+    pool = fetch_members(conn)
+    payload = build_team_suggestions(
+        project,
+        pool,
+        exclude_member_ids=req.excludeMemberIds,
+        min_availability_pct=min_availability,
+        proposal_count=proposal_count,
+        min_team_size=min_team_size,
+        max_team_size=max_team_size,
+        candidate_limit=DEFAULT_CANDIDATE_LIMIT,
+    )
+
+    candidate_ids = {
+        str(m.get("id") or "")
+        for m in pool
+        if str(m.get("id") or "")
+        and int(m.get("availability") or 0) >= int(payload.get("minAvailability") or DEFAULT_MIN_AVAILABILITY_PCT)
+        and str(m.get("id") or "") not in {str(x) for x in (req.excludeMemberIds or [])}
+    }
+
+    suggestions: list[dict[str, Any]] = []
+    for suggestion in payload.get("suggestions") or []:
+        source = suggestion.get("source")
+        if source == "internal":
+            ids = [str(x) for x in (suggestion.get("memberIds") or []) if str(x)]
+            if len(ids) != len(set(ids)):
+                continue
+            if any(member_id not in candidate_ids for member_id in ids):
+                continue
+        suggestions.append(suggestion)
+
+    if not suggestions:
+        suggestions = payload.get("suggestions") or []
+
+    return {
+        "project": {"id": project["id"], "name": project["name"], "budget": project["budget"]},
+        "minAvailability": int(payload.get("minAvailability") or DEFAULT_MIN_AVAILABILITY_PCT),
+        "candidateCount": int(payload.get("candidateCount") or 0),
+        "suggestions": suggestions,
+    }
+
+
+@router.post(
+    "/simulations/team-suggestions/apply",
+    response_model=TeamSuggestionApplyResponse,
+    dependencies=[Depends(get_current_user)],
+)
+def apply_team_suggestion(req: TeamSuggestionApplyRequest, conn: Connection = Depends(get_db)) -> TeamSuggestionApplyResponse:
+    project = fetch_project(conn, req.projectId)
+    if not project:
+        raise HTTPException(status_code=404, detail="project not found")
+
+    min_availability = req.minAvailability if isinstance(req.minAvailability, int) else DEFAULT_MIN_AVAILABILITY_PCT
+    member_ids = [str(x) for x in (req.memberIds or []) if str(x)]
+    if not member_ids:
+        raise HTTPException(status_code=400, detail="memberIds is required")
+
+    team = fetch_members_by_ids(conn, member_ids)
+    if len(team) != len(set(member_ids)):
+        raise HTTPException(status_code=404, detail="member not found")
+
+    if any(int(m.get("availability") or 0) < min_availability for m in team):
+        raise HTTPException(status_code=400, detail="member availability below threshold")
+
+    draft_id = f"draft-{uuid4().hex[:12]}"
+    draft = {
+        "draftId": draft_id,
+        "projectId": req.projectId,
+        "memberIds": member_ids,
+        "minAvailability": int(min_availability),
+    }
+    _team_suggestion_drafts[draft_id] = draft
+
+    try:
+        conn.execute(
+            text(
+                """
+                INSERT INTO team_suggestion_drafts (draft_id, project_id, member_ids, min_availability)
+                VALUES (:draft_id, :project_id, :member_ids, :min_availability)
+                """
+            ),
+            {
+                "draft_id": draft_id,
+                "project_id": req.projectId,
+                "member_ids": json.dumps(member_ids, ensure_ascii=False),
+                "min_availability": int(min_availability),
+            },
+        )
+    except Exception:
+        logger.info("team_suggestion_drafts table not available; stored in-memory draft_id=%s", draft_id)
+
+    return TeamSuggestionApplyResponse(
+        draftId=draft_id,
+        projectId=req.projectId,
+        memberIds=member_ids,
+        minAvailability=int(min_availability),
+    )
 
 
 @router.post(
