@@ -54,6 +54,11 @@ uv run python scripts/db_tool.py down
 - `GET /api/v1/bedrock/status`
 - `POST /api/v1/bedrock/invoke`
 - `POST /api/v1/simulations/{simulation_id}/plans/{plan_type}/chat`
+- `GET /api/v1/plans`
+- `POST /api/v1/plans`
+- `GET /api/v1/plans/{plan_id}`
+- `PATCH /api/v1/plans/{plan_id}`
+- `DELETE /api/v1/plans/{plan_id}`
 
 ## Bedrock (optional)
 

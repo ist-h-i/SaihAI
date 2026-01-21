@@ -20,6 +20,8 @@ import {
   Member,
   PlanStreamTone,
   ProjectTeamMember,
+  SavedPlanDetail,
+  SavedPlanSummary,
   SimulationPlan,
   SimulationResult,
   TeamSuggestion,
@@ -307,6 +309,83 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
       </ol>
     </div>
 
+    <section class="mt-3 ui-panel p-3" id="saved-plans">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="ui-kicker">Plan Library</div>
+          <div class="text-sm font-semibold text-slate-100">保存済みプラン</div>
+          <div class="mt-1 text-xs text-slate-400">
+            一覧から詳細を開き、タイトル編集や削除ができます。
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="ui-button-secondary text-xs" (click)="startNewPlan()">
+            新規作成
+          </button>
+          <button
+            type="button"
+            class="ui-button-ghost text-xs"
+            [disabled]="store.savedPlansLoading()"
+            (click)="reloadSavedPlans()"
+          >
+            一覧更新
+          </button>
+        </div>
+      </div>
+
+      @if (store.savedPlansError(); as planErr) {
+        <div class="mt-2 text-xs text-rose-200">{{ planErr }}</div>
+      }
+
+      @if (store.savedPlansLoading()) {
+        <div class="mt-3 text-xs text-slate-400">loading saved plans...</div>
+      } @else if (store.savedPlans().length) {
+        <div class="mt-3 grid gap-2 max-h-[320px] overflow-auto pr-1">
+          @for (plan of store.savedPlans(); track plan.id) {
+            <div
+              class="rounded-xl border border-slate-800 bg-slate-950/30 p-3"
+              [class.border-indigo-500/70]="activeSavedPlanId() === plan.id"
+              [class.bg-indigo-500/10]="activeSavedPlanId() === plan.id"
+            >
+              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                <button
+                  type="button"
+                  class="w-full text-left min-w-0 ui-focus-ring"
+                  (click)="selectSavedPlan(plan.id)"
+                >
+                  <div class="text-sm font-semibold text-slate-100 truncate">{{ plan.title }}</div>
+                  <div class="mt-1 text-xs text-slate-400">
+                    {{ plan.projectName ?? '—' }}
+                  </div>
+                  <div class="mt-1 text-[11px] text-slate-500">
+                    更新: {{ formatPlanDate(plan.updatedAt ?? plan.createdAt) }}
+                  </div>
+                </button>
+                <div class="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:gap-2">
+                  <span class="ui-pill border-indigo-500/40 bg-indigo-500/10 text-indigo-100">
+                    Plan {{ plan.selectedPlan ?? plan.recommendedPlan ?? '-' }}
+                  </span>
+                  <button
+                    type="button"
+                    class="ui-button-ghost text-[11px]"
+                    (click)="deleteSavedPlan(plan.id, $event)"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          kicker="Empty"
+          title="保存済みプランがありません"
+          description="シミュレーションを実行するとここに保存されます。"
+        />
+      }
+    </section>
+
     <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
       <section class="ui-panel p-3" id="simulator-input">
         <div class="flex items-center justify-between gap-3 mb-2">
@@ -531,7 +610,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             type="button"
             class="mt-3 w-full ui-button-secondary disabled:opacity-60"
             [disabled]="store.loading()"
-            (click)="store.runSimulation()"
+            (click)="runSimulation()"
           >
             再シミュレーション
           </button>
@@ -540,7 +619,7 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
             type="button"
             class="mt-3 w-full ui-button-primary disabled:opacity-60"
             [disabled]="store.loading() || !canRunSimulation()"
-            (click)="store.runSimulation()"
+            (click)="runSimulation()"
           >
             AI自動編成
           </button>
@@ -680,6 +759,47 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
         }
 
         @if (validSimulationResult(); as r) {
+          @if (activeSavedPlanId(); as savedId) {
+            <div class="mb-3 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="ui-kicker">Saved Plan</div>
+                  <div class="text-xs text-slate-400">
+                    最終更新: {{ formatPlanDate(activeSavedPlanUpdatedAt()) }}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="ui-button-ghost text-xs"
+                  (click)="deleteSavedPlan(savedId)"
+                >
+                  削除
+                </button>
+              </div>
+              <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  class="w-full bg-slate-950/40 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 ui-focus-ring"
+                  placeholder="タイトルを入力"
+                  [value]="savedPlanTitleDraft()"
+                  (input)="onPlanTitleInput($event)"
+                  (keydown.enter)="savePlanTitle()"
+                  [disabled]="savedPlanActionLoading()"
+                />
+                <button
+                  type="button"
+                  class="ui-button-secondary text-xs shrink-0"
+                  [disabled]="savedPlanActionLoading() || !planTitleDirty()"
+                  (click)="savePlanTitle()"
+                >
+                  タイトル更新
+                </button>
+              </div>
+              @if (savedPlanActionError(); as planError) {
+                <div class="mt-2 text-xs text-rose-200">{{ planError }}</div>
+              }
+            </div>
+          }
           <div class="ui-panel-muted p-3">
             <div class="ui-kicker">Summary</div>
             <div class="mt-2 text-sm text-slate-300">
@@ -1219,8 +1339,21 @@ export class SimulatorPage implements OnDestroy {
   protected readonly overlayChat = signal<ChatEntry[]>([]);
   protected readonly chatSending = signal(false);
 
+  protected readonly activeSavedPlanId = signal<string | null>(null);
+  protected readonly activeSavedPlanUpdatedAt = signal<string | null>(null);
+  protected readonly savedPlanTitle = signal('');
+  protected readonly savedPlanTitleDraft = signal('');
+  protected readonly savedPlanActionLoading = signal(false);
+  protected readonly savedPlanActionError = signal<string | null>(null);
+  protected readonly savedPlanDetailLoading = signal(false);
+
   protected readonly selectedPlanId = signal<'A' | 'B' | 'C' | null>(null);
   private readonly approvedSimulationId = signal<string | null>(null);
+
+  protected readonly planTitleDirty = computed(() => {
+    const draft = this.savedPlanTitleDraft().trim();
+    return Boolean(this.activeSavedPlanId()) && draft.length > 0 && draft !== this.savedPlanTitle();
+  });
 
   protected readonly validSimulationResult = computed<SimulationResult | null>(() => {
     const result = this.store.simulationResult();
@@ -1442,8 +1575,12 @@ export class SimulatorPage implements OnDestroy {
     this.store.setProject(target.value);
   }
 
+  protected runSimulation(): void {
+    void this.runSimulationAndSync();
+  }
+
   protected applySuggestion(suggestion: TeamSuggestion): void {
-    void this.store.applyTeamSuggestion(suggestion);
+    void this.applySuggestionAndSync(suggestion);
   }
 
   ngOnDestroy(): void {
@@ -1455,6 +1592,7 @@ export class SimulatorPage implements OnDestroy {
 
   private async init(): Promise<void> {
     await this.store.loadOnce();
+    await this.store.loadSavedPlans();
 
     this.querySub?.unsubscribe();
     this.querySub = this.route.queryParamMap.subscribe((p) => {
@@ -1481,6 +1619,18 @@ export class SimulatorPage implements OnDestroy {
     });
   }
 
+  private async runSimulationAndSync(): Promise<void> {
+    await this.store.runSimulation();
+    await this.store.loadSavedPlans();
+    this.syncActiveSavedPlanFromResult();
+  }
+
+  private async applySuggestionAndSync(suggestion: TeamSuggestion): Promise<void> {
+    await this.store.applyTeamSuggestion(suggestion);
+    await this.store.loadSavedPlans();
+    this.syncActiveSavedPlanFromResult();
+  }
+
   private async runAlertContext(mode: 'alert' | 'manual', focus: string | null): Promise<void> {
     const projectId = this.store.selectedProjectId();
     if (projectId) {
@@ -1499,7 +1649,7 @@ export class SimulatorPage implements OnDestroy {
       this.store.setSelectedMembers(selected);
     }
 
-    await this.store.runSimulation();
+    await this.runSimulationAndSync();
     this.openOverlay(mode);
   }
 
@@ -1515,7 +1665,7 @@ export class SimulatorPage implements OnDestroy {
       this.selectDemoMembers(['yamada', '山田'], ['suzuki', '鈴木'], focus);
     }
 
-    await this.store.runSimulation();
+    await this.runSimulationAndSync();
     this.openOverlay(mode);
   }
 
@@ -1541,6 +1691,84 @@ export class SimulatorPage implements OnDestroy {
       return lowered.some((token) => name.includes(token));
     });
     return found?.id ?? null;
+  }
+
+  protected reloadSavedPlans(): void {
+    void this.store.loadSavedPlans();
+  }
+
+  protected startNewPlan(): void {
+    this.clearActiveSavedPlan();
+    const target = document.getElementById('simulator-input');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  protected async selectSavedPlan(planId: string): Promise<void> {
+    if (this.savedPlanDetailLoading()) return;
+    this.savedPlanActionError.set(null);
+    this.savedPlanDetailLoading.set(true);
+    try {
+      const detail = await this.store.fetchSavedPlan(planId);
+      this.applySavedPlan(detail);
+    } catch (e) {
+      this.savedPlanActionError.set(this.resolveSavedPlanError(e));
+    } finally {
+      this.savedPlanDetailLoading.set(false);
+    }
+  }
+
+  protected async deleteSavedPlan(planId: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    this.savedPlanActionError.set(null);
+    this.savedPlanActionLoading.set(true);
+    try {
+      await this.store.deleteSavedPlan(planId);
+      if (this.activeSavedPlanId() === planId) {
+        this.clearActiveSavedPlan();
+      }
+    } catch (e) {
+      this.savedPlanActionError.set(this.resolveSavedPlanError(e));
+    } finally {
+      this.savedPlanActionLoading.set(false);
+    }
+  }
+
+  protected onPlanTitleInput(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.savedPlanTitleDraft.set(target.value);
+  }
+
+  protected async savePlanTitle(): Promise<void> {
+    const planId = this.activeSavedPlanId();
+    if (!planId) return;
+    const title = this.savedPlanTitleDraft().trim();
+    if (!title || title === this.savedPlanTitle()) return;
+    this.savedPlanActionError.set(null);
+    this.savedPlanActionLoading.set(true);
+    try {
+      const detail = await this.store.updateSavedPlan(planId, { title });
+      this.updateSavedPlanMetadata(detail);
+    } catch (e) {
+      this.savedPlanActionError.set(this.resolveSavedPlanError(e));
+    } finally {
+      this.savedPlanActionLoading.set(false);
+    }
+  }
+
+  protected formatPlanDate(value?: string | null): string {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
 
   protected openOverlay(mode: 'alert' | 'manual'): void {
@@ -1631,6 +1859,7 @@ export class SimulatorPage implements OnDestroy {
 
   protected setActivePlan(id: 'A' | 'B' | 'C'): void {
     this.selectedPlanId.set(id);
+    void this.persistSelectedPlan(id);
   }
 
   protected selectPlan(id: 'A' | 'B' | 'C'): void {
@@ -1643,6 +1872,7 @@ export class SimulatorPage implements OnDestroy {
         text: `Plan ${id} を選択しました。条件を追加するか、承認してください。`,
       },
     ]);
+    void this.persistSelectedPlan(id);
   }
 
   protected approvePlan(): void {
@@ -1731,6 +1961,87 @@ export class SimulatorPage implements OnDestroy {
       ]);
     }, 450);
     this.timers.push(t);
+  }
+
+  private syncActiveSavedPlanFromResult(): void {
+    const result = this.store.simulationResult();
+    if (!result) return;
+    const match = this.store.savedPlans().find((plan) => plan.simulationId === result.id);
+    if (!match) return;
+    this.savedPlanActionError.set(null);
+    this.activeSavedPlanId.set(match.id);
+    this.savedPlanTitle.set(match.title);
+    this.savedPlanTitleDraft.set(match.title);
+    this.activeSavedPlanUpdatedAt.set(match.updatedAt ?? match.createdAt ?? null);
+    this.selectedPlanId.set(match.selectedPlan ?? null);
+  }
+
+  private applySavedPlan(detail: SavedPlanDetail): void {
+    const content = detail.content;
+    const projectId = content?.project?.id ?? null;
+    const memberIds = Array.isArray(content?.team)
+      ? content.team.map((m) => m.id).filter(Boolean)
+      : [];
+
+    this.savedPlanActionError.set(null);
+    if (projectId) {
+      this.store.setProject(projectId);
+    }
+    this.store.setSelectedMembers(memberIds);
+    this.store.teamSuggestionsResponse.set(null);
+    this.store.simulationResult.set(content);
+    this.store.resetPlanProgress();
+    this.approvedSimulationId.set(null);
+    this.selectedPlanId.set(detail.selectedPlan ?? null);
+    this.overlayOpen.set(false);
+    this.overlayLog.set([]);
+    this.overlayChat.set([]);
+    this.updateSavedPlanMetadata(detail);
+  }
+
+  private updateSavedPlanMetadata(detail: SavedPlanDetail | SavedPlanSummary): void {
+    this.activeSavedPlanId.set(detail.id);
+    this.savedPlanTitle.set(detail.title);
+    this.savedPlanTitleDraft.set(detail.title);
+    this.activeSavedPlanUpdatedAt.set(detail.updatedAt ?? detail.createdAt ?? null);
+  }
+
+  private clearActiveSavedPlan(): void {
+    this.activeSavedPlanId.set(null);
+    this.activeSavedPlanUpdatedAt.set(null);
+    this.savedPlanTitle.set('');
+    this.savedPlanTitleDraft.set('');
+    this.savedPlanActionError.set(null);
+    this.selectedPlanId.set(null);
+    this.approvedSimulationId.set(null);
+    this.overlayOpen.set(false);
+    this.overlayLog.set([]);
+    this.overlayChat.set([]);
+    this.store.simulationResult.set(null);
+    this.store.teamSuggestionsResponse.set(null);
+    this.store.resetPlanProgress();
+  }
+
+  private async persistSelectedPlan(planType: 'A' | 'B' | 'C'): Promise<void> {
+    const planId = this.activeSavedPlanId();
+    if (!planId) return;
+    try {
+      const detail = await this.store.updateSavedPlan(planId, { selectedPlan: planType });
+      this.updateSavedPlanMetadata(detail);
+    } catch (e) {
+      this.savedPlanActionError.set(this.resolveSavedPlanError(e));
+    }
+  }
+
+  private resolveSavedPlanError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (typeof error.error === 'object' && error.error && 'detail' in error.error) {
+        return String((error.error as { detail?: unknown }).detail ?? error.message);
+      }
+      return error.message;
+    }
+    if (error instanceof Error) return error.message;
+    return 'unknown error';
   }
 
   protected haisaEmotionLabel(emotion?: HaisaEmotion): string {
