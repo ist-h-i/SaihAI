@@ -25,6 +25,18 @@
     "assertText": "経営ダッシュボード"
   },
   {
+    "name": "ui_dashboard_light_mode_toggle",
+    "url": "/dashboard",
+    "assertText": "経営ダッシュボード",
+    "colorScheme": "dark",
+    "localStorage": {
+      "saihai.theme": "dark"
+    },
+    "actions": [
+      { "type": "click", "selector": "[data-testid='theme-toggle']" }
+    ]
+  },
+  {
     "name": "ui_dashboard_alert_feed",
     "url": "/dashboard",
     "assertText": "緊急アラートフィード"

@@ -17,6 +17,7 @@ import { authInterceptor } from './app/core/interceptors/auth.interceptor';
 import { httpLoggingInterceptor } from './app/core/interceptors/http-logging.interceptor';
 import { requestIdInterceptor } from './app/core/interceptors/request-id.interceptor';
 import { LoggerService } from './app/core/logger.service';
+import { ThemeService } from './app/core/theme.service';
 
 bootstrapApplication(App, {
   providers: [
@@ -39,6 +40,12 @@ bootstrapApplication(App, {
         });
       },
       deps: [AppConfigService, LoggerService],
+      multi: true,
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (theme: ThemeService) => () => theme.init(),
+      deps: [ThemeService],
       multi: true,
     },
   ],

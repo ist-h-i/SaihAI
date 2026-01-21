@@ -7,6 +7,26 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      (() => {
+        const storageKey = 'saihai.theme';
+        const mediaQuery = '(prefers-color-scheme: dark)';
+        const html = document.documentElement;
+        let stored = null;
+        try {
+          stored = localStorage.getItem(storageKey);
+        } catch {
+          stored = null;
+        }
+        const theme =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia?.(mediaQuery)?.matches
+              ? 'dark'
+              : 'light';
+        html.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <app-root></app-root>

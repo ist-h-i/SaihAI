@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: dark;
+  --app-background: radial-gradient(circle at top right, #1e2a6d 0%, #0b1022 55%), #020617;
+  --app-shell-background: radial-gradient(circle at top right, #1e293b 0%, #0b1022 55%);
+  --app-text: #f8fafc;
   --brand-primary: #4f46e5;
   --brand-accent: #22d3ee;
   --brand-ember: #fbbf24;
@@ -19,6 +22,37 @@
   --shadow-panel-hover: 0 35px 60px rgba(2, 6, 23, 0.55);
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-background: radial-gradient(
+      circle at top left,
+      #fff4b8 0%,
+      #ffd9b8 38%,
+      #c7f4ff 72%
+    ),
+    #fff7e6;
+  --app-shell-background: linear-gradient(
+    135deg,
+    rgba(255, 244, 184, 0.95) 0%,
+    rgba(255, 217, 184, 0.9) 45%,
+    rgba(199, 244, 255, 0.85) 100%
+  );
+  --app-text: #1f2937;
+  --brand-primary: #ff6b35;
+  --brand-accent: #00c2d1;
+  --brand-ember: #ffb703;
+  --brand-success: #16a34a;
+  --brand-warning: #f97316;
+  --brand-danger: #ef4444;
+  --focus-ring: rgba(0, 194, 209, 0.32);
+  --surface-panel: rgba(255, 252, 247, 0.94);
+  --surface-muted: rgba(255, 243, 226, 0.92);
+  --surface-border: rgba(255, 178, 122, 0.55);
+  --surface-overlay: rgba(255, 252, 247, 0.94);
+  --shadow-panel: 0 18px 40px rgba(255, 140, 92, 0.18);
+  --shadow-panel-hover: 0 22px 48px rgba(255, 140, 92, 0.26);
+}
+
 html,
 body {
   height: 100%;
@@ -26,14 +60,17 @@ body {
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top right, #1e2a6d 0%, #0b1022 55%), #020617;
-  color: #f8fafc;
-  @apply text-slate-100;
+  background: var(--app-background);
+  color: var(--app-text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 app-root {
   height: 100%;
+}
+
+.app-shell {
+  background: var(--app-shell-background);
 }
 
 .perspective-1000 {
@@ -197,6 +234,201 @@ app-root {
   .member-badge.badge-neutral {
     @apply border-slate-700 bg-white/5 text-slate-300;
   }
+}
+
+:root[data-theme='light'] .ui-button-ghost {
+  color: rgb(51 65 85);
+}
+
+:root[data-theme='light'] .ui-button-ghost:hover {
+  color: rgb(15 23 42);
+  background-color: rgb(15 23 42 / 0.06);
+}
+
+:root[data-theme='light'] .ui-focus-ring:focus-visible {
+  --tw-ring-offset-color: rgb(248 250 252 / 0.95);
+}
+
+:root[data-theme='light'] .bg-slate-950 {
+  background-color: rgb(255 248 236);
+}
+
+:root[data-theme='light'] .bg-slate-950\/80 {
+  background-color: rgb(255 248 236 / 0.92);
+}
+
+:root[data-theme='light'] .bg-slate-950\/70 {
+  background-color: rgb(255 248 236 / 0.88);
+}
+
+:root[data-theme='light'] .bg-slate-950\/60 {
+  background-color: rgb(255 248 236 / 0.85);
+}
+
+:root[data-theme='light'] .bg-slate-950\/50 {
+  background-color: rgb(255 248 236 / 0.82);
+}
+
+:root[data-theme='light'] .bg-slate-950\/40 {
+  background-color: rgb(255 248 236 / 0.78);
+}
+
+:root[data-theme='light'] .bg-slate-950\/30 {
+  background-color: rgb(255 248 236 / 0.72);
+}
+
+:root[data-theme='light'] .bg-slate-950\/25 {
+  background-color: rgb(255 248 236 / 0.68);
+}
+
+:root[data-theme='light'] .bg-slate-950\/20 {
+  background-color: rgb(255 248 236 / 0.64);
+}
+
+:root[data-theme='light'] .bg-slate-950\/15 {
+  background-color: rgb(255 248 236 / 0.6);
+}
+
+:root[data-theme='light'] .bg-slate-950\/10 {
+  background-color: rgb(255 248 236 / 0.56);
+}
+
+:root[data-theme='light'] .bg-slate-900 {
+  background-color: rgb(255 235 214);
+}
+
+:root[data-theme='light'] .bg-slate-900\/80 {
+  background-color: rgb(255 235 214 / 0.9);
+}
+
+:root[data-theme='light'] .bg-slate-900\/70 {
+  background-color: rgb(255 235 214 / 0.86);
+}
+
+:root[data-theme='light'] .bg-slate-900\/60 {
+  background-color: rgb(255 235 214 / 0.82);
+}
+
+:root[data-theme='light'] .bg-slate-900\/55 {
+  background-color: rgb(255 235 214 / 0.8);
+}
+
+:root[data-theme='light'] .bg-slate-900\/50 {
+  background-color: rgb(255 235 214 / 0.78);
+}
+
+:root[data-theme='light'] .bg-slate-900\/40 {
+  background-color: rgb(255 235 214 / 0.74);
+}
+
+:root[data-theme='light'] .bg-slate-900\/30 {
+  background-color: rgb(255 235 214 / 0.7);
+}
+
+:root[data-theme='light'] .bg-slate-800\/80 {
+  background-color: rgb(255 223 196 / 0.88);
+}
+
+:root[data-theme='light'] .bg-slate-800\/70 {
+  background-color: rgb(255 223 196 / 0.84);
+}
+
+:root[data-theme='light'] .border-slate-800 {
+  border-color: rgb(255 211 170);
+}
+
+:root[data-theme='light'] .border-slate-800\/80 {
+  border-color: rgb(255 211 170 / 0.9);
+}
+
+:root[data-theme='light'] .border-slate-800\/70 {
+  border-color: rgb(255 211 170 / 0.84);
+}
+
+:root[data-theme='light'] .border-slate-800\/60 {
+  border-color: rgb(255 211 170 / 0.8);
+}
+
+:root[data-theme='light'] .border-slate-700 {
+  border-color: rgb(255 191 146);
+}
+
+:root[data-theme='light'] .border-slate-700\/70 {
+  border-color: rgb(255 191 146 / 0.82);
+}
+
+:root[data-theme='light'] .border-slate-700\/60 {
+  border-color: rgb(255 191 146 / 0.78);
+}
+
+:root[data-theme='light'] .border-slate-600 {
+  border-color: rgb(248 161 107);
+}
+
+:root[data-theme='light'] .text-slate-100 {
+  color: rgb(28 25 23);
+}
+
+:root[data-theme='light'] .text-slate-200 {
+  color: rgb(41 37 36);
+}
+
+:root[data-theme='light'] .text-slate-300 {
+  color: rgb(68 64 60);
+}
+
+:root[data-theme='light'] .text-slate-400 {
+  color: rgb(87 83 78);
+}
+
+:root[data-theme='light'] .text-slate-500 {
+  color: rgb(120 113 108);
+}
+
+:root[data-theme='light'] .text-indigo-100,
+:root[data-theme='light'] .text-indigo-200,
+:root[data-theme='light'] .text-indigo-300 {
+  color: rgb(14 116 144);
+}
+
+:root[data-theme='light'] .text-emerald-200,
+:root[data-theme='light'] .text-emerald-300 {
+  color: rgb(5 150 105);
+}
+
+:root[data-theme='light'] .text-amber-200,
+:root[data-theme='light'] .text-amber-300 {
+  color: rgb(217 119 6);
+}
+
+:root[data-theme='light'] .text-rose-100,
+:root[data-theme='light'] .text-rose-200,
+:root[data-theme='light'] .text-rose-300 {
+  color: rgb(225 29 72);
+}
+
+:root[data-theme='light'] .bg-white\/5 {
+  background-color: rgb(255 156 94 / 0.08);
+}
+
+:root[data-theme='light'] .bg-white\/10 {
+  background-color: rgb(255 156 94 / 0.12);
+}
+
+:root[data-theme='light'] .bg-white\/15 {
+  background-color: rgb(255 156 94 / 0.16);
+}
+
+:root[data-theme='light'] .hover\\:bg-white\/5:hover {
+  background-color: rgb(255 156 94 / 0.08);
+}
+
+:root[data-theme='light'] .hover\\:bg-white\/10:hover {
+  background-color: rgb(255 156 94 / 0.12);
+}
+
+:root[data-theme='light'] .placeholder\\:text-slate-500::placeholder {
+  color: rgb(120 113 108);
 }
 
 .debate-stream-shell {
