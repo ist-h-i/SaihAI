@@ -60,52 +60,150 @@ const PLAN_STREAM_LABELS: Record<PlanStreamTone, string> = {
   imports: [CommonModule, DecimalPipe, NeuralOrbComponent, HaisaSpeechComponent, EmptyStateComponent],
   template: `
     <ng-template #progressStreamTemplate>
-      <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-sm font-semibold">AI進捗ストリーム</span>
-          <span class="text-xs text-slate-300">{{ store.planProgress()?.progress ?? 0 }}%</span>
-        </div>
-        <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
-          <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
-          <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
-        </div>
-        <div class="mt-2 h-2 rounded bg-slate-800 overflow-hidden">
-          <div class="h-2 bg-indigo-500" [style.width.%]="store.planProgress()?.progress ?? 0">
+      <div class="debate-stream-shell p-4">
+        <div class="flex flex-col gap-4">
+          <div
+            class="flex flex-col gap-3 border-b border-slate-800/80 pb-3 lg:flex-row lg:items-center lg:justify-between"
+          >
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                @if (store.streaming()) {
+                  <span class="debate-stream-live">LIVE</span>
+                } @else {
+                  <span class="debate-stream-live debate-stream-live--idle">IDLE</span>
+                }
+                <span class="text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">
+                  Streaming
+                </span>
+                <span class="text-xs text-slate-500">
+                  messages {{ store.planDiscussionLog().length }}
+                </span>
+              </div>
+              <div class="mt-2 text-lg sm:text-xl font-extrabold tracking-tight text-slate-100">
+                Debate Stream
+              </div>
+              <div class="text-xs text-slate-400">
+                Council conversation feed updated in real time.
+              </div>
+            </div>
+            <div
+              class="flex flex-col gap-2 rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-2 min-w-[220px]"
+            >
+              <div class="flex items-center justify-between gap-2 text-xs text-slate-400">
+                <span class="uppercase tracking-[0.24em] font-semibold">Plan Signal</span>
+                <span class="text-slate-200 font-semibold">
+                  {{ store.planProgress()?.progress ?? 0 }}%
+                </span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center justify-between gap-2">
+                <span>{{ store.planProgress()?.phase ?? 'idle' }}</span>
+                <span class="text-slate-200">{{ store.planProgress()?.progress ?? 0 }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div class="h-2 bg-indigo-500" [style.width.%]="store.planProgress()?.progress ?? 0">
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="mt-3 grid gap-3 md:grid-cols-2">
-          <div>
-            <div class="ui-kicker">Progress Log</div>
-            @if (store.planProgressLog().length) {
-              <ul class="mt-2 space-y-1 text-xs text-slate-300 flex flex-col leading-snug">
-                @for (entry of store.planProgressLog(); track $index) {
-                  <li>{{ entry.message }}</li>
-                }
-              </ul>
-            } @else {
-              <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
-            }
+          <div
+            class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800/60 bg-slate-950/50 px-3 py-2"
+          >
+            <span class="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              Channels
+            </span>
+            <span class="debate-stream-chip" [style.color]="planStreamLabelColors['pm']">
+              {{ planStreamLabels['pm'] }}
+            </span>
+            <span class="debate-stream-chip" [style.color]="planStreamLabelColors['hr']">
+              {{ planStreamLabels['hr'] }}
+            </span>
+            <span class="debate-stream-chip" [style.color]="planStreamLabelColors['risk']">
+              {{ planStreamLabels['risk'] }}
+            </span>
+            <span class="debate-stream-chip" [style.color]="planStreamLabelColors['gunshi']">
+              {{ planStreamLabels['gunshi'] }}
+            </span>
           </div>
-          <div>
-            <div class="ui-kicker">Debate Stream</div>
-            @if (store.planDiscussionLog().length) {
-              <ul class="mt-2 space-y-2 text-xs flex flex-col leading-snug">
-                @for (entry of store.planDiscussionLog(); track $index) {
-                  <li class="flex items-start gap-2">
-                    <span
-                      class="shrink-0 w-[7ch] px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-left"
-                      [style.color]="planStreamLabelColors[entry.tone]"
-                    >
-                      {{ planStreamLabels[entry.tone] }}
+
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(240px,0.45fr)]">
+            <div class="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="ui-kicker text-slate-400">Debate Flow</div>
+                <div class="flex items-center gap-2">
+                  @if (store.streaming()) {
+                    <span class="text-[10px] uppercase tracking-[0.32em] text-emerald-300">
+                      live
                     </span>
-                    <span class="text-slate-200">{{ entry.message }}</span>
-                  </li>
+                  } @else {
+                    <span class="text-[10px] uppercase tracking-[0.32em] text-slate-500">
+                      paused
+                    </span>
+                  }
+                  <span class="text-[11px] text-slate-400">
+                    lines {{ store.planDiscussionLog().length }}
+                  </span>
+                </div>
+              </div>
+              <div class="relative mt-3 max-h-[360px] overflow-auto pr-2">
+                <div
+                  class="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-400/60 via-indigo-400/30 to-transparent"
+                ></div>
+                @if (store.planDiscussionLog().length) {
+                  <ul
+                    class="relative space-y-3 text-xs text-slate-200"
+                    role="log"
+                    aria-live="polite"
+                    aria-relevant="additions"
+                  >
+                    @for (entry of store.planDiscussionLog(); track $index) {
+                      <li class="relative pl-8">
+                        <span
+                          class="absolute left-[6px] top-2.5 h-2.5 w-2.5 rounded-full bg-slate-950 border border-slate-600"
+                        ></span>
+                        <div
+                          class="grid gap-1 rounded-lg border border-slate-800/70 bg-slate-950/80 px-3 py-2"
+                        >
+                          <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                            <span
+                              class="debate-stream-chip"
+                              [style.color]="planStreamLabelColors[entry.tone]"
+                            >
+                              {{ planStreamLabels[entry.tone] }}
+                            </span>
+                            <span class="uppercase tracking-[0.3em]">stream line</span>
+                            <span class="text-slate-600">#{{ $index + 1 }}</span>
+                          </div>
+                          <span class="text-slate-100 leading-snug">{{ entry.message }}</span>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <div class="relative pl-8 text-xs text-slate-500">Waiting for debate...</div>
                 }
-              </ul>
-            } @else {
-              <div class="mt-2 text-xs text-slate-500">Waiting for debate...</div>
-            }
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="ui-kicker text-slate-400">Progress Log</div>
+                <span class="text-[11px] text-slate-500">
+                  lines {{ store.planProgressLog().length }}
+                </span>
+              </div>
+              @if (store.planProgressLog().length) {
+                <ul class="mt-2 space-y-2 text-xs text-slate-300 leading-snug max-h-[260px] overflow-auto pr-1">
+                  @for (entry of store.planProgressLog(); track $index) {
+                    <li class="rounded-md border border-slate-800/70 bg-slate-950/70 px-2 py-1">
+                      {{ entry.message }}
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <div class="mt-2 text-xs text-slate-500">Waiting for updates...</div>
+              }
+            </div>
           </div>
         </div>
       </div>
