@@ -28,7 +28,6 @@ def main() -> None:
     source_path = Path(args.source).resolve() if args.source else None
     with db_connection() as conn:
         result = ingest_weekly_reports(conn, source_path=source_path)
-
     payload = {
         "runId": result.run_id,
         "sourceType": result.source_type,
@@ -39,6 +38,10 @@ def main() -> None:
         "error": result.error,
         "metadata": result.metadata,
     }
+    raw = {}
+    for key, value in result.__dict__.items():
+        raw[key] = value.isoformat() if hasattr(value, "isoformat") else value
+    payload["raw"] = raw
     print(json.dumps(payload, ensure_ascii=False))
 
 
