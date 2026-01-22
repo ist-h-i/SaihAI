@@ -8,8 +8,24 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.db import db_connection
+from app.domain.demo import (
+    approve_demo,
+    cancel_demo,
+    record_demo_intervention,
+    record_demo_plan_selection,
+    reject_demo,
+)
 from app.domain.hitl import apply_steer, approve_request, reject_request
 from app.integrations.slack import (
+    DEMO_ACTION_APPROVE,
+    DEMO_ACTION_CANCEL,
+    DEMO_ACTION_INTERVENE,
+    DEMO_ACTION_PLAN,
+    DEMO_ACTION_REJECT,
+    DEMO_MODAL_ACTION_ID,
+    DEMO_MODAL_BLOCK_ID,
+    DEMO_MODAL_CALLBACK_ID,
+    open_demo_intervention_modal,
     parse_action_value,
     parse_interaction_payload,
     post_thread_message,
@@ -30,6 +46,28 @@ async def slack_interactions(request: Request, background_tasks: BackgroundTasks
     if not payload:
         return JSONResponse({"ok": True})
 
+    payload_type = payload.get("type")
+    if payload_type == "view_submission":
+        view = payload.get("view") or {}
+        if view.get("callback_id") == DEMO_MODAL_CALLBACK_ID:
+            alert_id = (view.get("private_metadata") or "").strip()
+            state_values = view.get("state", {}).get("values", {})
+            intervention_value = ""
+            if isinstance(state_values, dict):
+                block = state_values.get(DEMO_MODAL_BLOCK_ID) or {}
+                if isinstance(block, dict):
+                    intervention_value = (block.get(DEMO_MODAL_ACTION_ID, {}) or {}).get("value", "")
+            if alert_id and intervention_value:
+                background_tasks.add_task(
+                    record_demo_intervention,
+                    alert_id=alert_id,
+                    actor=payload.get("user", {}).get("id"),
+                    intervention=intervention_value,
+                    idempotency_key=_demo_idempotency_key(payload, None, alert_id, "view_submission"),
+                )
+            return JSONResponse({"response_action": "clear"})
+        return JSONResponse({"ok": True})
+
     actions = payload.get("actions") or []
     if not actions:
         return JSONResponse({"ok": True})
@@ -38,6 +76,62 @@ async def slack_interactions(request: Request, background_tasks: BackgroundTasks
     action_id = action.get("action_id")
     value = action.get("value") or ""
     metadata = parse_action_value(value)
+    alert_id = metadata.get("alert_id")
+
+    if action_id in {
+        DEMO_ACTION_PLAN,
+        DEMO_ACTION_INTERVENE,
+        DEMO_ACTION_APPROVE,
+        DEMO_ACTION_REJECT,
+        DEMO_ACTION_CANCEL,
+    }:
+        if action_id == DEMO_ACTION_INTERVENE:
+            trigger_id = payload.get("trigger_id")
+            if alert_id and trigger_id:
+                open_demo_intervention_modal(str(trigger_id), alert_id)
+            return JSONResponse({"ok": True})
+
+        idempotency_key = _demo_idempotency_key(payload, action, alert_id, action_id)
+        actor = payload.get("user", {}).get("id")
+        if action_id == DEMO_ACTION_PLAN:
+            plan = metadata.get("plan")
+            if alert_id and plan:
+                background_tasks.add_task(
+                    record_demo_plan_selection,
+                    alert_id=alert_id,
+                    actor=actor,
+                    plan=plan,
+                    idempotency_key=idempotency_key,
+                )
+            return JSONResponse({"ok": True})
+        if action_id == DEMO_ACTION_APPROVE:
+            if alert_id:
+                background_tasks.add_task(
+                    approve_demo,
+                    alert_id=alert_id,
+                    actor=actor,
+                    idempotency_key=idempotency_key,
+                )
+            return JSONResponse({"ok": True})
+        if action_id == DEMO_ACTION_REJECT:
+            if alert_id:
+                background_tasks.add_task(
+                    reject_demo,
+                    alert_id=alert_id,
+                    actor=actor,
+                    idempotency_key=idempotency_key,
+                )
+            return JSONResponse({"ok": True})
+        if action_id == DEMO_ACTION_CANCEL:
+            if alert_id:
+                background_tasks.add_task(
+                    cancel_demo,
+                    alert_id=alert_id,
+                    actor=actor,
+                    idempotency_key=idempotency_key,
+                )
+            return JSONResponse({"ok": True})
+
     approval_request_id = metadata.get("approval_request_id")
     action_ref = metadata.get("action_id")
     actor = payload.get("user", {}).get("id")
@@ -230,3 +324,22 @@ def _interaction_idempotency_key(
     message_ts = payload.get("message", {}).get("ts")
     fallback = action_ts or message_ts or "unknown"
     return f"slack-interaction:{fallback}:{approval_request_id}:{action_id}"
+
+
+def _demo_idempotency_key(
+    payload: dict,
+    action: dict | None,
+    alert_id: str | None,
+    action_id: str | None,
+) -> str | None:
+    if not alert_id or not action_id:
+        return None
+    action_ts = None
+    if action:
+        action_ts = action.get("action_ts")
+    action_ts = action_ts or payload.get("action_ts")
+    message_ts = payload.get("message", {}).get("ts")
+    trigger_id = payload.get("trigger_id")
+    view_id = payload.get("view", {}).get("id")
+    fallback = action_ts or message_ts or view_id or trigger_id or "unknown"
+    return f"demo:{alert_id}:{action_id}:{fallback}"

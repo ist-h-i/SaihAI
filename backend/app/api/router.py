@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.health import router as health_router
 from app.api.bedrock import router as bedrock_router
+from app.api.demo import router as demo_router
 from app.api.hitl import router as hitl_router
 from app.api.integrations import router as integrations_router
 from app.api.logs import router as logs_router
@@ -22,3 +23,4 @@ api_router.include_router(hitl_router)
 api_router.include_router(integrations_router)
 api_router.include_router(bedrock_router)
 api_router.include_router(watchdog_router)
+api_router.include_router(demo_router)

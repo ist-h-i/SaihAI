@@ -25,6 +25,11 @@
     "assertText": "経営ダッシュボード"
   },
   {
+    "name": "ui_sidebar_demo_button",
+    "url": "/dashboard",
+    "assertText": "デモ"
+  },
+  {
     "name": "ui_dashboard_alert_feed",
     "url": "/dashboard",
     "assertText": "緊急アラートフィード"

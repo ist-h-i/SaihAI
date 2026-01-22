@@ -544,7 +544,7 @@ export class DashboardPage implements OnDestroy {
   protected proposalSummary(p: DashboardProposal): string {
     const { summary } = this.splitProposal(p.description);
     const impact = p.predictedFutureImpact ? `影響予測: ${p.predictedFutureImpact}` : '';
-    const nextAction = '次: 介入プランを確認';
+    const nextAction = '次: 介入へ';
     return `理由: ${summary}\n${impact ? `${impact}\n` : ''}${nextAction}`;
   }
 

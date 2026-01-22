@@ -1,10 +1,13 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Title } from '@angular/platform-browser';
-import { filter } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
 
 import { ToastCenterComponent } from './core/toast-center.component';
+import { ApiClient } from './core/api-client';
+import { ToastService } from './core/toast.service';
 
 @Component({
   selector: 'app-root',
@@ -184,6 +187,37 @@ import { ToastCenterComponent } from './core/toast-center.component';
                 <span class="text-sm">人材データベース</span>
               }
             </a>
+            <button
+              type="button"
+              class="group flex items-center gap-3 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 py-2 transition"
+              [class.px-3]="desktopNavOpen()"
+              [class.px-2]="!desktopNavOpen()"
+              [class.justify-center]="!desktopNavOpen()"
+              [class.opacity-60]="demoBusy()"
+              [class.cursor-not-allowed]="demoBusy()"
+              [disabled]="demoBusy()"
+              (click)="startDemo()"
+            >
+              <span
+                class="h-8 w-8 rounded-lg border border-slate-800 bg-white/5 grid place-items-center text-slate-200 group-hover:bg-white/10"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M6 4.5l9 5.5-9 5.5z" />
+                  <path d="M6 4.5v11" />
+                </svg>
+              </span>
+              @if (desktopNavOpen()) {
+                <span class="text-sm">デモ</span>
+              }
+            </button>
           </div>
 
           @if (desktopNavOpen()) {
@@ -294,6 +328,16 @@ import { ToastCenterComponent } from './core/toast-center.component';
                 >
                   <span class="text-sm">人材データベース</span>
                 </a>
+                <button
+                  type="button"
+                  class="group flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-slate-300 hover:bg-white/5 transition"
+                  [class.opacity-60]="demoBusy()"
+                  [class.cursor-not-allowed]="demoBusy()"
+                  [disabled]="demoBusy()"
+                  (click)="startDemo(); closeMobileNav()"
+                >
+                  <span class="text-sm">デモ</span>
+                </button>
               </div>
 
               <div class="mt-auto rounded-lg border border-slate-800 bg-white/5 p-3">
@@ -317,10 +361,13 @@ export class App {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly titleService = inject(Title);
+  private readonly api = inject(ApiClient);
+  private readonly toast = inject(ToastService);
   private readonly activePath = signal('/dashboard');
   protected readonly isLoginRoute = computed(() => this.activePath() === '/login');
   protected readonly mobileNavOpen = signal(false);
   protected readonly desktopNavOpen = signal(true);
+  protected readonly demoBusy = signal(false);
 
   protected readonly pageTitle = computed(() => {
     switch (this.activePath()) {
@@ -369,5 +416,31 @@ export class App {
 
   protected closeMobileNav(): void {
     this.mobileNavOpen.set(false);
+  }
+
+  protected async startDemo(): Promise<void> {
+    if (this.demoBusy()) return;
+    this.demoBusy.set(true);
+    try {
+      const result = await firstValueFrom(this.api.startDemo());
+      const alertId = result.alertId ? ` (alertId: ${result.alertId})` : '';
+      this.toast.show({
+        tone: 'success',
+        title: 'デモを開始しました',
+        message: `Slack にデモアラートを送信しました${alertId}`,
+      });
+    } catch (error) {
+      let message = 'Slack 連携の設定を確認してください。';
+      if (error instanceof HttpErrorResponse) {
+        if (typeof error.error?.detail === 'string') {
+          message = error.error.detail;
+        } else if (error.message) {
+          message = error.message;
+        }
+      }
+      this.toast.show({ tone: 'error', title: 'デモ開始に失敗しました', message });
+    } finally {
+      this.demoBusy.set(false);
+    }
   }
 }
